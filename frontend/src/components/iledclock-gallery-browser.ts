@@ -544,17 +544,17 @@ export class IledclockGalleryBrowser extends LitElement {
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px;
     }
     @container (min-width: 480px) {
-      .grid { grid-template-columns: repeat(3, 1fr); }
+      .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
     @container (min-width: 700px) {
-      .grid { grid-template-columns: repeat(4, 1fr); }
+      .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     }
     @container (min-width: 960px) {
-      .grid { grid-template-columns: repeat(5, 1fr); }
+      .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     }
     .tile {
       display: flex;
@@ -570,6 +570,8 @@ export class IledclockGalleryBrowser extends LitElement {
     }
     .plate {
       position: relative;
+      width: 100%;
+      min-height: 0;
       aspect-ratio: 1 / 1;
       border-radius: var(--lu-radius-tile);
       overflow: hidden;
@@ -577,6 +579,10 @@ export class IledclockGalleryBrowser extends LitElement {
       border: 1px solid var(--lu-edge);
     }
     .art {
+      /* Absolutely placed so the image's own size can never stretch the square plate (a 32x8
+         strip made its tile taller than its neighbours). */
+      position: absolute;
+      inset: 0;
       display: block;
       width: 100%;
       height: 100%;

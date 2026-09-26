@@ -94,10 +94,22 @@ export class IledclockSegmentedPicker extends LitElement {
       box-sizing: border-box;
       transition: background-color 0.15s ease, color 0.15s ease, transform 0.08s ease;
     }
+    /* content-fit pills size to their labels: no size containment (a size container has no
+       intrinsic width, so inside a flex row the whole picker collapsed to 0 px and its pills
+       rendered empty), and they wrap onto a second row instead of truncating to "A...". */
+    :host([content-fit]) {
+      container-type: normal;
+    }
+    :host([content-fit]) .segments {
+      flex-wrap: wrap;
+    }
     :host([content-fit]) .segment {
-      flex: 1 1 auto;
+      flex: 1 0 auto;
       min-width: 0;
       padding: 0 14px;
+    }
+    :host([content-fit]) .segment-label {
+      overflow: visible;
     }
     @container (max-width: 300px) {
       :host([content-fit]) .segment-label {

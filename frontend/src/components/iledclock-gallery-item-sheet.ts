@@ -19,6 +19,7 @@ import {
   galleryImportRequest,
   galleryItemUrl,
   galleryLayoutLabel,
+  describeAutoFit,
   galleryPreviewRequest,
   normalizeAdjustOptions,
   type GalleryAdjustOptions,
@@ -248,7 +249,9 @@ export class IledclockGalleryItemSheet extends LitElement {
             .value=${this._layout}
             @option-selected=${(e: CustomEvent<{ value: string }>) => this._selectLayout(e.detail.value as GalleryLayout)}
           ></iledclock-segmented-picker>
-          ${this._layout === "auto" && this._preview ? html`<p class="hint">Auto chose ${galleryLayoutLabel(this._preview.layout).toLowerCase()}.</p>` : nothing}
+          ${this._layout === "auto" && this._preview && describeAutoFit(this._preview.report.notes)
+            ? html`<p class="hint">${describeAutoFit(this._preview.report.notes)}</p>`
+            : nothing}
           <button type="button" class="disclosure" @click=${() => (this._adjustOpen = !this._adjustOpen)}>
             ${mdiIcon(this._adjustOpen ? "chevronUp" : "chevronDown")} Adjust
           </button>

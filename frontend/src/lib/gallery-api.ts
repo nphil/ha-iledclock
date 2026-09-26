@@ -334,3 +334,17 @@ export class SignedMediaCache {
     this._entries.clear();
   }
 }
+
+/** Plain-language description of what "Auto" actually did, from the server's adaptation notes
+ * (`report.layout` is just "auto"; the real decision is in a note like
+ * "auto layout chose majority-pool-x4"). Returns null when the report has no such note. */
+export function describeAutoFit(notes: readonly string[]): string | null {
+  const note = notes.find((n) => n.startsWith("auto layout chose "));
+  if (!note) return null;
+  const strategy = note.slice("auto layout chose ".length);
+  const pool = /^majority-pool-x(\d+)$/.exec(strategy);
+  if (pool) return `Auto: scaled down ${pool[1]}x, keeping every pixel edge sharp.`;
+  if (strategy.startsWith("center-like")) return "Auto: shown pixel for pixel, centred on the clock.";
+  if (strategy.startsWith("fit-like")) return "Auto: fitted as a photo, colours boosted for the LEDs.";
+  return `Auto: ${strategy}.`;
+}

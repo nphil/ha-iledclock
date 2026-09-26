@@ -9,6 +9,7 @@ import {
   galleryLayoutLabel,
   galleryPreviewRequest,
   gallerySearchRequest,
+  describeAutoFit,
   gallerySourcesRequest,
   importFileExtension,
   importFileRequest,
@@ -190,4 +191,11 @@ test("no request builder sends a top-level `id` (HA reserves it for the WebSocke
     galleryImportRequest("e", "lametric", "42", undefined, "n"),
   ];
   for (const r of requests) assert.equal("id" in r, false, JSON.stringify(r));
+});
+
+test("describeAutoFit explains the server's auto decision in plain words", () => {
+  assert.equal(describeAutoFit(["trimmed shared border to (0, 1, 32, 8)", "auto layout chose center-like (small)"]), "Auto: shown pixel for pixel, centred on the clock.");
+  assert.equal(describeAutoFit(["auto layout chose majority-pool-x4"]), "Auto: scaled down 4x, keeping every pixel edge sharp.");
+  assert.equal(describeAutoFit(["auto layout chose fit-like (photo)"]), "Auto: fitted as a photo, colours boosted for the LEDs.");
+  assert.equal(describeAutoFit(["no auto here"]), null);
 });
