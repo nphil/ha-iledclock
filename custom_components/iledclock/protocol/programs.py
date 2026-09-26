@@ -953,13 +953,35 @@ def plan_upload_by_index(program: Program, index: int, package_size: int = 1024)
 
 
 def get_ota_data_result(firmware: bytes, package_size: int = 1024) -> UploadPlan:
-    """``getOtaDataResult``: OTA firmware upload start frame (tag ``fe``, first 64 bytes of
-    `firmware` inline) plus chunked body (tag ``ff``)."""
+    """``getOtaDataResult``: OTA firmware upload start frame (``getStartDataForOtaUpgrade``,
+    tag ``fe``, first 64 bytes of `firmware` inline, uncompressed) plus the chunked *compressed*
+    body (tag ``ff``) -- like every other upload pipeline here, ``getDataPacket`` chunks
+    ``LzssCompress.getLzssCompressData(firmware)``, never the raw bytes."""
     start_body = bytearray()
     start_body += b"\xfe"
     start_body += crc_code(firmware)
     start_body += u32be(len(firmware))
     start_body += hexutil.u8(64)
     start_body += firmware[:64]
-    chunks = _chunk(firmware, 0xFF, package_size)
+    chunks = _chunk(compress(firmware), 0xFF, package_size)
     return UploadPlan(start=bytes(start_body), chunks=chunks)
+
+
+def _start_ota_simple(firmware: bytes) -> bytes:
+    """``getStartOTAUpdate(list)``: tag ``fe`` + crc + length, with NO inline first-64-bytes
+    prefix at all -- a simpler sibling of `get_ota_data_result`'s own start frame
+    (``getStartDataForOtaUpgrade``, which does inline the first 64 bytes)."""
+    header = bytearray()
+    header += b"\xfe"
+    header += crc_code(firmware)
+    header += u32be(len(firmware))
+    return bytes(header)
+
+
+def plan_ota_simple(firmware: bytes, package_size: int = 1024) -> UploadPlan:
+    """``getStartOTAUpdate``+``getOTAUpdate``: the simpler OTA overload pair -- start frame
+    carries no inline first-64-bytes prefix (see `_start_ota_simple`); chunk opcode ``ff``
+    same as `get_ota_data_result`, over the same LZSS-compressed firmware."""
+    start = _start_ota_simple(firmware)
+    chunks = _chunk(compress(firmware), 0xFF, package_size)
+    return UploadPlan(start=start, chunks=chunks)

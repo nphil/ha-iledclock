@@ -82,8 +82,7 @@ class IledClockConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         if user_input is not None:
-            title = f"{self.context['title_placeholders']['name']} ({self.unique_id})"
-            return self.async_create_entry(title=title, data={CONF_ADDRESS: self.unique_id})
+            return self.async_create_entry(title=BLE_LOCAL_NAME, data={CONF_ADDRESS: self.unique_id})
         return self.async_show_form(step_id="bluetooth_confirm")
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -92,7 +91,7 @@ class IledClockConfigFlow(ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(address)
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
-                title=self._discovered.get(address, f"{BLE_LOCAL_NAME} ({address})"),
+                title=BLE_LOCAL_NAME,
                 data={CONF_ADDRESS: address},
             )
 

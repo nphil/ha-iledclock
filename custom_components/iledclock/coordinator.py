@@ -366,7 +366,10 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             changes["reminders"] = reminders
 
         temp_humidity = await self._async_try(commands.temperature_humidity(1), "temperature/humidity")
-        if isinstance(temp_humidity, TempHumidity):
+        # Units without the sensor still answer `19 01`, with all zeros (observed on the live
+        # clock, docs/HARDWARE.md section 8). 0 degC at exactly 0 %RH is not a real indoor reading,
+        # so an all-zero reply means "no sensor" and no temperature/humidity entities are made.
+        if isinstance(temp_humidity, TempHumidity) and (temp_humidity.temperature or temp_humidity.humidity):
             changes["temperature"] = temp_humidity.temperature
             changes["humidity"] = temp_humidity.humidity
 

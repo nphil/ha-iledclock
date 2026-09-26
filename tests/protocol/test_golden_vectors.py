@@ -32,7 +32,12 @@ comparable at all, each verified by inspection (not assumed) -- see ``_UNMAPPED_
    A: bundled open-licensed fonts only -- see ``programs.py``'s docstring).
 5. **Non-deterministic harness state**: `getSynchronizeTime`'s vector bakes in the harness's
    own wall-clock run time at capture time.
-6. **Out of scope**: OTA firmware upload/update is not a feature this integration exposes.
+
+That is the complete list -- OTA firmware upload is NOT excluded: it is not exposed as an HA
+service/entity (an integration-layer decision, not a protocol-layer one), but its wire format
+is fully reproducible and is matched byte-for-byte below like everything else. Chasing down
+its vectors also caught a real bug: `get_ota_data_result` was chunking the raw firmware bytes
+instead of the LZSS-compressed data (see its own docstring / the OTA handlers' comment below).
 """
 
 from __future__ import annotations
@@ -54,10 +59,13 @@ from protocol.programs import (
     _start_frame,
     _start_frame_index_only,
     _start_frame_simple,
+    _start_ota_simple,
     encode_animation_from_encrypted_file,
     encode_animation_from_resource,
     encode_content,
     encode_gif_file_animation,
+    get_ota_data_result,
+    plan_ota_simple,
     plan_upload_by_index,
     plan_upload_simple,
 )
@@ -594,6 +602,43 @@ def _h_start_data_for_program_index_only(v: Vector) -> tuple[bytes, bytes]:
     return got, gh.unframe(v["out"])
 
 
+# --- OTA firmware upload (not exposed as an HA feature/service, but a real, reproducible part
+# of the vendor wire protocol -- ported for Contract A completeness like every other overload
+# above). Uncovering these also caught a real bug: `get_ota_data_result` was chunking the raw
+# firmware bytes instead of `LzssCompress.getLzssCompressData(firmware)`, undetected because
+# nothing had exercised it against a real vector before. ------------------------------------
+
+
+def _h_ota_data_result(v: Vector) -> tuple[dict, dict]:
+    a = v["args"]
+    firmware = gh.java_random_bytes(a["seed"], a["length"])
+    plan = get_ota_data_result(firmware, a["size"]) if "size" in a else get_ota_data_result(firmware)
+    from protocol import framing
+
+    got = {
+        "beginDataForOTAUpgrade": framing.encode_frame(plan.start).hex(),
+        "dataForForOTAUpgrade": [framing.encode_frame(c).hex() for c in plan.chunks],
+    }
+    return got, v["out"]
+
+
+def _h_start_ota_update(v: Vector) -> tuple[bytes, bytes]:
+    from protocol import framing
+
+    a = v["args"]
+    firmware = gh.java_random_bytes(a["seed"], a["dataLength"])
+    got = _start_ota_simple(firmware)
+    return framing.encode_frame(got), bytes.fromhex(v["out"])
+
+
+def _h_ota_update(v: Vector) -> tuple[list[bytes], list[bytes]]:
+    a = v["args"]
+    firmware = gh.java_random_bytes(a["seed"], a["dataLength"])
+    plan = plan_ota_simple(firmware)
+    exp_chunks = [gh.unframe(h) for h in v["out"]]
+    return plan.chunks, exp_chunks
+
+
 def _h_start_data_for_program_direct(needs_z: bool, needs_remind: bool) -> Handler:
     def handler(v: Vector) -> tuple[bytes, bytes]:
         a = v["args"]
@@ -678,19 +723,19 @@ _HANDLERS: dict[str, Handler] = {
     "getStartDataForProgram(list,i,i2,i3)": _h_start_data_for_program_simple,
     "getStartDataForProgram(list,i)": _h_start_data_for_program_index_only,
     "recoverData": _h_recover_data,
+    "getOtaDataResult(bytes)": _h_ota_data_result,
+    "getOtaDataResult(bytes,size)": _h_ota_data_result,
+    "getOTAUpdate": _h_ota_update,
+    "getStartOTAUpdate": _h_start_ota_update,
 }
 
 # fn labels this project deliberately does not implement, with the reason -- see module
-# docstring categories 2/3. Any vector under one of these labels is an expected skip;
-# anything appearing here that later gains a handler above should be removed from this set,
-# not left stale.
+# docstring for the full explanation of each category. Any vector under one of these labels is
+# an expected skip; anything appearing here that later gains a handler above should be removed
+# from this set, not left stale.
 _UNMAPPED_FUNCTIONS: dict[str, str] = {
     "getDataWithTextContentProgramContent": "needs the vendor's proprietary font binaries -- deliberately never obtained/shipped, see programs.py docstring",
     "getDataWithTextCustomColorProgramContent": "needs the vendor's proprietary font binaries -- deliberately never obtained/shipped, see programs.py docstring",
-    "getOtaDataResult(bytes)": "OTA firmware upload is out of this integration's scope (device firmware updates are not exposed as a feature)",
-    "getOtaDataResult(bytes,size)": "OTA firmware upload is out of this integration's scope (device firmware updates are not exposed as a feature)",
-    "getOTAUpdate": "OTA firmware upload is out of this integration's scope (device firmware updates are not exposed as a feature)",
-    "getStartOTAUpdate": "OTA firmware upload is out of this integration's scope (device firmware updates are not exposed as a feature)",
 }
 
 

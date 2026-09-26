@@ -18,28 +18,26 @@ from typing import Union
 
 from .models import AlarmItem, NightMode, TimerSwitchItem, weekday_flags
 
-#: Opcodes whose second byte is either absent, or is request-specific data (a random salt, a
-#: CRC byte, an item count, a calendar field, ...) rather than a value the device echoes back
-#: unchanged — so :func:`response_key` must not use it to correlate request/reply, and instead
-#: keys the whole opcode as one bucket. Verified against ``DeviceManager.checkILedClockMessages``:
-#: none of these opcodes' reply branches are guarded by a second-byte switch that matches a
-#: request-side "sub-op" value.
-_NO_SUBOP_OPCODES = frozenset(
+#: Opcodes whose second byte is a genuine sub-operation that the device echoes back unchanged in
+#: its reply (``0f 01`` -> ``0f 01 ...``), so request and reply share it and it must be part of the
+#: correlation key. Every OTHER opcode keys on the opcode alone: its second byte is either absent
+#: in the request or is data (a level, salt, count, calendar field) - and in replies it is often a
+#: status value. Listing the sub-op opcodes (rather than the exceptions) keeps an unlisted opcode
+#: from silently never matching: ``1f``'s reply byte[1] is the power flag and ``fd``'s is the OTA
+#: flag, and keying on those made every device-info/firmware request time out on real hardware.
+#: Verified against ``DeviceManager.checkILedClockMessages`` and the live captures in
+#: ``tests/live_replies_2026-09-25.json``.
+_SUBOP_OPCODES = frozenset(
     {
-        0x02,  # program upload start ack (byte[1] of the request is CRC data, not an op)
-        0x03,  # program chunk ack (dispatched separately as ProgramChunkAck, never via this key)
-        0x04,  # brightness (byte[1] is the level; the device echoes it back, not a selector)
-        0x05,  # power (byte[1] is the on/off value, echoed back)
-        0x09,  # sync_time (byte[1] is the year offset; ack's byte[1] is a 0/1 result)
-        0x0A,  # timer_switch_set (byte[1] is the item count; ack's byte[1] is a 0/1 result)
-        0x0B,  # timer_switch_get (single-byte request; reply's byte[1] is the item count)
-        0x0C,  # mirror/rotate (byte[1] is the value, echoed back)
-        0x0D,  # check_password (byte[1] is a random salt; ack's byte[1] is a 0/1 result)
-        0x0E,  # set_password (same shape as check_password)
-        0x1E,  # device_setting/volume (byte[1] is a kind/sub-selector, but not echoed by any
-        #        observed reply branch; grouped here rather than guessed at)
-        0xFE,  # OTA upload start ack
-        0xFF,  # OTA chunk ack
+        0x0F,  # countdown: 01 status / 02 reset / 03 run
+        0x10,  # stopwatch: 01 status / 02 reset / 03 run
+        0x11,  # scoreboard: 01 status / 02 score / 03 time / 04 run
+        0x13,  # colour: 01 rgb / 02 speed / 03 mode
+        0x14,  # night mode: 01 set / 02 get
+        0x15,  # pomodoro: 01 set / 02 get
+        0x16,  # alarms: 01 set / 02 get
+        0x19,  # temperature/humidity kind
+        0x1A,  # reminders: 01 list / 02 detail / 03 delete
     }
 )
 
@@ -48,15 +46,15 @@ def response_key(payload: bytes) -> tuple[int, int | None]:
     """``(opcode, sub)`` for correlating a request payload with its reply payload. ``sub`` is
     ``payload[1]`` for opcodes that carry a genuine, request/reply-shared sub-operation byte
     (0x0f/0x10/0x11/0x13/0x14/0x15/0x16/0x19/0x1a/0xfd), else always ``None`` — see
-    :data:`_NO_SUBOP_OPCODES`. Works identically on an unframed request payload (as built by
+    :data:`_SUBOP_OPCODES`. Works identically on an unframed request payload (as built by
     ``commands.py``) and a decoded reply payload, which is the whole point.
     """
     if not payload:
         raise ValueError("empty payload has no response key")
     opcode = payload[0]
-    if opcode in _NO_SUBOP_OPCODES or len(payload) < 2:
-        return (opcode, None)
-    return (opcode, payload[1])
+    if opcode in _SUBOP_OPCODES and len(payload) >= 2:
+        return (opcode, payload[1])
+    return (opcode, None)
 
 
 # --- response dataclasses -----------------------------------------------------------------
