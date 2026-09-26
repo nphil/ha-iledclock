@@ -1,0 +1,26 @@
+{
+  "name": "iledclock-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lit 3 + TypeScript source for the iLedClock Home Assistant card and Pixel Studio panel",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --format=esm --platform=browser --target=es2021 --minify --legal-comments=none --outfile=../custom_components/iledclock/frontend/iledclock.js",
+    "build:dev": "esbuild src/main.ts --bundle --format=esm --platform=browser --target=es2021 --outfile=../custom_components/iledclock/frontend/iledclock.js --sourcemap",
+    "watch": "esbuild src/main.ts --bundle --format=esm --platform=browser --target=es2021 --outfile=../custom_components/iledclock/frontend/iledclock.js --sourcemap --watch",
+    "build:harness": "esbuild dev/app.ts --bundle --format=esm --platform=browser --target=es2021 --outfile=dev/dist/app.js --sourcemap",
+    "harness": "npm run build:dev && mkdir -p dev/dist && cp ../custom_components/iledclock/frontend/iledclock.js dev/dist/iledclock.js && cp ../custom_components/iledclock/frontend/iledclock.js.map dev/dist/iledclock.js.map && npm run build:harness && node dev/serve.mjs",
+    "test": "node --test ../tests/frontend",
+    "test:bun": "bun test ../tests/frontend",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lit": "^3.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.3"
+  }
+}

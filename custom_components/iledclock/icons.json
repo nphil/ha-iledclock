@@ -1,0 +1,82 @@
+{
+  "entity": {
+    "light": {
+      "display": {
+        "default": "mdi:led-strip-variant"
+      }
+    },
+    "text": {
+      "message": {
+        "default": "mdi:message-text-outline"
+      }
+    },
+    "image": {
+      "display": {
+        "default": "mdi:image-outline"
+      }
+    },
+    "sensor": {
+      "firmware": {
+        "default": "mdi:chip"
+      },
+      "program_count": {
+        "default": "mdi:playlist-play"
+      }
+    },
+    "button": {
+      "sync_time": {
+        "default": "mdi:clock-sync-outline"
+      }
+    },
+    "select": {
+      "rotation": {
+        "default": "mdi:rotate-3d-variant"
+      },
+      "clock_face": {
+        "default": "mdi:clock-outline"
+      }
+    },
+    "number": {
+      "volume": {
+        "default": "mdi:volume-high"
+      },
+      "color_speed": {
+        "default": "mdi:speedometer"
+      }
+    },
+    "switch": {
+      "night_mode": {
+        "default": "mdi:weather-night"
+      },
+      "show_device_id": {
+        "default": "mdi:identifier"
+      },
+      "remote_enable": {
+        "default": "mdi:remote"
+      }
+    }
+  },
+  "services": {
+    "show_text": "mdi:message-text",
+    "show_design": "mdi:palette-outline",
+    "show_image": "mdi:image-plus-outline",
+    "show_generative": "mdi:creation",
+    "set_playlist": "mdi:playlist-edit",
+    "clock_face": "mdi:clock-outline",
+    "countdown_reset": "mdi:timer-refresh-outline",
+    "countdown_run": "mdi:timer-play-outline",
+    "stopwatch_reset": "mdi:timer-sand",
+    "stopwatch_run": "mdi:timer-outline",
+    "scoreboard_set_score": "mdi:scoreboard-outline",
+    "scoreboard_set_time": "mdi:clock-edit-outline",
+    "scoreboard_run": "mdi:scoreboard",
+    "set_alarms": "mdi:alarm-multiple",
+    "set_timer_switches": "mdi:calendar-clock",
+    "set_pomodoro": "mdi:timer-cog-outline",
+    "night_mode": "mdi:weather-night",
+    "reminder_delete": "mdi:bell-remove-outline",
+    "sync_time": "mdi:clock-sync-outline",
+    "release_link": "mdi:bluetooth-off",
+    "send_raw": "mdi:code-braces"
+  }
+}

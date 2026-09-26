@@ -1,0 +1,130 @@
+{
+  "meta": {
+    "total_icon_count": 2000,
+    "page": 1,
+    "page_size": 20,
+    "page_count": 100
+  },
+  "data": [
+    {
+      "id": 77476,
+      "type": "picture",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77476.png",
+      "title": "Humidity"
+    },
+    {
+      "id": 77471,
+      "type": "picture",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77471.png",
+      "title": "Charging"
+    },
+    {
+      "id": 77470,
+      "type": "picture",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77470.png",
+      "title": "White Car"
+    },
+    {
+      "id": 77469,
+      "type": "picture",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77469.png",
+      "title": "Yellow T"
+    },
+    {
+      "id": 77468,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77468.gif",
+      "title": "Chat Marron"
+    },
+    {
+      "id": 77467,
+      "type": "picture",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77467.png",
+      "title": "Cat Marron"
+    },
+    {
+      "id": 77466,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77466.gif",
+      "title": "aaabbdd"
+    },
+    {
+      "id": 77465,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77465.gif",
+      "title": "Svolo_PV_forecast_today"
+    },
+    {
+      "id": 77464,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77464.gif",
+      "title": "meinschiff"
+    },
+    {
+      "id": 77463,
+      "type": "picture",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77463.png",
+      "title": "M\u00fclltonne rosa"
+    },
+    {
+      "id": 77462,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77462.gif",
+      "title": "Svolo_BEV_Charge_100"
+    },
+    {
+      "id": 77461,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77461.gif",
+      "title": "Svolo_BEV_Charge_080"
+    },
+    {
+      "id": 77460,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77460.gif",
+      "title": "Svolo_BEV_Charge_060"
+    },
+    {
+      "id": 77459,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77459.gif",
+      "title": "Svolo_BEV_Charge_040"
+    },
+    {
+      "id": 77458,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77458.gif",
+      "title": "Svolo_BEV_Charge_020"
+    },
+    {
+      "id": 77457,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77457.gif",
+      "title": "Svolo_batteryDischarge_020"
+    },
+    {
+      "id": 77456,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77456.gif",
+      "title": "Svolo_batteryDischarge_040"
+    },
+    {
+      "id": 77455,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77455.gif",
+      "title": "Svolo_batteryDischarge_060"
+    },
+    {
+      "id": 77454,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77454.gif",
+      "title": "Svolo_batteryDischarge_080"
+    },
+    {
+      "id": 77453,
+      "type": "movie",
+      "url": "https://developer.lametric.com/content/apps/icon_thumbs/77453.gif",
+      "title": "Svolo_batteryCharge_100"
+    }
+  ]
+}

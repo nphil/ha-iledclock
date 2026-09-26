@@ -1,0 +1,5 @@
+{
+  "name": "iledclock-frontend-tests",
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,62 @@
+{
+ "device_info": {
+  "request_payload": "1f",
+  "sent_frame": "010002051f03",
+  "reply_frame": "0100181f0205a300000000020509020504020700000400002100100000000503"
+ },
+ "ota_version": {
+  "request_payload": "fd",
+  "sent_frame": "01000205fd03",
+  "reply_frame": "010022fd020500211d4143363935585f30315f313678363535333555585f303030303034303003"
+ },
+ "night_mode_get": {
+  "request_payload": "1402",
+  "sent_frame": "0100020614020603",
+  "reply_frame": "01000c14020602051500080002051902051e0603"
+ },
+ "timer_switch_get": {
+  "request_payload": "0b",
+  "sent_frame": "010002050b03",
+  "reply_frame": "010002060b0003"
+ },
+ "countdown_status": {
+  "request_payload": "0f01",
+  "sent_frame": "010002060f020503",
+  "reply_frame": "0100090f02050000050000050003"
+ },
+ "stopwatch_status": {
+  "request_payload": "1001",
+  "sent_frame": "0100020610020503",
+  "reply_frame": "0100061002050000000003"
+ },
+ "scoreboard_status": {
+  "request_payload": "1101",
+  "sent_frame": "0100020611020503",
+  "reply_frame": "01000e11020500000000000000000000000003"
+ },
+ "tomato_get": {
+  "request_payload": "1502",
+  "sent_frame": "0100020615020603",
+  "reply_frame": "01000715020604050a192d03"
+ },
+ "alarms_get": {
+  "request_payload": "1602",
+  "sent_frame": "0100020616020603",
+  "reply_frame": "010002071602060003"
+ },
+ "reminders_get": {
+  "request_payload": "1a01",
+  "sent_frame": "010002061a020503",
+  "reply_frame": "010002071a02050003"
+ },
+ "temp_humidity_0": {
+  "request_payload": "1900",
+  "sent_frame": "01000206190003",
+  "reply_frame": null
+ },
+ "temp_humidity_1": {
+  "request_payload": "1901",
+  "sent_frame": "0100020619020503",
+  "reply_frame": "01000519020500000003"
+ }
+}

@@ -1,0 +1,511 @@
+{
+  "config": {
+    "step": {
+      "bluetooth_confirm": {
+        "description": "Set up this iLedClock?"
+      },
+      "user": {
+        "title": "Connect to your iLedClock",
+        "description": "Pick the iLedClock to add. If none are listed, make sure it is powered on and within range of a Bluetooth adapter or ESPHome proxy, then try again.",
+        "data": {
+          "address": "Device"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This clock is already set up.",
+      "no_devices_found": "No iLedClocks were found. Make sure it is powered on and within range of a Bluetooth adapter or proxy."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "description": "The password must match the {password_length}-character password stored on the clock itself (default 000000). The Divoom account is optional, for browsing the online gallery's Divoom source -- leave the password blank to keep the one already saved.",
+        "data": {
+          "idle_timeout": "Idle disconnect (seconds, 0 = stay connected)",
+          "refresh_interval": "Refresh interval (minutes)",
+          "password": "Device password",
+          "time_sync": "Keep the clock's time synced automatically",
+          "divoom_email": "Divoom account email (optional)",
+          "divoom_password": "Divoom account password (optional, leave blank to keep the current one)"
+        }
+      }
+    },
+    "error": {
+      "invalid_password": "The password must be exactly 6 hex characters (0-9, a-f)."
+    }
+  },
+  "entity": {
+    "light": {
+      "display": {
+        "name": "Display"
+      }
+    },
+    "text": {
+      "message": {
+        "name": "Message"
+      }
+    },
+    "image": {
+      "display": {
+        "name": "Display"
+      }
+    },
+    "sensor": {
+      "temperature": {
+        "name": "Temperature"
+      },
+      "humidity": {
+        "name": "Humidity"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "program_count": {
+        "name": "Program count"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "Connected"
+      }
+    },
+    "button": {
+      "sync_time": {
+        "name": "Sync time"
+      }
+    },
+    "select": {
+      "rotation": {
+        "name": "Rotation"
+      },
+      "clock_face": {
+        "name": "Clock face"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Volume"
+      },
+      "color_speed": {
+        "name": "Colour speed"
+      }
+    },
+    "switch": {
+      "night_mode": {
+        "name": "Night mode"
+      },
+      "show_device_id": {
+        "name": "Show device ID"
+      },
+      "remote_enable": {
+        "name": "Remote control"
+      }
+    }
+  },
+  "services": {
+    "show_text": {
+      "name": "Show text",
+      "description": "Show a text message on the clock right now. With a duration, the previous playlist is restored automatically afterwards -- a notify-style temporary message.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to show the message on."
+        },
+        "text": {
+          "name": "Text",
+          "description": "The message to display."
+        },
+        "color_mode": {
+          "name": "Colour mode",
+          "description": "One of the 28 built-in text colour/animation modes."
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "Scroll/animation speed (0-255)."
+        },
+        "font": {
+          "name": "Font",
+          "description": "Bundled pixel font to use (e.g. 3x5, 5x7, 8x16)."
+        },
+        "is_bold": {
+          "name": "Bold",
+          "description": "Render the text in its bold variant."
+        },
+        "duration_s": {
+          "name": "Duration",
+          "description": "Seconds to show this message before automatically restoring whatever was playing before. Leave empty to replace the display permanently instead."
+        }
+      }
+    },
+    "show_design": {
+      "name": "Show design",
+      "description": "Show a saved pixel-art image or animation on the clock right now.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to show the design on."
+        },
+        "design_id": {
+          "name": "Design",
+          "description": "The saved design's id, from the Pixel Studio panel or iledclock/designs/list."
+        }
+      }
+    },
+    "show_image": {
+      "name": "Show image",
+      "description": "Import a photo, GIF, or other image and show it on the clock right now.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to show the image on."
+        },
+        "url": {
+          "name": "URL",
+          "description": "An image URL to fetch. Provide this or Image data, not both."
+        },
+        "data_b64": {
+          "name": "Image data",
+          "description": "Base64-encoded image bytes. Provide this or URL, not both."
+        },
+        "fit": {
+          "name": "Fit",
+          "description": "How to fit the image onto the 32x16 panel: contain, cover, or stretch."
+        },
+        "dither": {
+          "name": "Dither",
+          "description": "Dither the image when reducing it to the panel's colours."
+        }
+      }
+    },
+    "show_generative": {
+      "name": "Show generative animation",
+      "description": "Show a procedurally generated animation (fire, plasma, starfield, ...) on the clock right now.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to show the animation on."
+        },
+        "kind": {
+          "name": "Kind",
+          "description": "Which generative animation to render."
+        },
+        "seconds": {
+          "name": "Duration",
+          "description": "How many seconds of animation to generate."
+        },
+        "seed": {
+          "name": "Seed",
+          "description": "Optional random seed, for a reproducible result."
+        }
+      }
+    },
+    "set_playlist": {
+      "name": "Set playlist",
+      "description": "Replace the whole rotation of programs the clock cycles through.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to update."
+        },
+        "playlist": {
+          "name": "Playlist",
+          "description": "Up to 9 items, each an object with kind, params, and duration_s."
+        }
+      }
+    },
+    "clock_face": {
+      "name": "Set clock face",
+      "description": "Show one of the 41 built-in clock styles right now, with full control over colour and 12/24-hour mode.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to update."
+        },
+        "style": {
+          "name": "Style",
+          "description": "Clock style, 1-41."
+        },
+        "color": {
+          "name": "Colour",
+          "description": "0=red, 1=magenta, 2=yellow, 3=green, 4=cyan, 5=blue, 6=white, 7=black."
+        },
+        "hours24": {
+          "name": "24-hour",
+          "description": "Use 24-hour time instead of 12-hour with AM/PM."
+        },
+        "show_seconds": {
+          "name": "Show seconds",
+          "description": "Include a seconds field, when there is room for one."
+        }
+      }
+    },
+    "countdown_reset": {
+      "name": "Reset countdown",
+      "description": "Set the clock's countdown timer to a new starting duration.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to update."
+        },
+        "hour": {
+          "name": "Hours",
+          "description": "Hours (0-23)."
+        },
+        "minute": {
+          "name": "Minutes",
+          "description": "Minutes (0-59)."
+        },
+        "second": {
+          "name": "Seconds",
+          "description": "Seconds (0-59)."
+        }
+      }
+    },
+    "countdown_run": {
+      "name": "Start/stop countdown",
+      "description": "Start or pause the countdown timer.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to control."
+        },
+        "start": {
+          "name": "Start",
+          "description": "True to start, false to stop/pause."
+        }
+      }
+    },
+    "stopwatch_reset": {
+      "name": "Reset stopwatch",
+      "description": "Reset the clock's stopwatch to zero.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to update."
+        }
+      }
+    },
+    "stopwatch_run": {
+      "name": "Start/stop stopwatch",
+      "description": "Start or pause the stopwatch.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to control."
+        },
+        "start": {
+          "name": "Start",
+          "description": "True to start, false to stop/pause."
+        }
+      }
+    },
+    "scoreboard_set_score": {
+      "name": "Set scoreboard score",
+      "description": "Set the home and away scores.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to update."
+        },
+        "home": {
+          "name": "Home score",
+          "description": "Home team score."
+        },
+        "away": {
+          "name": "Away score",
+          "description": "Away/visiting team score."
+        }
+      }
+    },
+    "scoreboard_set_time": {
+      "name": "Set scoreboard time",
+      "description": "Set the scoreboard's clock, counting up or down.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to update."
+        },
+        "minute": {
+          "name": "Minutes",
+          "description": "Minutes."
+        },
+        "second": {
+          "name": "Seconds",
+          "description": "Seconds (0-59)."
+        },
+        "count_down": {
+          "name": "Count down",
+          "description": "Count down from this time instead of counting up."
+        }
+      }
+    },
+    "scoreboard_run": {
+      "name": "Start/stop scoreboard clock",
+      "description": "Start or pause the scoreboard's clock.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to control."
+        },
+        "start": {
+          "name": "Start",
+          "description": "True to start, false to stop/pause."
+        }
+      }
+    },
+    "set_alarms": {
+      "name": "Set alarms",
+      "description": "Replace the whole alarm list (up to 16 entries).",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to update."
+        },
+        "alarms": {
+          "name": "Alarms",
+          "description": "Up to 16 objects, each with hour, minute, enabled, and repeat (a Mon-Sun bitmask: 0 = once, 127 = every day)."
+        }
+      }
+    },
+    "set_timer_switches": {
+      "name": "Set timer switches",
+      "description": "Replace the whole timer-switch list (up to 4 entries) that turns the display on or off automatically.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to update."
+        },
+        "timer_switches": {
+          "name": "Timer switches",
+          "description": "Up to 4 objects, each with hour, minute, on, enabled, and repeat (a Mon-Sun bitmask: 0 = once, 127 = every day)."
+        }
+      }
+    },
+    "set_pomodoro": {
+      "name": "Set pomodoro durations",
+      "description": "Replace the pomodoro/tomato timer's list of durations (1-6 entries, in minutes).",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to update."
+        },
+        "minutes": {
+          "name": "Durations",
+          "description": "1 to 6 durations, in minutes."
+        }
+      }
+    },
+    "night_mode": {
+      "name": "Set night mode",
+      "description": "Configure night mode's schedule, dimming/off behaviour, and voice-wake settings, all at once.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to update."
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Whether night mode is active."
+        },
+        "start_hour": {
+          "name": "Start hour",
+          "description": "Hour night mode begins (0-23)."
+        },
+        "start_minute": {
+          "name": "Start minute",
+          "description": "Minute night mode begins (0-59)."
+        },
+        "end_hour": {
+          "name": "End hour",
+          "description": "Hour night mode ends (0-23)."
+        },
+        "end_minute": {
+          "name": "End minute",
+          "description": "Minute night mode ends (0-59)."
+        },
+        "device_off": {
+          "name": "Turn display off",
+          "description": "Turn the display off during night mode, instead of just dimming it."
+        },
+        "brightness": {
+          "name": "Night brightness",
+          "description": "Brightness to use during night mode when the display isn't turned off (0-100)."
+        },
+        "wake_minutes": {
+          "name": "Wake duration",
+          "description": "How many minutes the display wakes for on motion/voice."
+        },
+        "voice": {
+          "name": "Wake on voice",
+          "description": "Wake the display on voice during night mode."
+        },
+        "voice_sensitivity": {
+          "name": "Voice sensitivity",
+          "description": "How sensitive voice-wake detection is."
+        }
+      }
+    },
+    "reminder_delete": {
+      "name": "Delete reminder",
+      "description": "Delete a reminder that was created on the clock itself. Reminders can only be created from the clock's own controls, not from Home Assistant.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to delete a reminder from."
+        },
+        "id": {
+          "name": "Reminder ID",
+          "description": "The reminder's id, from the clock's reminder list."
+        }
+      }
+    },
+    "sync_time": {
+      "name": "Sync time",
+      "description": "Send Home Assistant's current date and time to the clock right now.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to sync."
+        }
+      }
+    },
+    "release_link": {
+      "name": "Release Bluetooth link",
+      "description": "Disconnect from the clock now, freeing the Bluetooth link for other uses (the vendor app, another proxy client).",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to disconnect from."
+        }
+      }
+    },
+    "send_raw": {
+      "name": "Send raw command",
+      "description": "Advanced: send a raw, unframed opcode and payload directly to the clock. For protocol features with no dedicated service (e.g. music-reactive mode), or troubleshooting.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to send to."
+        },
+        "opcode": {
+          "name": "Opcode",
+          "description": "The command opcode byte (0-255)."
+        },
+        "payload_hex": {
+          "name": "Payload (hex)",
+          "description": "The rest of the payload, as a hex string. Leave empty for an opcode with no payload."
+        },
+        "timeout_s": {
+          "name": "Timeout",
+          "description": "How long to wait for a reply, in seconds."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_device": {
+      "message": "{device_id} is not a loaded iLedClock device."
+    }
+  }
+}

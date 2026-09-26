@@ -1,0 +1,6 @@
+__pycache__/
+node_modules/
+*.pyc
+frontend/dev/dist/
+*.map
+.DS_Store
