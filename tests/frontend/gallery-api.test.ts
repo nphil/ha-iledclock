@@ -47,8 +47,8 @@ test("gallerySearchRequest drops a blank query and a false animatedOnly rather t
 });
 
 test("galleryPreviewRequest omits an empty options object", () => {
-  assert.deepEqual(galleryPreviewRequest("entry-1", "lametric", "42"), { type: "iledclock/gallery/preview", entry_id: "entry-1", source: "lametric", id: "42" });
-  assert.deepEqual(galleryPreviewRequest("entry-1", "lametric", "42", {}), { type: "iledclock/gallery/preview", entry_id: "entry-1", source: "lametric", id: "42" });
+  assert.deepEqual(galleryPreviewRequest("entry-1", "lametric", "42"), { type: "iledclock/gallery/preview", entry_id: "entry-1", source: "lametric", item_id: "42" });
+  assert.deepEqual(galleryPreviewRequest("entry-1", "lametric", "42", {}), { type: "iledclock/gallery/preview", entry_id: "entry-1", source: "lametric", item_id: "42" });
 });
 
 test("galleryPreviewRequest carries a non-empty options object through", () => {
@@ -57,12 +57,12 @@ test("galleryPreviewRequest carries a non-empty options object through", () => {
 });
 
 test("galleryImportRequest includes name only when given", () => {
-  assert.deepEqual(galleryImportRequest("entry-1", "lametric", "42"), { type: "iledclock/gallery/import", entry_id: "entry-1", source: "lametric", id: "42" });
+  assert.deepEqual(galleryImportRequest("entry-1", "lametric", "42"), { type: "iledclock/gallery/import", entry_id: "entry-1", source: "lametric", item_id: "42" });
   assert.deepEqual(galleryImportRequest("entry-1", "lametric", "42", undefined, "My icon"), {
     type: "iledclock/gallery/import",
     entry_id: "entry-1",
     source: "lametric",
-    id: "42",
+    item_id: "42",
     name: "My icon",
   });
 });
@@ -179,4 +179,14 @@ test("isSignedPathFresh is true only with enough validity left past the refresh 
   assert.equal(isSignedPathFresh(fresh, now), true);
   assert.equal(isSignedPathFresh(almostExpired, now), false);
   assert.equal(isSignedPathFresh(undefined, now), false);
+});
+
+test("no request builder sends a top-level `id` (HA reserves it for the WebSocket message id)", () => {
+  // Regression: `hass.callWS` overwrites `id` with its own message counter, so a field named `id`
+  // silently never reached the server, and HA rejected the command as invalid.
+  const requests = [
+    galleryPreviewRequest("e", "lametric", "42"),
+    galleryImportRequest("e", "lametric", "42", undefined, "n"),
+  ];
+  for (const r of requests) assert.equal("id" in r, false, JSON.stringify(r));
 });

@@ -173,13 +173,13 @@ export function gallerySearchRequest(entryId: string, params: GallerySearchParam
 }
 
 export function galleryPreviewRequest(entryId: string, source: string, id: string, options?: GalleryAdjustOptions): Record<string, unknown> {
-  const msg: Record<string, unknown> = { type: "iledclock/gallery/preview", entry_id: entryId, source, id };
+  const msg: Record<string, unknown> = { type: "iledclock/gallery/preview", entry_id: entryId, source, item_id: id };
   if (options && Object.keys(options).length > 0) msg.options = options;
   return msg;
 }
 
 export function galleryImportRequest(entryId: string, source: string, id: string, options?: GalleryAdjustOptions, name?: string): Record<string, unknown> {
-  const msg: Record<string, unknown> = { type: "iledclock/gallery/import", entry_id: entryId, source, id };
+  const msg: Record<string, unknown> = { type: "iledclock/gallery/import", entry_id: entryId, source, item_id: id };
   if (options && Object.keys(options).length > 0) msg.options = options;
   if (name) msg.name = name;
   return msg;

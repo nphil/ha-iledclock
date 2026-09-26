@@ -61,9 +61,9 @@ duration_out_ms, notes[]}`.
 - `iledclock/gallery/search {entry_id, source, sort, page, query?, size?, animated_only?}` →
   `{items:[{source, id, title, author?, width, height, animated, likes?, downloads?, created?, media_path}], page, has_more}`
   (`media_path` = unsigned path of the HTTP view)
-- `iledclock/gallery/preview {entry_id, source, id, options?}` → `{frames:[b64 RGB888 1536 B], delays_ms:[...], layout,
+- `iledclock/gallery/preview {entry_id, source, item_id, options?}` → `{frames:[b64 RGB888 1536 B], delays_ms:[...], layout,
   layouts_available:[...], report}`; `options` = `{layout?, crop?, scale?, offset?, background?, enhance?}`
-- `iledclock/gallery/import {entry_id, source, id, options?, name?}` (admin) → `{design_id}` — saves to the design library
+- `iledclock/gallery/import {entry_id, source, item_id, options?, name?}` (admin) → `{design_id}` — saves to the design library
   with `origin: {source, id, title, author, url}` for credit.
 - `iledclock/import/file {entry_id, filename, data_b64, options?, save?: bool, name?}` (admin when save) → preview payload, or
   `{design_id}` when `save`. Max upload 8 MB.

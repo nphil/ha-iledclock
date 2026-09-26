@@ -1,0 +1,47 @@
+# Test-only dependencies for tests/ha/** (real-Home-Assistant integration tests).
+#
+# Install into a dedicated venv (Python >= 3.14, matching live HA Core 2026.9.x):
+#   uv venv .venv-ha --python 3.14
+#   uv pip install --python .venv-ha/bin/python -r requirements_test.txt
+#
+# On this host `/data` runs out of space for the HA frontend wheel (>500 MB unpacked), so the
+# venv lives on the roomier root filesystem and `.venv-ha` is a symlink to it:
+#   export UV_CACHE_DIR=/var/tmp/uv-cache-iledclock
+#   uv venv /var/tmp/iledclock-venv-ha --python 3.14
+#   ln -sfn /var/tmp/iledclock-venv-ha .venv-ha
+#   uv pip install --python .venv-ha/bin/python -r requirements_test.txt
+# Either way the acceptance command is `.venv-ha/bin/pytest tests/ha -q`.
+#
+# pytest-homeassistant-custom-component pins an exact `homeassistant` release (and, with
+# it, pytest/pytest-asyncio/syrupy versions known to work together) -- do not loosen it.
+pytest-homeassistant-custom-component==0.13.366
+
+# --- HA component requirements reached through this integration's manifest "dependencies" ---
+# custom_components/iledclock/manifest.json declares no "requirements" of its own, but its
+# dependencies (`bluetooth_adapters` -> `bluetooth` -> `usb`, plus `frontend`) do, and HA
+# normally pip-installs those lazily on first use. A test run must not do that (it would hit
+# the network mid-test), so every one of them is pinned here to the exact version the
+# corresponding homeassistant/components/<domain>/manifest.json requests for HA 2026.9.3.
+# `bluetooth`: imported by client.py/config_flow.py (`from homeassistant.components import bluetooth`).
+bleak==3.0.2
+bleak-retry-connector==4.7.0
+bluetooth-adapters==2.4.0
+bluetooth-auto-recovery==1.6.4
+bluetooth-data-tools==1.29.24
+dbus-fast==5.0.22
+habluetooth==6.26.11
+# `usb` (a `bluetooth` dependency).
+aiousbwatcher==1.1.2
+serialx==1.10.0
+# `frontend`: __init__.py's `add_extra_js_url` / `_async_register_frontend` needs it importable,
+# and its own `hass_frontend` package provides the panel's static assets.
+home-assistant-frontend==20260826.7
+
+# --- gallery Divoom decoder requirements ---
+# custom_components/iledclock/gallery/__init__.py's `DIVOOM_REQUIREMENTS`: only needed to
+# decode real Divoom Cloud "pixel bean" media (AES/LZO/zstd containers); pre-installed here
+# so `_ensure_divoom_requirements` never tries a runtime pip install during a test. Left
+# unpinned exactly as the integration itself requests them.
+pycryptodome
+lzallright
+zstandard

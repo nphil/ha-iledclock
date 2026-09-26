@@ -137,7 +137,7 @@ where noted; `entry_id` identifies the clock.
 - `iledclock/designs/list {entry_id?}` → `[{id, name, kind, frames:[{png_b64? no: rgb444 hex string of 32*16*3 nibbles}], delays:[ms], created, updated, tags}]`
   Canonical design JSON: `{id, name, kind: "image"|"animation", width:32, height:16, frames:[string hex 768 chars RGB888? ]}`
   → DECISION: frames travel as base64 of raw RGB888 (32*16*3 = 1536 bytes per frame); delays in ms per frame.
-- `iledclock/designs/save {design}` (admin) → `{id}`; `iledclock/designs/delete {id}` (admin)
+- `iledclock/designs/save {design}` (admin) → `{id}`; `iledclock/designs/delete {design_id}` (admin)
 - `iledclock/render {entry_id, spec}` → `{frames:[b64 rgb888], delays:[ms]}` server-side rendering of: `{type:"text", text, font, color, effect}`,
   `{type:"image", url|data_b64, fit, dither}`, `{type:"generative", kind, seconds, seed}`, `{type:"clock", style, color, h24}`
   (clock = our best-effort preview of firmware face; mark `approximate: true`).

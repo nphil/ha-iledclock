@@ -10,6 +10,7 @@ field names here follow what that code actually sends over the wire.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import Any, Mapping
 
 import voluptuous as vol
@@ -28,6 +29,7 @@ from .designs import DesignValidationError
 from .playlist import PlaylistValidationError, playlist_item_to_json, validate_playlist
 from .program_builder import ProgramBuildError
 from .protocol import render as protocol_render
+from .protocol.models import Frame
 from .store import async_get_design_library
 from .ws_shapes import shape_designs_list, shape_frames_payload, shape_state_event
 
@@ -167,7 +169,7 @@ async def ws_designs_save(
 
 
 @websocket_api.websocket_command(
-    {vol.Required("type"): "iledclock/designs/delete", vol.Required("id"): str}
+    {vol.Required("type"): "iledclock/designs/delete", vol.Required("design_id"): str}
 )
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -176,7 +178,7 @@ async def ws_designs_delete(
 ) -> None:
     library = async_get_design_library(hass)
     await library.async_load()
-    await library.async_delete_design(msg["id"])
+    await library.async_delete_design(msg["design_id"])
     connection.send_result(msg["id"], {})
 
 
@@ -215,6 +217,16 @@ async def _async_render_spec(
     raise ProgramBuildError(f"unsupported render type: {spec_type!r}")
 
 
+def _frames_to_rgb888(frames: Sequence[Frame]) -> list[bytes]:
+    """`protocol.render` hands back `Frame` pixel grids, but Contract D's `iledclock/render`
+    wire shape (`ws_shapes.shape_frames_payload`, and the design library's own `frames`)
+    carries each frame as base64 of raw row-major RGB888 bytes -- so flatten them here."""
+    return [
+        bytes(channel for row in frame.pixels for pixel in row for channel in pixel)
+        for frame in frames
+    ]
+
+
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "iledclock/render",
@@ -234,7 +246,7 @@ async def ws_render(hass: HomeAssistant, connection: websocket_api.ActiveConnect
     except (ProgramBuildError, IledClockError, KeyError, ValueError) as err:
         connection.send_error(msg["id"], "render_failed", str(err))
         return
-    payload = shape_frames_payload(frames, delays)
+    payload = shape_frames_payload(_frames_to_rgb888(frames), delays)
     if approximate:
         payload["approximate"] = True
     connection.send_result(msg["id"], payload)

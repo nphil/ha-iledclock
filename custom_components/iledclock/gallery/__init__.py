@@ -16,6 +16,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+from functools import partial
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -121,7 +122,7 @@ def _source_infos(hass: HomeAssistant, entry_id: str) -> list[SourceInfo]:
 
 async def _lametric_catalog(hass: HomeAssistant) -> list[GalleryItem]:
     cache = _cache(hass)
-    entry = await hass.async_add_executor_job(cache.get, "lametric:catalog", lametric.CACHE_TTL_CATALOG_S)
+    entry = await hass.async_add_executor_job(partial(cache.get, "lametric:catalog", ttl_s=lametric.CACHE_TTL_CATALOG_S))
     if entry is not None:
         try:
             rows = json.loads(entry.data.decode("utf-8"))
@@ -131,7 +132,7 @@ async def _lametric_catalog(hass: HomeAssistant) -> list[GalleryItem]:
     session = aiohttp_client.async_get_clientsession(hass)
     catalog = await lametric.fetch_catalog(session)
     payload = json.dumps([item.to_json() for item in catalog]).encode("utf-8")
-    await hass.async_add_executor_job(cache.put, "lametric:catalog", payload, content_type="application/json")
+    await hass.async_add_executor_job(partial(cache.put, "lametric:catalog", payload, content_type="application/json"))
     return catalog
 
 
@@ -180,7 +181,7 @@ async def async_fetch_media(
 
     cache = _cache(hass)
     cache_key = f"media:{source}:{item_id}"
-    cached = await hass.async_add_executor_job(cache.get, cache_key, CACHE_TTL_MEDIA_S)
+    cached = await hass.async_add_executor_job(partial(cache.get, cache_key, ttl_s=CACHE_TTL_MEDIA_S))
     if cached is not None:
         return cached.data, cached.content_type
 
@@ -197,7 +198,7 @@ async def async_fetch_media(
         await _ensure_divoom_requirements(hass)
         media = await divoom.fetch_media(session, account, item_id)
 
-    await hass.async_add_executor_job(cache.put, cache_key, media.data, content_type=media.content_type)
+    await hass.async_add_executor_job(partial(cache.put, cache_key, media.data, content_type=media.content_type))
     return media.data, media.content_type
 
 
@@ -339,7 +340,7 @@ async def ws_gallery_search(hass: HomeAssistant, connection: websocket_api.Activ
         vol.Required("type"): "iledclock/gallery/preview",
         vol.Required("entry_id"): str,
         vol.Required("source"): str,
-        vol.Required("id"): str,
+        vol.Required("item_id"): str,
         vol.Optional("options"): dict,
     }
 )
@@ -347,7 +348,7 @@ async def ws_gallery_search(hass: HomeAssistant, connection: websocket_api.Activ
 async def ws_gallery_preview(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
     try:
         adapted = await async_preview(
-            hass, msg["entry_id"], source=msg["source"], item_id=msg["id"], options=msg.get("options")
+            hass, msg["entry_id"], source=msg["source"], item_id=msg["item_id"], options=msg.get("options")
         )
     except (GalleryCommandError, SourceError, ImportDecodeError, adapt.AdaptError) as err:
         _send_command_error(connection, msg["id"], err)
@@ -360,7 +361,7 @@ async def ws_gallery_preview(hass: HomeAssistant, connection: websocket_api.Acti
         vol.Required("type"): "iledclock/gallery/import",
         vol.Required("entry_id"): str,
         vol.Required("source"): str,
-        vol.Required("id"): str,
+        vol.Required("item_id"): str,
         vol.Optional("options"): dict,
         vol.Optional("name"): str,
     }
@@ -370,16 +371,19 @@ async def ws_gallery_preview(hass: HomeAssistant, connection: websocket_api.Acti
 async def ws_gallery_import(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
     try:
         adapted = await async_preview(
-            hass, msg["entry_id"], source=msg["source"], item_id=msg["id"], options=msg.get("options")
+            hass, msg["entry_id"], source=msg["source"], item_id=msg["item_id"], options=msg.get("options")
         )
-        credit = await async_item_credit(hass, msg["entry_id"], source=msg["source"], item_id=msg["id"])
+        credit = await async_item_credit(hass, msg["entry_id"], source=msg["source"], item_id=msg["item_id"])
     except (GalleryCommandError, SourceError, ImportDecodeError, adapt.AdaptError) as err:
         _send_command_error(connection, msg["id"], err)
         return
 
-    name = msg.get("name") or credit.get("title") or f"{msg['source']}:{msg['id']}"
+    # `msg["id"]` is HA's own websocket *message* id (an int every request carries), never a
+    # gallery item -- the source item id this command was given is `item_id`, and that is what
+    # both the fallback name and the design's `origin.id` credit field must carry.
+    name = msg.get("name") or credit.get("title") or f"{msg['source']}:{msg['item_id']}"
     origin = {
-        "source": msg["source"], "id": msg["id"],
+        "source": msg["source"], "id": msg["item_id"],
         "title": credit.get("title"), "author": credit.get("author"), "url": credit.get("url"),
     }
     try:

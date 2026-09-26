@@ -554,7 +554,10 @@ export class IledclockStudioPanel extends LitElement {
       border-bottom: 1px solid var(--divider-color);
     }
     .nav-picker {
-      max-width: 220px;
+      /* The picker is a size container (container-type: inline-size), so it has no intrinsic
+         width: in this flex row it collapsed to 0 px beside the title. Give it a definite one. */
+      flex: 0 0 220px;
+      width: 220px;
     }
     h1 {
       font-size: 18px;

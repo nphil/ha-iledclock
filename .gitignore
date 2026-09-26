@@ -4,3 +4,8 @@ node_modules/
 frontend/dev/dist/
 *.map
 .DS_Store
+
+# Real-Home-Assistant test venv (tests/ha, see requirements_test.txt). Not tracked either
+# way it exists: a real directory, or a symlink to a venv on a filesystem with room for
+# the HA frontend wheel (this repo's own disk runs at 100% and refuses large installs).
+.venv-ha

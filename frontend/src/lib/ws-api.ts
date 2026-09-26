@@ -25,7 +25,8 @@ export function designsSaveRequest(design: StoredDesign): Record<string, unknown
 }
 
 export function designsDeleteRequest(id: string): Record<string, unknown> {
-  return { type: "iledclock/designs/delete", id };
+  // `id` is reserved for the WebSocket message id in HA's protocol.
+  return { type: "iledclock/designs/delete", design_id: id };
 }
 
 export function renderRequest(entryId: string, spec: RenderSpec): Record<string, unknown> {

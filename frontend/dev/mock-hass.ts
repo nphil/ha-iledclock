@@ -330,7 +330,7 @@ export function createMockHass(onChange?: () => void): HomeAssistant {
         return { id: saved.id } as unknown as T;
       }
       if (type === "iledclock/designs/delete") {
-        const id = msg.id as string | undefined;
+        const id = msg.design_id as string | undefined;
         const index = id ? designs.findIndex((d) => d.id === id) : -1;
         if (index === -1) throw wsError("not_found", `Unknown design ${String(id)}`);
         designs.splice(index, 1);
@@ -384,14 +384,14 @@ export function createMockHass(onChange?: () => void): HomeAssistant {
       if (type === "iledclock/gallery/preview") {
         requireEntry(msg.entry_id);
         const source = String(msg.source ?? "");
-        const id = String(msg.id ?? "");
+        const id = String(msg.item_id ?? "");
         if (!findGalleryItem(source, id)) throw wsError("not_found", `Unknown gallery item ${source}/${id}`);
         return galleryPreview(source, id) as unknown as T;
       }
       if (type === "iledclock/gallery/import") {
         requireEntry(msg.entry_id);
         const source = String(msg.source ?? "");
-        const id = String(msg.id ?? "");
+        const id = String(msg.item_id ?? "");
         const item = findGalleryItem(source, id);
         if (!item) throw wsError("not_found", `Unknown gallery item ${source}/${id}`);
         const preview = galleryPreview(source, id);
