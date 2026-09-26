@@ -100,7 +100,7 @@ class AwtrixSourceInfoTests(unittest.TestCase):
         info = awtrix.source_info()
         sort_ids = [s.id for s in info.sorts]
         self.assertEqual(sort_ids, ["newest", "popular", "picked", "name"])
-        self.assertEqual(info.default_sort, "newest")
+        self.assertEqual(info.default_sort, "popular")
         self.assertEqual(info.sizes, ("8x8", "32x8"))
         self.assertFalse(info.requires_account)
         self.assertTrue(info.supports_search)

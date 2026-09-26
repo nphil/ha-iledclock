@@ -35,7 +35,7 @@ SORTS = (
     SortOption("picked", "Hand-picked"),
     SortOption("name", "A \u2013 Z"),
 )
-DEFAULT_SORT = "newest"
+DEFAULT_SORT = "popular"
 SIZES = ("8x8", "32x8")
 SUPPORTS_SEARCH = True
 PAGE_SIZE = 24  # the live `perPage` value in the component's own snapshot

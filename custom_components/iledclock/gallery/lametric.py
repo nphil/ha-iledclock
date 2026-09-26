@@ -32,7 +32,7 @@ SORTS = (
     SortOption("newest", "Newest"),
     SortOption("title", "Title"),
 )
-DEFAULT_SORT = "newest"
+DEFAULT_SORT = "popular"
 #: The only size this source ever serves.
 SIZES = ("8x8",)
 SUPPORTS_SEARCH = True  # client-side only, over the cached catalog snapshot

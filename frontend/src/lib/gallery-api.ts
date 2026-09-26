@@ -165,7 +165,8 @@ export function gallerySourcesRequest(entryId: string): Record<string, unknown> 
 }
 
 export function gallerySearchRequest(entryId: string, params: GallerySearchParams): Record<string, unknown> {
-  const msg: Record<string, unknown> = { type: "iledclock/gallery/search", entry_id: entryId, source: params.source, sort: params.sort, page: params.page };
+  const msg: Record<string, unknown> = { type: "iledclock/gallery/search", entry_id: entryId, source: params.source, sort: params.sort, page: params.page + 1 };
+  // The browse state counts pages from 0; the server's `page` is 1-based (0 is rejected).
   if (params.query) msg.query = params.query;
   if (params.size) msg.size = params.size;
   if (params.animatedOnly) msg.animated_only = true;

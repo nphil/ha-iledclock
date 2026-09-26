@@ -25,19 +25,20 @@ test("gallerySourcesRequest carries the entry id under the exact Contract messag
   assert.deepEqual(gallerySourcesRequest("entry-1"), { type: "iledclock/gallery/sources", entry_id: "entry-1" });
 });
 
-test("gallerySearchRequest omits optional fields the caller didn't provide", () => {
+test("gallerySearchRequest omits optional fields the caller didn't provide, and sends 1-based pages", () => {
+  // Regression: the first page went out as page 0 and the server (1-based) rejected it.
   assert.deepEqual(gallerySearchRequest("entry-1", { source: "lametric", sort: "popular", page: 0 }), {
     type: "iledclock/gallery/search",
     entry_id: "entry-1",
     source: "lametric",
     sort: "popular",
-    page: 0,
+    page: 1,
   });
 });
 
 test("gallerySearchRequest includes query/size/animated_only only when truthy", () => {
   const msg = gallerySearchRequest("entry-1", { source: "awtrix", sort: "newest", page: 2, query: "flame", size: "32x8", animatedOnly: true });
-  assert.deepEqual(msg, { type: "iledclock/gallery/search", entry_id: "entry-1", source: "awtrix", sort: "newest", page: 2, query: "flame", size: "32x8", animated_only: true });
+  assert.deepEqual(msg, { type: "iledclock/gallery/search", entry_id: "entry-1", source: "awtrix", sort: "newest", page: 3, query: "flame", size: "32x8", animated_only: true });
 });
 
 test("gallerySearchRequest drops a blank query and a false animatedOnly rather than sending empty/false fields", () => {

@@ -375,7 +375,7 @@ export function createMockHass(onChange?: () => void): HomeAssistant {
         return gallerySearch({
           source: String(msg.source ?? ""),
           sort: String(msg.sort ?? ""),
-          page: Number(msg.page ?? 0),
+          page: Number(msg.page ?? 1) - 1, // the wire is 1-based like the real server
           query: typeof msg.query === "string" ? msg.query : undefined,
           size: typeof msg.size === "string" ? msg.size : undefined,
           animatedOnly: Boolean(msg.animated_only),
