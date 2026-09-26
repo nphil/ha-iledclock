@@ -4,6 +4,10 @@ check and one invalid-payload check per command."""
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
+from custom_components.iledclock.const import DOMAIN
+
 import base64
 
 from .fake_clock import FakeClockDevice
@@ -41,6 +45,27 @@ async def test_ws_state_unknown_entry_errors(hass, hass_ws_client, config_entry)
     response = await client.receive_json()
     assert response["success"] is False
     assert response["error"]["code"] == "unknown_entry"
+
+
+async def test_ws_commands_on_an_entry_that_is_not_loaded_yet(hass, hass_ws_client, make_config_entry) -> None:
+    """Regression: right after an HA restart the panel reconnects before the entry has finished
+    setting up; that crashed with AttributeError on `runtime_data` instead of a clean error the
+    panel can retry on."""
+    from homeassistant.setup import async_setup_component
+
+    entry = make_config_entry()
+    # Register the integration (and its WebSocket commands) while this entry's own setup is held
+    # back, reproducing the window right after a restart.
+    with patch("custom_components.iledclock.async_setup_entry", return_value=False):
+        assert await async_setup_component(hass, DOMAIN, {})
+        await hass.async_block_till_done()
+    client = await hass_ws_client(hass)
+    for command in ("iledclock/state", "iledclock/playlist/get"):
+        await client.send_json_auto_id({"type": command, "entry_id": entry.entry_id})
+        response = await client.receive_json()
+        assert response["success"] is False, command
+        assert response["error"]["code"] == "unknown_entry", command
+        assert "not loaded" in response["error"]["message"], command
 
 
 # -- iledclock/subscribe --------------------------------------------------------------------

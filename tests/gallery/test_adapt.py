@@ -337,3 +337,40 @@ class InputValidationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AutoClassificationTest(unittest.TestCase):
+    """Regression: a 32x7 AWTRIX strip (served 8x upscaled) was classed as a photo, so it was
+    smooth-fitted and colour-boosted instead of shown 1:1 with its exact colours."""
+
+    def _strip(self, scale: int):
+        from PIL import Image
+
+        colours = [(255, 0, 0, 255), (0, 200, 60, 255), (20, 40, 255, 255)]
+        frames = []
+        for shift in range(3):
+            img = Image.new("RGBA", (32, 7), (0, 0, 0, 255))
+            for x in range(32):
+                img.putpixel((x, x % 7), colours[(x + shift) % 3])
+            frames.append(img.resize((32 * scale, 7 * scale), Image.NEAREST))
+        return frames
+
+    def test_upscaled_wide_strip_is_pixel_art_and_keeps_colours(self):
+        result = adapt.adapt(self._strip(8), [120, 120, 240])
+        self.assertEqual(result.report["detected_scale"], 8)
+        self.assertNotIn("saturation/contrast enhance applied", result.report["notes"])
+        self.assertFalse(any("photo" in n for n in result.report["notes"]), result.report["notes"])
+        self.assertEqual(len(result.frames[0]), DISPLAY_WIDTH * DISPLAY_HEIGHT * 3)
+
+    def test_native_wide_strip_is_pixel_art(self):
+        result = adapt.adapt(self._strip(1), [100, 100, 100])
+        self.assertFalse(any("photo" in n for n in result.report["notes"]), result.report["notes"])
+
+    def test_many_colour_image_is_still_a_photo(self):
+        from PIL import Image
+
+        rng = random.Random(3)
+        img = Image.new("RGBA", (120, 80))
+        img.putdata([(rng.randrange(256), rng.randrange(256), rng.randrange(256), 255) for _ in range(120 * 80)])
+        result = adapt.adapt([img], [0])
+        self.assertTrue(any("photo" in n for n in result.report["notes"]), result.report["notes"])

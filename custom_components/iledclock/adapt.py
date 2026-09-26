@@ -438,20 +438,25 @@ def _apply_layout(
     raise AdaptError(f"unknown layout {layout!r}; choose one of {LAYOUTS}")
 
 
-def _looks_like_photo(size: tuple[int, int]) -> bool:
-    """docs/GALLERY.md's auto-layout bullet gives three cases: "<=16px tall" art,
-    "square art >16px", and "photos/non-pixel-art" as the implicit catch-all for
-    anything that fits neither of the first two (a non-square shape too big to just
-    centre 1:1). This is deliberately shape-based, not upscale-detection-based: a
-    genuinely native-resolution square icon (e.g. a 64x64 Divoom design with no upscale
-    to recover) must still take the majority-pooling path, not be misclassified as a
-    photo just because step 1 found nothing to undo. Shared by `_auto_layout`'s own
-    branch choice and `adapt()`'s default for `enhance` (true for photos).
+#: Pixel art is drawn from a small palette; photos and video frames have thousands of colours.
+_PIXEL_ART_MAX_COLOURS = 256
+
+
+def _looks_like_photo(size: tuple[int, int], *, detected_scale: int, sample: Any) -> bool:
+    """Whether auto layout should treat the content as a photo (smooth fit + enhance) rather
+    than pixel art (crisp 1:1 or majority pooling, colours untouched).
+
+    Pixel art when ANY of: it already fits the panel (32x16 or smaller - e.g. a 32x8 AWTRIX strip,
+    which a shape-only rule misread as a photo); step 1 recovered an integer upscale (only pixel
+    art is drawn in exact k x k blocks); or it uses a small palette. A photo otherwise.
     """
     w, h = size
-    if max(w, h) <= DISPLAY_HEIGHT:
-        return False  # small art -- case 1 (1:1 centred), never a "photo" default
-    return w != h  # square-and-big is case 2 (pixel art); anything else is case 3
+    if w <= DISPLAY_WIDTH and h <= DISPLAY_HEIGHT:
+        return False
+    if detected_scale > 1:
+        return False
+    colours = sample.convert("RGB").getcolors(_PIXEL_ART_MAX_COLOURS)
+    return colours is None  # getcolors returns None when there are more than the limit
 
 
 def _auto_layout(
@@ -462,7 +467,7 @@ def _auto_layout(
     w, h = img.size
     if is_photo:
         return _layout_fit(img, canvas_size=canvas_size, background=background), "fit-like (photo)"
-    if max(w, h) <= ch:
+    if w <= cw and h <= ch:
         # "<=16px tall art at 1:1 centered; 32x8 art 1:1 vertically centered" -- both are
         # the same rule (1:1, centre, crop only if wider than the panel).
         return _layout_center(img, canvas_size=canvas_size, background=background), "center-like (small)"
@@ -663,7 +668,7 @@ def adapt(
         notes.append("every frame was fully transparent/background; nothing to trim")
 
     working_size = recovered_frames[0].size
-    is_photo = _looks_like_photo(working_size)
+    is_photo = _looks_like_photo(working_size, detected_scale=detected_scale, sample=recovered_frames[0])
 
     # --- Step 3: transparency composite ---
     composited_frames = []

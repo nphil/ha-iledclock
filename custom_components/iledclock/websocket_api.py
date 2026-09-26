@@ -15,6 +15,7 @@ from typing import Any, Mapping
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
@@ -44,10 +45,12 @@ def _coordinator(hass: HomeAssistant, entry_id: str) -> IledClockCoordinator:
     entry = hass.config_entries.async_get_entry(entry_id)
     if entry is None or entry.domain != DOMAIN:
         raise _UnknownEntryError(f"{entry_id} is not an iLedClock config entry")
-    coordinator = entry.runtime_data
-    if coordinator is None:
-        raise _UnknownEntryError(f"iLedClock entry {entry_id} is not loaded")
-    return coordinator
+    # `runtime_data` only exists once setup has finished. The panel reconnects the moment HA is
+    # back after a restart - before this entry has connected to the clock - so an unloaded entry
+    # is an ordinary transient state, not a crash (seen live: AttributeError on runtime_data).
+    if entry.state is not ConfigEntryState.LOADED:
+        raise _UnknownEntryError(f"iLedClock entry {entry_id} is not loaded yet ({entry.state.value})")
+    return entry.runtime_data
 
 
 def _state_event(coordinator: IledClockCoordinator) -> dict[str, Any]:

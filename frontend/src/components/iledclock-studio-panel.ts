@@ -51,6 +51,10 @@ function newDesignId(): string {
   return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+
+/** Retry cadence while the integration finishes starting after an HA restart (~60 s total). */
+const CONNECT_RETRY_MS = 3000;
+const CONNECT_RETRY_LIMIT = 20;
 export class IledclockStudioPanel extends LitElement {
   static properties = {
     hass: { attribute: false },
@@ -161,7 +165,7 @@ export class IledclockStudioPanel extends LitElement {
     return entities.find((entity) => entity.platform === "iledclock")?.device_id ?? undefined;
   }
 
-  private async _connect(entryId: string): Promise<void> {
+  private async _connect(entryId: string, attempt = 0): Promise<void> {
     if (this._unsubscribe) {
       void this._unsubscribe();
       this._unsubscribe = null;
@@ -169,18 +173,25 @@ export class IledclockStudioPanel extends LitElement {
     if (!this.hass.callWS) return;
     try {
       this._envelope = await this.hass.callWS<ClockStateEnvelope>({ type: "iledclock/state", entry_id: entryId });
-    } catch {
-      // subscription below may still recover a snapshot
-    }
-    if (this.hass.connection) {
-      this._unsubscribe = await this.hass.connection.subscribeMessage<SubscribeEvent>((event) => {
-        if (event.type === "upload") {
-          this._uploadProgress = event;
-          if (event.state === "done" || event.state === "error") setTimeout(() => (this._uploadProgress = null), 2500);
-        } else {
-          this._envelope = event;
-        }
-      }, { type: "iledclock/subscribe", entry_id: entryId });
+      if (this.hass.connection) {
+        this._unsubscribe = await this.hass.connection.subscribeMessage<SubscribeEvent>((event) => {
+          if (event.type === "upload") {
+            this._uploadProgress = event;
+            if (event.state === "done" || event.state === "error") setTimeout(() => (this._uploadProgress = null), 2500);
+          } else {
+            this._envelope = event;
+          }
+        }, { type: "iledclock/subscribe", entry_id: entryId });
+      }
+      if (attempt > 0) void this._loadPlaylist(entryId);
+    } catch (err) {
+      // Right after an HA restart this page reconnects before the clock integration has
+      // finished starting, and the server answers `unknown_entry` ("not loaded yet"). That is
+      // transient: retry for about a minute instead of leaving the studio without a clock.
+      const code = (err as { code?: string } | null)?.code;
+      if (code === "unknown_entry" && attempt < CONNECT_RETRY_LIMIT && this.isConnected) {
+        setTimeout(() => void this._connect(entryId, attempt + 1), CONNECT_RETRY_MS);
+      }
     }
   }
 

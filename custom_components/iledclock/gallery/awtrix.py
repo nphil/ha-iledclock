@@ -200,7 +200,11 @@ async def fetch_detail(session: Any, item_id: str, *, timeout_s: float = REQUEST
 
 
 def media_url(item_id: str) -> str:
-    return f"{BASE_URL}/{item_id}.gif"
+    # The original `<slug>.gif` download now needs a signed-in Hub account (401
+    # "authenticationRequired", observed 2026-09-26). The public listing preview is the same
+    # animation - every frame and its timing - upscaled 8x as animated WebP; the adaptation
+    # pipeline's native-scale recovery brings it back to 32x8/8x8 exactly.
+    return f"{BASE_URL}/{item_id}/preview.webp"
 
 
 async def fetch_media(session: Any, item_id: str, *, timeout_s: float = REQUEST_TIMEOUT_S):

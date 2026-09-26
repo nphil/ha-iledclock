@@ -91,7 +91,7 @@ class AwtrixDetailParseTests(unittest.TestCase):
 class AwtrixMediaUrlTests(unittest.TestCase):
     def test_media_url_pattern(self) -> None:
         self.assertEqual(
-            awtrix.media_url("landscape-2"), "https://awtrix.de/icons/landscape-2.gif"
+            awtrix.media_url("landscape-2"), "https://awtrix.de/icons/landscape-2/preview.webp"
         )
 
 
