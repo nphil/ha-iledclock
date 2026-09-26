@@ -2,13 +2,11 @@
 into this package's Python dataclasses, and for locating the vectors file itself. Not a test
 module (leading underscore keeps ``unittest discover`` from collecting it as one).
 
-The golden vectors live OUTSIDE this repository, at a path derived from decompiling the
-vendor's proprietary APK -- appropriate for verifying this port during development, not for
-shipping alongside an open-source Home Assistant integration. Every test module that uses
-this file calls :func:`load_vectors`, which returns ``None`` (not a list) when the fixture
-directory is absent, so `python3 -m unittest discover` still passes cleanly on a checkout that
-does not have it (e.g. any environment other than the one this port was built in) -- the
-golden-vector tests skip themselves in that case rather than failing.
+The golden vectors are produced by compiling the vendor's decompiled Java encoders on a real
+JVM (see ``tools/golden-harness/README.md`` to regenerate them from the vendor APK) and are
+committed in this repository at ``tests/fixtures/golden/vectors.json`` -- always present,
+unlike an external build artifact. Every test module that uses this file calls
+:func:`load_vectors`.
 """
 
 from __future__ import annotations
@@ -34,14 +32,12 @@ from protocol.programs import (
     TimeCountContent,
 )
 
-VECTORS_PATH = Path("/data/home/tmp/led1248/golden/vectors.json")
+VECTORS_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "golden" / "vectors.json"
 
 _DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
 
-def load_vectors() -> list[dict[str, Any]] | None:
-    if not VECTORS_PATH.exists():
-        return None
+def load_vectors() -> list[dict[str, Any]]:
     with VECTORS_PATH.open() as handle:
         return json.load(handle)
 

@@ -2,10 +2,10 @@
 
 Two evidence tiers, matching hardware.py's own grading:
 
-- Golden-vector tests load `/data/home/tmp/led1248/golden/vectors.json` (produced by running
-  the *real* vendor bytecode on a JVM -- see that project's README.md) and assert our pure
-  Python reproduces its exact byte-for-byte output. These are `[VECTOR]`-grade and are
-  skipped (not failed) if that external oracle file isn't present in this environment.
+- Golden-vector tests load the committed `tests/fixtures/golden/vectors.json` fixture
+  (produced by running the *real* vendor bytecode on a JVM -- see
+  `tools/golden-harness/README.md` to regenerate it) and assert our pure Python reproduces
+  its exact byte-for-byte output. These are `[VECTOR]`-grade and always run.
 - Formula tests assert our port matches the vendor formula as directly read from the
   decompiled source (cited in hardware.py's own docstrings/comments) -- these always run and
   do not depend on the external oracle.
@@ -27,7 +27,7 @@ from pathlib import Path
 
 import hardware
 
-GOLDEN_VECTORS_PATH = Path("/data/home/tmp/led1248/golden/vectors.json")
+GOLDEN_VECTORS_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "golden" / "vectors.json"
 
 
 def _load_golden() -> dict[str, list[dict]]:
@@ -100,7 +100,6 @@ def _expected_pixel_hex(colors: list[tuple[int, int, int]], path: str) -> str:
     return "".join(out)
 
 
-@unittest.skipUnless(GOLDEN_VECTORS_PATH.exists(), "golden vectors oracle not present in this environment")
 class GoldenVectorTests(unittest.TestCase):
     """[VECTOR]-grade cross-checks against the real vendor bytecode's own recorded output."""
 

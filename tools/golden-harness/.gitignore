@@ -1,0 +1,8 @@
+# Populated by regeneration (see README.md): verbatim copies of decompiled vendor Java.
+# Never committed -- it's the vendor's proprietary source, not this project's.
+vendor/
+
+# javac build output and the raw regeneration run's vectors.json. The canonical, committed
+# copy of the fixture lives at tests/fixtures/golden/vectors.json, not here.
+out/
+vectors.json

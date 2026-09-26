@@ -122,8 +122,6 @@ class GoldenFramingVectorTest(unittest.TestCase):
 
     def test_recover_data_vectors(self) -> None:
         vectors = gh.load_vectors()
-        if vectors is None:
-            self.skipTest(f"golden vectors fixture not present at {gh.VECTORS_PATH}")
 
         matched = 0
         for vector in vectors:

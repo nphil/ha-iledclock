@@ -742,8 +742,6 @@ _UNMAPPED_FUNCTIONS: dict[str, str] = {
 class GoldenVectorTest(unittest.TestCase):
     def test_all_vectors(self) -> None:
         vectors = gh.load_vectors()
-        if vectors is None:
-            self.skipTest(f"golden vectors fixture not present at {gh.VECTORS_PATH}")
 
         matched = 0
         skipped: dict[str, int] = {}

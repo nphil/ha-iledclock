@@ -14,8 +14,6 @@ from . import _golden_helpers as gh
 class CrcVectorTest(unittest.TestCase):
     def test_against_golden_vectors(self) -> None:
         vectors = gh.load_vectors()
-        if vectors is None:
-            self.skipTest(f"golden vectors fixture not present at {gh.VECTORS_PATH}")
 
         matched = 0
         for vector in vectors:
