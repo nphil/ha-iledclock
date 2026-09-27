@@ -356,15 +356,25 @@ def _style_fits(style_index: int, region: tuple[int, int, int, int]) -> bool:
     return True
 
 
-def _clock_in_region(region: tuple[int, int, int, int], params: Mapping[str, Any]) -> ClockContent:
-    """A live firmware clock inside `region` (x, y, w, h): the user's chosen style when it fits,
-    else the first vendor style designed to sit beside art that does."""
+def region_clock_style(region: tuple[int, int, int, int], params: Mapping[str, Any]) -> int:
+    """The clock style an "Icon with clock" design uses for `region` (x, y, w, h): the user's
+    chosen style when it fits, else the first vendor style designed to sit beside art that does.
+    Shared by the upload path and the server-side preview so both draw the same face."""
     requested = params.get("clock_style")
     candidates = ([int(requested)] if requested is not None else []) + list(_REGION_STYLE_PREFERENCE)
     for style_index in candidates:
         if style_index in CLOCK_STYLES and _style_fits(style_index, region):
-            return _style_clock(style_index, params)
+            return style_index
     raise ProgramBuildError(f"no clock style fits in region {region}")
+
+
+def region_clock_color(params: Mapping[str, Any]) -> tuple[int, int, int]:
+    """The clock colour `_style_clock` will upload for these params."""
+    return _resolve_color(params.get("color", params.get("clock_color")))
+
+
+def _clock_in_region(region: tuple[int, int, int, int], params: Mapping[str, Any]) -> ClockContent:
+    return _style_clock(region_clock_style(region, params), params)
 
 
 def _design_content(params: Mapping[str, Any], designs: Mapping[str, Design]) -> Content | list[Content]:

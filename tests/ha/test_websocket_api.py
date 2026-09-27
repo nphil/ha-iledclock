@@ -201,6 +201,46 @@ async def test_ws_render_clock_is_pixel_accurate_not_approximate(hass, hass_ws_c
     assert response["success"] is False
 
 
+async def test_ws_render_design_paints_live_clock_into_its_region(hass, hass_ws_client, config_entry) -> None:
+    """An "Icon with clock" design shows art left of its clock region and a firmware clock inside
+    it; the preview must draw that clock (it used to leave the region blank), and never let the
+    art bleed into the region."""
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id(
+        {
+            "type": "iledclock/designs/save",
+            "design": {
+                "name": "Art + clock", "kind": "animation",
+                "frames": [_solid_frame_b64((255, 0, 0)), _solid_frame_b64((0, 0, 255))],
+                "delays": [100, 100], "clock_region": [16, 0, 16, 16],
+            },
+        }
+    )
+    saved = await client.receive_json()
+    assert saved["success"] is True, saved
+    await client.send_json_auto_id(
+        {
+            "type": "iledclock/render",
+            "entry_id": config_entry.entry_id,
+            "spec": {"type": "design", "design_id": saved["result"]["id"], "color": [0, 255, 0]},
+        }
+    )
+    response = await client.receive_json()
+    assert response["success"] is True, response
+    frames = [base64.b64decode(f) for f in response["result"]["frames"]]
+    assert len(frames) == 2
+
+    def px(frame: bytes, x: int, y: int) -> tuple[int, int, int]:
+        i = (y * 32 + x) * 3
+        return tuple(frame[i : i + 3])
+
+    for frame, art in zip(frames, ((255, 0, 0), (0, 0, 255))):
+        assert px(frame, 0, 0) == art and px(frame, 15, 15) == art
+        region = {px(frame, x, y) for x in range(16, 32) for y in range(16)}
+        assert art not in region
+        assert (0, 255, 0) in region  # clock digits in the requested colour
+
+
 async def test_ws_render_generative_success(hass, hass_ws_client, config_entry) -> None:
     client = await hass_ws_client(hass)
     await client.send_json_auto_id(

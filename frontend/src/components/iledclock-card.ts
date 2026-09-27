@@ -1,12 +1,11 @@
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
-import type { ClockStateEnvelope, HomeAssistant, IledclockCardConfig, RenderResult, StoredDesign, SubscribeEvent, UploadProgressEvent } from "../types.ts";
+import type { ClockStateEnvelope, HomeAssistant, IledclockCardConfig, RenderResult, SubscribeEvent, UploadProgressEvent } from "../types.ts";
 import type { LuToastRequest } from "./lu-toast.ts";
 import { resolveIledclockEntities, type IledclockEntities } from "../lib/resolve-entities.ts";
 import { resolveEntryId } from "../lib/entry-id.ts";
 import { brightnessToPercent, haBrightnessToPercent, percentToBrightness } from "../lib/brightness.ts";
-import { designsListRequest, renderRequest } from "../lib/ws-api.ts";
+import { renderRequest } from "../lib/ws-api.ts";
 import { createFrame, GRID_HEIGHT, GRID_WIDTH, type PixelFrame } from "../lib/grid.ts";
-import { designToFrames } from "../lib/design-codec.ts";
 import { TOKENS_CSS, SURFACES_CSS } from "../styles/tokens.ts";
 import "./iledclock-led-preview.ts";
 import "./iledclock-mode-deck.ts";
@@ -298,11 +297,9 @@ export class IledclockCard extends LitElement {
       let frames: PixelFrame[];
       let approximate = false;
       if (descriptor.kind === "design" && descriptor.design_id) {
-        const designs = await this.hass.callWS<StoredDesign[]>(designsListRequest(entryId));
+        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "design", design_id: descriptor.design_id }));
         if (revision !== this._previewRevision) return;
-        const design = designs.find((item) => item.id === descriptor.design_id);
-        if (!design) throw new Error("The current design is no longer in the library.");
-        frames = designToFrames(design);
+        frames = decodeFrames(result);
       } else if (descriptor.kind === "clock") {
         const style = Number(descriptor.style) || 1;
         const color = Array.isArray(descriptor.color) && descriptor.color.length >= 3 ? descriptor.color.slice(0, 3).map(Number) as [number, number, number] : [255, 255, 255] as [number, number, number];

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Any, Mapping
 
 import voluptuous as vol
@@ -30,7 +31,7 @@ from .coordinator import (
 )
 from .designs import DesignValidationError
 from .playlist import PlaylistValidationError, playlist_item_to_json, validate_playlist
-from .program_builder import ProgramBuildError
+from .program_builder import ProgramBuildError, design_to_frames, region_clock_color, region_clock_style
 from .protocol import clock_faces as protocol_clock_faces
 from .protocol import render as protocol_render
 from .protocol.models import Frame
@@ -223,19 +224,10 @@ async def _async_render_spec(
         # clock_face_frames, decoded from protocol.clock_faces' bit-packed tables) over that
         # style's real background animation -- no longer an approximate placeholder.
         style_index = int(spec.get("style", 1))
-        style = CLOCK_STYLES.get(style_index)
-        if style is None:
-            raise ProgramBuildError(f"unknown clock style {style_index}")
         color = tuple(spec.get("color", (255, 255, 255)))
         hours24 = bool(spec.get("h24", True))
         wants_background = bool(spec.get("background", True))
-        geometry = protocol_render.ClockFaceGeometry(
-            num_width=style.num_width, num_height=style.num_height, hour=style.hour,
-            space_hour=style.space_hour, minute=style.minute, space_minute=style.space_minute,
-            seconds=style.seconds, show_space_minute=style.show_space_minute,
-            number_table=protocol_clock_faces.STYLE_NUMBER[style_index],
-            space_table=protocol_clock_faces.STYLE_SPACE[style_index],
-        )
+        geometry = _clock_geometry(style_index)
         bundled = CLOCK_BACKGROUNDS.get(style_index) if wants_background else None
         background = (
             protocol_render.ClockFaceBackground(
@@ -248,7 +240,55 @@ async def _async_render_spec(
             protocol_render.clock_face_frames, geometry, color, hours24, background,
         )
         return frames, [frame.duration_ms for frame in frames], False
+    if spec_type == "design":
+        return await _async_render_design(hass, spec)
     raise ProgramBuildError(f"unsupported render type: {spec_type!r}")
+
+
+def _clock_geometry(style_index: int) -> protocol_render.ClockFaceGeometry:
+    style = CLOCK_STYLES.get(style_index)
+    if style is None:
+        raise ProgramBuildError(f"unknown clock style {style_index}")
+    return protocol_render.ClockFaceGeometry(
+        num_width=style.num_width, num_height=style.num_height, hour=style.hour,
+        space_hour=style.space_hour, minute=style.minute, space_minute=style.space_minute,
+        seconds=style.seconds, show_space_minute=style.show_space_minute,
+        number_table=protocol_clock_faces.STYLE_NUMBER[style_index],
+        space_table=protocol_clock_faces.STYLE_SPACE[style_index],
+    )
+
+
+async def _async_render_design(
+    hass: HomeAssistant, spec: Mapping[str, Any]
+) -> tuple[list, list[int], bool]:
+    """What a saved design really looks like on the panel. For an "Icon with clock" design the
+    art fills the columns left of its clock region and the firmware draws a live clock in the
+    region, so the preview paints the same face the upload path picks (`region_clock_style`),
+    with its real glyphs, into the region of every art frame."""
+    library = async_get_design_library(hass)
+    await library.async_load()
+    design = next((d for d in library.designs if d.id == spec.get("design_id")), None)
+    if design is None:
+        raise ProgramBuildError(f"no saved design with id {spec.get('design_id')!r}")
+    art = design_to_frames(design)
+    if design.clock_region is None:
+        return art, [frame.duration_ms for frame in art], False
+    x, y, w, h = design.clock_region
+    style_index = region_clock_style(design.clock_region, spec)
+    clock = (
+        await hass.async_add_executor_job(
+            protocol_render.clock_face_frames,
+            _clock_geometry(style_index), region_clock_color(spec), bool(spec.get("h24", True)), None,
+        )
+    )[0]
+    composed = []
+    for frame in art:
+        rows = [list(row) for row in frame.pixels]
+        for row_index in range(y, min(y + h, len(rows))):
+            for col in range(x, min(x + w, len(rows[row_index]))):
+                rows[row_index][col] = clock.pixels[row_index][col]
+        composed.append(replace(frame, pixels=rows))
+    return composed, [frame.duration_ms for frame in composed], False
 
 
 def _frames_to_rgb888(frames: Sequence[Frame]) -> list[bytes]:

@@ -1,11 +1,10 @@
 import { navigateStudioRoute } from "../lib/route.ts";
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
-import type { ClockStateEnvelope, HomeAssistant, RenderResult, StoredDesign, UploadProgressEvent } from "../types.ts";
+import type { ClockStateEnvelope, HomeAssistant, RenderResult, UploadProgressEvent } from "../types.ts";
 import type { StudioRoute } from "../lib/route.ts";
-import { designToFrames } from "../lib/design-codec.ts";
 import { brightnessToPercent, percentToWireBrightness } from "../lib/brightness.ts";
 import { createFrame, GRID_HEIGHT, GRID_WIDTH, type PixelFrame } from "../lib/grid.ts";
-import { renderRequest, commandRequest, designsListRequest } from "../lib/ws-api.ts";
+import { renderRequest, commandRequest } from "../lib/ws-api.ts";
 import { showItemFromDescriptor, type ShowHistoryDescriptor } from "../lib/studio-history.ts";
 import { showWithUndo } from "../lib/show-with-undo.ts";
 
@@ -224,11 +223,9 @@ export class IledclockDestNow extends LitElement {
     try {
       let frames: PixelFrame[];
       if (descriptor.kind === "design" && descriptor.design_id) {
-        const designs = await this.hass.callWS<StoredDesign[]>(designsListRequest(entryId));
+        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "design", design_id: descriptor.design_id }));
         if (revision !== this._previewRevision) return;
-        const design = designs.find((item) => item.id === descriptor.design_id);
-        if (!design) throw new Error("This saved design is no longer in the library.");
-        frames = designToFrames(design);
+        frames = decodeFrames(result);
       } else if (descriptor.kind === "clock") {
         const style = Number(descriptor.style) || 1;
         const color = Array.isArray(descriptor.color) && descriptor.color.length >= 3 ? descriptor.color.slice(0, 3).map(Number) as [number, number, number] : [255, 255, 255] as [number, number, number];

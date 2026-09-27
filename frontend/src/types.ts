@@ -233,7 +233,10 @@ export type RenderSpec =
   | { type: "text"; text: string; font?: string; color: readonly [number, number, number]; effect?: string; speed?: number }
   | { type: "image"; url?: string; data_b64?: string; fit?: "contain" | "cover" | "stretch"; dither?: boolean }
   | { type: "generative"; kind: string; seconds: number; seed?: number }
-  | { type: "clock"; style: number; color: readonly [number, number, number]; h24: boolean; background?: boolean };
+  | { type: "clock"; style: number; color: readonly [number, number, number]; h24: boolean; background?: boolean }
+  /** A saved design as the panel shows it: art plus, for "Icon with clock" designs, the live clock
+   * the firmware draws in its clock region. */
+  | { type: "design"; design_id: string };
 
 export interface RenderResult {
   frames: string[];

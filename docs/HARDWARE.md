@@ -674,3 +674,10 @@ numeric fields decode to plausible round numbers under this ordering, unlike the
   DeviceManager.java:6983), identical to the 14 02 reply [DEVICE: wrong order stored "wake 1 min"].
 - **Voice wake (clap)**: not yet observed. Every BLE command also wakes the display for the full
   wake period, so test it after the display has dimmed on its own, with HA idle.
+
+## Live confirmation 2026-09-27 (v0.2.1)
+
+- **Face backgrounds**: clock style 17 uploaded as [vendor background animation, firmware clock] (program type 7)
+  displays Hello Kitty with the live time, as in the vendor app [DEVICE, confirmed by Nitin].
+- **Program start result 1** = "already stored, no payload needed" (vendor DeviceManager.java:4760-4812); treating it
+  as success is required to re-show any program the clock already holds [DEVICE].
