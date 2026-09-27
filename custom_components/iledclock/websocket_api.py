@@ -35,7 +35,7 @@ from .protocol import clock_faces as protocol_clock_faces
 from .protocol import render as protocol_render
 from .protocol.models import Frame
 from .store import async_get_design_library
-from .ws_shapes import shape_clock_backgrounds, shape_designs_list, shape_frames_payload, shape_state_event
+from .ws_shapes import shape_designs_list, shape_frames_payload, shape_state_event
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,7 +80,6 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_designs_list)
     websocket_api.async_register_command(hass, ws_designs_save)
     websocket_api.async_register_command(hass, ws_designs_delete)
-    websocket_api.async_register_command(hass, ws_clock_backgrounds)
     websocket_api.async_register_command(hass, ws_render)
     websocket_api.async_register_command(hass, ws_show)
     websocket_api.async_register_command(hass, ws_playlist_get)
@@ -192,20 +191,6 @@ async def ws_designs_delete(
         if entry.state == ConfigEntryState.LOADED:
             await entry.runtime_data.async_mark_design_deleted(msg["design_id"])
     connection.send_result(msg["id"], {})
-
-
-# -- iledclock/clock_backgrounds -----------------------------------------------------------------
-
-
-@websocket_api.websocket_command({vol.Required("type"): "iledclock/clock_backgrounds"})
-@websocket_api.async_response
-async def ws_clock_backgrounds(
-    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
-) -> None:
-    """Every firmware clock style's bundled 32x16 background animation plus the shared date
-    background, in one shot -- static assets bundled with the integration, not per-device
-    state, so this takes no `entry_id` and the frontend fetches it once per session."""
-    connection.send_result(msg["id"], shape_clock_backgrounds())
 
 
 # -- iledclock/render -----------------------------------------------------------------------------

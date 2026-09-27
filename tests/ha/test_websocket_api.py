@@ -149,23 +149,6 @@ async def test_ws_designs_delete_success_and_invalid(hass, hass_ws_client, confi
     assert response["success"] is False
 
 
-# -- iledclock/clock_backgrounds --------------------------------------------------------------
-
-
-async def test_ws_clock_backgrounds_shape(hass, hass_ws_client, config_entry) -> None:
-    """No `entry_id` needed -- these are static bundled assets, not per-device state."""
-    client = await hass_ws_client(hass)
-    await client.send_json_auto_id({"type": "iledclock/clock_backgrounds"})
-    response = await client.receive_json()
-    assert response["success"] is True
-    result = response["result"]
-    assert sorted(result["styles"], key=int) == [str(n) for n in range(1, 42)]
-    style1 = result["styles"]["1"]
-    assert len(style1["frames"]) == len(style1["delays"]) > 0
-    assert len(base64.b64decode(style1["frames"][0])) == _FRAME_BYTES
-    assert len(base64.b64decode(result["date"]["frames"][0])) == _FRAME_BYTES
-
-
 # -- iledclock/render ------------------------------------------------------------------------
 
 

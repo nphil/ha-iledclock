@@ -4,7 +4,6 @@ import type { ClockStateEnvelope, HomeAssistant, RenderResult, StoredDesign, Upl
 import type { StudioRoute } from "../lib/route.ts";
 import { designToFrames } from "../lib/design-codec.ts";
 import { brightnessToPercent, percentToWireBrightness } from "../lib/brightness.ts";
-import { clockFacePreviewFrames } from "../lib/clock-faces.ts";
 import { createFrame, GRID_HEIGHT, GRID_WIDTH, type PixelFrame } from "../lib/grid.ts";
 import { renderRequest, commandRequest, designsListRequest } from "../lib/ws-api.ts";
 import { showItemFromDescriptor, type ShowHistoryDescriptor } from "../lib/studio-history.ts";
@@ -237,7 +236,7 @@ export class IledclockDestNow extends LitElement {
         const wantsBackground = descriptor.background !== false;
         const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "clock", style, color, h24: hours24, background: wantsBackground }));
         if (revision !== this._previewRevision) return;
-        frames = result.approximate ? clockFacePreviewFrames(style, color, hours24) : decodeFrames(result);
+        frames = decodeFrames(result);
       } else if (descriptor.kind === "image" && Array.isArray(descriptor.frames) && descriptor.frames.length > 0) {
         frames = decodeFrames({ frames: descriptor.frames, delays: descriptor.delays ?? [] });
       } else if (descriptor.kind === "text" && typeof descriptor.text === "string") {

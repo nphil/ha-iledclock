@@ -20,12 +20,6 @@ export function designsListRequest(entryId?: string): Record<string, unknown> {
   return entryId ? { type: "iledclock/designs/list", entry_id: entryId } : { type: "iledclock/designs/list" };
 }
 
-/** No `entry_id`: every firmware clock style's bundled background animation plus the shared
- * date background are static assets, not per-device state -- fetch once per session. */
-export function clockBackgroundsRequest(): Record<string, unknown> {
-  return { type: "iledclock/clock_backgrounds" };
-}
-
 export function designsSaveRequest(design: StoredDesign): Record<string, unknown> {
   return { type: "iledclock/designs/save", design };
 }

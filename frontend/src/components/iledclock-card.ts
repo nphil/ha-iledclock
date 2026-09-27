@@ -5,7 +5,6 @@ import { resolveIledclockEntities, type IledclockEntities } from "../lib/resolve
 import { resolveEntryId } from "../lib/entry-id.ts";
 import { brightnessToPercent, haBrightnessToPercent, percentToBrightness } from "../lib/brightness.ts";
 import { designsListRequest, renderRequest } from "../lib/ws-api.ts";
-import { clockFacePreviewFrames } from "../lib/clock-faces.ts";
 import { createFrame, GRID_HEIGHT, GRID_WIDTH, type PixelFrame } from "../lib/grid.ts";
 import { designToFrames } from "../lib/design-codec.ts";
 import { TOKENS_CSS, SURFACES_CSS } from "../styles/tokens.ts";
@@ -311,7 +310,7 @@ export class IledclockCard extends LitElement {
         const wantsBackground = descriptor.background !== false;
         const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "clock", style, color, h24: hours24, background: wantsBackground }));
         if (revision !== this._previewRevision) return;
-        frames = result.approximate ? clockFacePreviewFrames(style, color, hours24) : decodeFrames(result);
+        frames = decodeFrames(result);
         approximate = Boolean(result.approximate);
       } else if (descriptor.kind === "image" && Array.isArray(descriptor.frames) && descriptor.frames.length > 0) {
         frames = decodeFrames({ frames: descriptor.frames, delays: descriptor.delays ?? [] });

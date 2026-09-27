@@ -19,7 +19,6 @@ from custom_components.iledclock.state import (
 )
 from custom_components.iledclock.ws_shapes import (
     shape_capabilities,
-    shape_clock_backgrounds,
     shape_designs_list,
     shape_frames_payload,
     shape_state_event,
@@ -132,17 +131,6 @@ class ShapeUploadProgressTests(unittest.TestCase):
         )
 
         self.assertEqual(payload["error"], "timeout")
-
-
-class ShapeClockBackgroundsTests(unittest.TestCase):
-    def test_every_style_plus_date_shaped_as_base64_frames(self) -> None:
-        payload = shape_clock_backgrounds()
-
-        self.assertEqual(sorted(payload["styles"], key=int), [str(n) for n in range(1, 42)])
-        style1 = payload["styles"]["1"]
-        self.assertEqual(len(style1["frames"]), len(style1["delays"]))
-        self.assertEqual(base64.b64decode(style1["frames"][0]).__len__(), 32 * 16 * 3)
-        self.assertEqual(len(payload["date"]["frames"]), len(payload["date"]["delays"]))
 
 
 if __name__ == "__main__":
