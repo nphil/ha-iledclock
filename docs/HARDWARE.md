@@ -655,3 +655,22 @@ numeric fields decode to plausible round numbers under this ordering, unlike the
   timer/scoreboard/temperature/humidity — not one blanket RGB444 mapping), and should expose
   `NATIVE_LAYERS`-based compositions (e.g. "icon beside clock") as selectable layout choices
   once GalleryEngine lands them.
+
+## Live session 2026-09-26 (Nitin at the clock)
+
+- **Pixel upload**: a test pattern (white border, red/green/blue thirds, yellow marker top-left)
+  showed correctly - colour order, orientation and column-major packing confirmed [DEVICE].
+- **Brightness**: the firmware keeps getting brighter above the vendor slider's 100: 100 < 163 <
+  255, clearly visible [DEVICE]. HA now maps its 1-255 onto 5-255. The dim-looking white at 163
+  was simply brightness.
+- **Frame timing**: the delay field counts ~1.5 ms per unit (8x125 -> ~1.5 s loop, 32x20 -> ~1.0
+  s loop) and 7 units (10 ms real) still plays visibly faster and smooth [DEVICE];
+  `DEVICE_MS_PER_DELAY_UNIT`. Exact ceiling (~100 fps?) needs a 240 fps slow-motion video.
+- **Art + live clock**: an animation in columns 0-15 plus firmware clock style 16 in columns
+  16-31 in one program (type 7) displays both, the clock keeping time by itself [DEVICE].
+  Firmware-drawn faces MUST use the vendor's per-style geometry and digit size
+  (`clock_styles.py`); invented geometry renders fragments [DEVICE].
+- **Night mode order**: set order is ..., brightness, voice, wake, sensitivity (vendor call site
+  DeviceManager.java:6983), identical to the 14 02 reply [DEVICE: wrong order stored "wake 1 min"].
+- **Voice wake (clap)**: not yet observed. Every BLE command also wakes the display for the full
+  wake period, so test it after the display has dimmed on its own, with HA idle.

@@ -343,7 +343,8 @@ async def test_ws_command_night_mode_set_maps_ws_field_names(hass, hass_ws_clien
     # reply, so read the *write* back to prove the field mapping instead of the read-back.
     written = clock.last_request(0x14, 0x01)
     assert written is not None
-    assert written == bytes((0x14, 0x01, 1, 22, 30, 7, 0, 1, 10, 15, 1, 3))
+    # ..., brightness, voice, wake, sensitivity (vendor call site; confirmed on the live clock)
+    assert written == bytes((0x14, 0x01, 1, 22, 30, 7, 0, 1, 10, 1, 15, 3))
 
 
 async def test_ws_command_unknown_command_errors(hass, hass_ws_client, config_entry) -> None:

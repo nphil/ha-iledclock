@@ -26,6 +26,13 @@ from typing import Any, Mapping, Sequence
 
 from .const import CLOCK_COLOR_RGB, DISPLAY_HEIGHT, DISPLAY_WIDTH
 from .clock_styles import CLOCK_STYLES
+from .content_layouts import (
+    DATE_LAYOUT,
+    HUMIDITY_LAYOUT,
+    SCOREBOARD_LAYOUT,
+    TEMPERATURE_LAYOUT,
+    TIME_COUNT_LAYOUTS,
+)
 from .designs import Design
 from .hardware import device_delay_units, power_limited_frame
 from .playlist import PlaylistItem
@@ -52,44 +59,15 @@ class ProgramBuildError(ValueError):
     naming a design id that no longer exists in the store."""
 
 
-# Digit glyph geometry shared by the clock-like layouts below: 5 wide (the bundled default font's
-# advance width), 7 tall, vertically centred in the 16-row panel. Not device-confirmed pixel
-# positions (the vendor UI computes these interactively per drag); a deliberate, sane default.
-_DIGIT_W = 5
-_DIGIT_H = 7
-_ROW = (DISPLAY_HEIGHT - _DIGIT_H) // 2  # 4
-_COLON_W = 3
-_GAP = 1
-
-
-def _hhmm_segments(
-    color: tuple[int, int, int], *, show_seconds: bool, trailing_columns: int = 0
-) -> dict[str, Segment]:
-    """A centred HH:MM[:SS] layout. Column budget on the 32-wide panel: HH(5) + gap + :(3) + gap
-    + MM(5) = 16 before any left margin, leaving room for optional seconds and/or
-    `trailing_columns` reserved for something the caller adds afterwards (e.g. an AM/PM mark)."""
-    budget = DISPLAY_WIDTH - trailing_columns
-    column = max(0, (budget - 16) // 2)
-    hour = Segment(color=color, start_column=column, start_row=_ROW, width=_DIGIT_W, height=_DIGIT_H)
-    column += _DIGIT_W + _GAP
-    space_hour = Segment(color=color, start_column=column, start_row=_ROW, width=_COLON_W, height=_DIGIT_H)
-    column += _COLON_W + _GAP
-    minute = Segment(color=color, start_column=column, start_row=_ROW, width=_DIGIT_W, height=_DIGIT_H)
-    column += _DIGIT_W + _GAP
-
-    seconds = Segment()
-    space_minute = Segment()
-    if show_seconds and column + _COLON_W + _GAP + _DIGIT_W <= budget:
-        space_minute = Segment(color=color, start_column=column, start_row=_ROW, width=_COLON_W, height=_DIGIT_H)
-        column += _COLON_W + _GAP
-        seconds = Segment(color=color, start_column=column, start_row=_ROW, width=_DIGIT_W, height=_DIGIT_H)
-        column += _DIGIT_W + _GAP
-
-    return {
-        "hour": hour, "space_hour": space_hour, "minute": minute,
-        "space_minute": space_minute, "seconds": seconds, "_next_column": column,
-    }
-
+def _layout_segment(color: tuple[int, int, int], geometry: tuple[int, int, int, int]) -> Segment:
+    column, row, width, height = geometry
+    return Segment(
+        color=color,
+        start_column=column,
+        start_row=row,
+        width=width,
+        height=height,
+    )
 
 def _require(params: Mapping[str, Any], key: str) -> Any:
     if key not in params:
@@ -150,27 +128,24 @@ def _clock_content(params: Mapping[str, Any]) -> ClockContent:
 
 def _date_content(params: Mapping[str, Any]) -> DateContent:
     color = _resolve_color(params.get("color"))
-    # The device's own font tables carry no year-digit glyphs at all (protocol-agent-verified
-    # control-flow fact, not a guess), so the year segment is left omitted (width=height=0)
-    # rather than configured to render digits that would silently come out empty.
-    column = (DISPLAY_WIDTH - (_DIGIT_W * 2 + _COLON_W + _GAP * 2)) // 2
-    month = Segment(color=color, start_column=column, start_row=_ROW, width=_DIGIT_W, height=_DIGIT_H)
-    column += _DIGIT_W + _GAP
-    space_month = Segment(color=color, start_column=column, start_row=_ROW, width=_COLON_W, height=_DIGIT_H)
-    column += _COLON_W + _GAP
-    day = Segment(color=color, start_column=column, start_row=_ROW, width=_DIGIT_W, height=_DIGIT_H)
-
     return DateContent(
-        show_space_year=False,
-        show_space_month=True,
-        show_space_day=False,
-        year=Segment(),
-        space_year=Segment(),
-        month=month,
-        space_month=space_month,
-        day=day,
-        space_day=Segment(),
-        week=Segment(),
+        show_space_year=DATE_LAYOUT.show_space_year,
+        show_space_month=DATE_LAYOUT.show_space_month,
+        show_space_day=DATE_LAYOUT.show_space_day,
+        year=_layout_segment(color, DATE_LAYOUT.year),
+        space_year=_layout_segment(color, DATE_LAYOUT.space_year),
+        month=_layout_segment(color, DATE_LAYOUT.month),
+        space_month=_layout_segment(color, DATE_LAYOUT.space_month),
+        day=_layout_segment(color, DATE_LAYOUT.day),
+        space_day=_layout_segment(color, DATE_LAYOUT.space_day),
+        week=_layout_segment(color, DATE_LAYOUT.week),
+        layer_type=DATE_LAYOUT.layer_type,
+        month_flag=DATE_LAYOUT.month_flag,
+        show_time=DATE_LAYOUT.show_time,
+        num_height=DATE_LAYOUT.num_height,
+        num_width=DATE_LAYOUT.num_width,
+        year_num_height=DATE_LAYOUT.year_num_height,
+        year_num_width=DATE_LAYOUT.year_num_width,
     )
 
 
@@ -186,58 +161,70 @@ def _timer_content(params: Mapping[str, Any]) -> TimeCountContent:
             f"mode must be one of {sorted(_TIMER_MODE_TO_WIRE)}, got {mode_name!r}"
         ) from err
     color = _resolve_color(params.get("color"))
-    segments = _hhmm_segments(color, show_seconds=True)
+    layout = TIME_COUNT_LAYOUTS[mode]
     return TimeCountContent(
         mode=mode,
-        hour=segments["hour"],
-        space_hour=segments["space_hour"],
-        minute=segments["minute"],
-        space_minute=segments["space_minute"],
-        seconds=segments["seconds"],
+        hour=_layout_segment(color, layout.hour),
+        space_hour=_layout_segment(color, layout.space_hour),
+        minute=_layout_segment(color, layout.minute),
+        space_minute=_layout_segment(color, layout.space_minute),
+        seconds=_layout_segment(color, layout.seconds),
+        layer_type=layout.layer_type,
+        num_height=layout.num_height,
+        num_width=layout.num_width,
     )
 
 
 def _scoreboard_content(params: Mapping[str, Any]) -> ScoreboardContent:
     color = _resolve_color(params.get("color"))
-    score_width = 14  # up to 3 digits per side
-    host_score = Segment(color=color, start_column=1, start_row=_ROW, width=score_width, height=_DIGIT_H)
-    visit_score = Segment(
-        color=color, start_column=DISPLAY_WIDTH - 1 - score_width, start_row=_ROW,
-        width=score_width, height=_DIGIT_H,
-    )
     return ScoreboardContent(
-        host_score=host_score,
-        visit_score=visit_score,
-        host_total=Segment(),
-        visit_total=Segment(),
-        minute=Segment(),
-        space_minute=Segment(),
-        seconds=Segment(),
+        host_score=_layout_segment(color, SCOREBOARD_LAYOUT.host_score),
+        visit_score=_layout_segment(color, SCOREBOARD_LAYOUT.visit_score),
+        host_total=_layout_segment(color, SCOREBOARD_LAYOUT.host_total),
+        visit_total=_layout_segment(color, SCOREBOARD_LAYOUT.visit_total),
+        minute=_layout_segment(color, SCOREBOARD_LAYOUT.minute),
+        space_minute=_layout_segment(color, SCOREBOARD_LAYOUT.space_minute),
+        seconds=_layout_segment(color, SCOREBOARD_LAYOUT.seconds),
+        layer_type=SCOREBOARD_LAYOUT.layer_type,
+        score_num_height=SCOREBOARD_LAYOUT.score_num_height,
+        score_num_width=SCOREBOARD_LAYOUT.score_num_width,
+        total_num_height=SCOREBOARD_LAYOUT.total_num_height,
+        total_num_width=SCOREBOARD_LAYOUT.total_num_width,
+        time_num_height=SCOREBOARD_LAYOUT.time_num_height,
+        time_num_width=SCOREBOARD_LAYOUT.time_num_width,
     )
 
 
 def _temperature_content(params: Mapping[str, Any]) -> TemperatureContent:
     color = _resolve_color(params.get("color"))
-    width, height = 28, 10
+    column, row, width, height = TEMPERATURE_LAYOUT.segment
     return TemperatureContent(
         color=color,
-        start_column=(DISPLAY_WIDTH - width) // 2,
-        start_row=(DISPLAY_HEIGHT - height) // 2,
+        start_column=column,
+        start_row=row,
         width=width,
         height=height,
+        layer_type=TEMPERATURE_LAYOUT.layer_type,
+        num_height=TEMPERATURE_LAYOUT.num_height,
+        num_width=TEMPERATURE_LAYOUT.num_width,
     )
 
 
 def _humidity_content(params: Mapping[str, Any]) -> HumidityContent:
     color = _resolve_color(params.get("color"), default_index=4)  # default cyan
-    width, height = 28, 10
+    column, row, width, height = HUMIDITY_LAYOUT.segment
     return HumidityContent(
         color=color,
-        start_column=(DISPLAY_WIDTH - width) // 2,
-        start_row=(DISPLAY_HEIGHT - height) // 2,
+        start_column=column,
+        start_row=row,
         width=width,
         height=height,
+        layer_type=HUMIDITY_LAYOUT.layer_type,
+        num_height=HUMIDITY_LAYOUT.num_height,
+        num_width=HUMIDITY_LAYOUT.num_width,
     )
+
+
 
 
 def _text_content(params: Mapping[str, Any]) -> TextContent:
