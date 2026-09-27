@@ -33,7 +33,7 @@ export function capAnimatingTiles(candidateIds: readonly string[], limit = TILE_
 
 /** Observable, bounded global animation allocation used by art tiles. */
 export class TileAnimationBudget {
-  private readonly _visible = new Set<string>();
+  private readonly _activeCandidates = new Set<string>();
   private readonly _granted = new Set<string>();
   private readonly _listeners = new Map<string, (granted: boolean) => void>();
 
@@ -43,19 +43,20 @@ export class TileAnimationBudget {
   }
 
   unregister(id: string): void {
-    this._visible.delete(id);
+    this._activeCandidates.delete(id);
     this._listeners.delete(id);
     this._recalculate();
   }
 
-  setVisible(id: string, visible: boolean): void {
-    if (visible) this._visible.add(id);
-    else this._visible.delete(id);
+  setActive(id: string, active: boolean): void {
+    if (this._activeCandidates.has(id) === active) return;
+    if (active) this._activeCandidates.add(id);
+    else this._activeCandidates.delete(id);
     this._recalculate();
   }
 
   private _recalculate(): void {
-    const next = new Set(capAnimatingTiles([...this._visible]));
+    const next = new Set(capAnimatingTiles([...this._activeCandidates]));
     for (const id of this._granted) {
       if (!next.has(id)) this._listeners.get(id)?.(false);
     }
@@ -68,3 +69,17 @@ export class TileAnimationBudget {
 }
 
 export const tileAnimationBudget = new TileAnimationBudget();
+
+/** The frame a still thumbnail should show: the one with the most lit LEDs, so animations that start
+ * dark or build up (sweeps, fades, "draw-on" effects) are recognisable at rest. Ties keep the earliest. */
+export function posterFrameIndex(frames: ReadonlyArray<{ readonly pixels: Uint8Array }>): number {
+  let best = 0;
+  let bestLit = -1;
+  frames.forEach((frame, index) => {
+    const px = frame.pixels;
+    let lit = 0;
+    for (let i = 0; i + 2 < px.length; i += 3) if (px[i] | px[i + 1] | px[i + 2]) lit++;
+    if (lit > bestLit) { bestLit = lit; best = index; }
+  });
+  return best;
+}

@@ -21,6 +21,7 @@ from .client import IledClockError
 from .const import (
     ATTR_ALARMS,
     ATTR_AWAY,
+    ATTR_BACKGROUND,
     ATTR_COLOR,
     ATTR_COLOR_MODE,
     ATTR_COUNT_DOWN,
@@ -209,6 +210,7 @@ CLOCK_FACE_SCHEMA = vol.Schema(
         vol.Required(ATTR_COLOR): vol.All(vol.Coerce(int), vol.Range(min=CLOCK_COLOR_MIN, max=CLOCK_COLOR_MAX)),
         vol.Optional(ATTR_HOURS24, default=True): cv.boolean,
         vol.Optional(ATTR_SHOW_SECONDS, default=False): cv.boolean,
+        vol.Optional(ATTR_BACKGROUND, default=True): cv.boolean,
     }
 )
 COUNTDOWN_RESET_SCHEMA = vol.Schema(
@@ -378,7 +380,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
         coordinator = _coordinator_for_device(hass, call.data[ATTR_DEVICE_ID])
         await _async_guard(
             coordinator.async_set_clock_face(
-                call.data[ATTR_STYLE], call.data[ATTR_COLOR], call.data[ATTR_HOURS24], call.data[ATTR_SHOW_SECONDS]
+                call.data[ATTR_STYLE], call.data[ATTR_COLOR], call.data[ATTR_HOURS24], call.data[ATTR_SHOW_SECONDS],
+                background=call.data[ATTR_BACKGROUND],
             )
         )
 

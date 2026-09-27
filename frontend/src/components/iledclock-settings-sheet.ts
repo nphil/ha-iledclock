@@ -164,7 +164,7 @@ export class IledclockSettingsSheet extends LitElement {
       <summary><span class="section-icon"><ha-icon icon="mdi:monitor-dashboard"></ha-icon></span><span class="section-title"><strong>Display</strong><small>Power, brightness and orientation</small></span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary>
       <div class="section-body">
         ${displayId ? this._renderToggle("Display power", isOn, this._toggleDisplay) : html`<p class="hint">Display power is unavailable: no display light entity is registered.</p>`}
-        ${brightness !== null ? html`<label class="field"><span>Brightness <strong>${brightness}%</strong></span><input type="range" min="5" max="100" .value=${String(brightness)} @input=${this._setDisplayBrightness} aria-label="Display brightness"></label>` : html`<p class="hint">Brightness is unavailable until the display entity is enabled.</p>`}
+        ${brightness !== null ? html`<label class="field"><span>Brightness <strong>${brightness}%</strong></span><input type="range" min="1" max="100" .value=${String(brightness)} @change=${this._setDisplayBrightness} aria-label="Display brightness"></label>` : html`<p class="hint">Brightness is unavailable until the display entity is enabled.</p>`}
         <label class="field"><span>Screen rotation</span><select .value=${String(rotate)} ?disabled=${this._busy !== null} @change=${this._setRotate} aria-label="Screen rotation">${[0, 1, 2, 3].map((mode) => html`<option value=${mode}>${["Normal", "Rotate 90°", "Rotate 180°", "Rotate 270°"][mode]}</option>`)}</select></label>
         <p class="hint">12/24-hour format and date are set with the clock mode.</p>
       </div>

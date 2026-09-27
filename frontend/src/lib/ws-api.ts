@@ -20,6 +20,12 @@ export function designsListRequest(entryId?: string): Record<string, unknown> {
   return entryId ? { type: "iledclock/designs/list", entry_id: entryId } : { type: "iledclock/designs/list" };
 }
 
+/** No `entry_id`: every firmware clock style's bundled background animation plus the shared
+ * date background are static assets, not per-device state -- fetch once per session. */
+export function clockBackgroundsRequest(): Record<string, unknown> {
+  return { type: "iledclock/clock_backgrounds" };
+}
+
 export function designsSaveRequest(design: StoredDesign): Record<string, unknown> {
   return { type: "iledclock/designs/save", design };
 }
@@ -105,6 +111,6 @@ export function buildGenerativeRenderSpec(kind: string, seconds: number, seed?: 
   return spec;
 }
 
-export function buildClockRenderSpec(style: number, color: RGB, h24: boolean, styleCount: number): RenderSpec {
-  return { type: "clock", style: Math.max(1, Math.min(styleCount, Math.round(style))), color: clampRgb(color), h24 };
+export function buildClockRenderSpec(style: number, color: RGB, h24: boolean, styleCount: number, background = true): RenderSpec {
+  return { type: "clock", style: Math.max(1, Math.min(styleCount, Math.round(style))), color: clampRgb(color), h24, background };
 }

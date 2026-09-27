@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import base64
 from typing import Any, Sequence
-
 from .const import (
     CLOCK_STYLE_MAX,
     MAX_ALARMS,
@@ -20,6 +19,7 @@ from .const import (
     MAX_TIMER_SWITCHES,
     TEXT_COLOR_MODE_MAX,
 )
+from .clock_backgrounds import CLOCK_BACKGROUNDS, DATE_BACKGROUND, ClockBackground
 from .designs import Design
 from .playlist import PlaylistItem, playlist_item_to_json
 from .state import (
@@ -200,6 +200,23 @@ def shape_frames_payload(frames: Sequence[bytes], delays_ms: Sequence[int]) -> d
     return {
         "frames": [base64.b64encode(frame).decode("ascii") for frame in frames],
         "delays": list(delays_ms),
+    }
+
+
+def shape_clock_background(background: ClockBackground) -> dict[str, Any]:
+    """One style's (or the date companion's) background animation, `iledclock/render`-shaped
+    (`{frames: [b64 rgb888], delays: [ms]}`) so the frontend can reuse its existing base64
+    RGB888 frame decoder (`design-codec.ts`'s `base64ToFrame`) unchanged."""
+    return shape_frames_payload(background.frames, [background.delay_ms] * len(background.frames))
+
+
+def shape_clock_backgrounds() -> dict[str, Any]:
+    """`iledclock/clock_backgrounds` result: every firmware clock style's background plus the
+    shared date-companion background, in one shot -- these are static bundled assets (not
+    per-device state), so the frontend fetches this once per session and caches it."""
+    return {
+        "styles": {str(style): shape_clock_background(background) for style, background in CLOCK_BACKGROUNDS.items()},
+        "date": shape_clock_background(DATE_BACKGROUND),
     }
 
 

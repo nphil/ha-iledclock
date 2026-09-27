@@ -107,6 +107,7 @@ export class IledclockExploreBrowser extends LitElement {
   private _sentinelObserver: IntersectionObserver | null = null;
   private _observedSentinel: Element | undefined;
   private _loadedEntryId: string | undefined;
+  private _loadedConnection: HomeAssistant["connection"] | undefined;
   private _sourceRequestId = 0;
   private _shelfCatalogRequestId = 0;
   private _shelfGeneration = 0;
@@ -152,10 +153,18 @@ export class IledclockExploreBrowser extends LitElement {
     this._browseRequestGeneration++;
   }
 
+  protected shouldUpdate(changed: PropertyValues): boolean {
+    if (changed.size !== 1 || !changed.has("hass")) return true;
+    const previous = changed.get("hass") as HomeAssistant | undefined;
+    return !previous || previous.connection !== this.hass?.connection;
+  }
+
   protected willUpdate(changed: PropertyValues): void {
     if (!changed.has("hass") && !changed.has("entryId")) return;
-    if (this.entryId === this._loadedEntryId) return;
+    const connection = this.hass?.connection;
+    if (this.entryId === this._loadedEntryId && connection === this._loadedConnection) return;
     this._loadedEntryId = this.entryId;
+    this._loadedConnection = connection;
     this._sourceRequestId++;
     this._shelfCatalogRequestId++;
     this._shelfGeneration++;
@@ -631,6 +640,10 @@ export class IledclockExploreBrowser extends LitElement {
     const exact = fitsClockExactly(item);
     const noTitle = !item.title || /^Trending\s+\d+$/i.test(item.title);
     const category = this._activeSource()?.categories?.find((entry) => entry.id === item.category)?.label;
+    const title = noTitle ? category ?? "Trending" : item.title;
+    const badge = item.animated
+      ? html`<span slot="badges" class="tile-badge play" role="img" aria-label="Animated" title="Animated"><ha-icon .icon=${"mdi:play"} aria-hidden="true" style="--mdc-icon-size:12px"></ha-icon></span>`
+      : exact ? html`<span slot="badges" class="tile-badge exact">Fits exactly</span>` : nothing;
     return html`<iledclock-art-tile
       .itemId=${itemKey(item)}
       .imageUrl=${this._signedPaths[itemKey(item)] ?? ""}
@@ -639,16 +652,10 @@ export class IledclockExploreBrowser extends LitElement {
       .pixelHeight=${item.height}
       .aspect=${exploreTileAspect(item)}
       .animated=${item.animated}
-      .title=${noTitle ? "" : item.title}
-      .subtitle=${noTitle ? "" : tileMetaLine(item) ?? ""}
+      .title=${title}
+      .subtitle=${tileMetaLine(item)}
       @tile-selected=${this._openGridItem}
-    >
-      ${noTitle
-        ? category ? html`<span slot="badges" class="tile-badge">${category}</span>` : nothing
-        : html`${exact ? html`<span slot="badges" class="tile-badge exact">Fits exactly</span>` : nothing}
-            ${item.animated ? html`<span slot="badges" class="tile-badge">${item.frames && item.frames > 1 ? `${item.frames} frames` : "Animated"}</span>` : nothing}
-            <span slot="badges" class="tile-badge size">${item.width}×${item.height}</span>`}
-    </iledclock-art-tile>`;
+    >${badge}</iledclock-art-tile>`;
   }
 
   private _renderSourceGrid(source: ExploreSource) {
@@ -695,7 +702,7 @@ export class IledclockExploreBrowser extends LitElement {
 
   static styles = [TOKENS_CSS, css`
     :host { display: block; min-width: 0; height: 100%; overflow: auto; container-type: inline-size; color: var(--lu-ink); }
-    .explore { box-sizing: border-box; width: min(100%, 1200px); min-width: 0; margin: 0 auto; padding: var(--lu-space-4); }
+    .explore { box-sizing: border-box; width: min(100%, 1200px); min-width: 0; margin: 0 auto; padding: 0; }
     .toolbar { display: flex; min-width: 0; flex-direction: column; gap: var(--lu-space-3); margin-bottom: var(--lu-space-5); }
     .search-row { display: flex; align-items: center; gap: var(--lu-space-2); }
     .search-box { display: flex; align-items: center; gap: var(--lu-space-2); flex: 1; min-width: 0; min-height: var(--lu-target, 48px); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-card); box-shadow: var(--lu-highlight-rest, none); }
@@ -726,7 +733,7 @@ export class IledclockExploreBrowser extends LitElement {
     .sentinel { width: 1px; height: 1px; }
     .end-of-list { margin: var(--lu-space-4) 0; color: var(--lu-ink-3); text-align: center; font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
     .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    @container (min-width: 720px) { .explore { padding: var(--lu-space-6); } .grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 148px), 1fr)); } .toolbar { margin-bottom: var(--lu-space-6); } }
+    @container (min-width: 720px) { .grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 148px), 1fr)); } .toolbar { margin-bottom: var(--lu-space-6); } }
     @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition-duration: var(--lu-motion-label, 120ms) !important; } }
   `];
 }

@@ -2,9 +2,8 @@ import { LitElement, css, html, nothing, type PropertyValues } from "lit";
 import { createRef, ref } from "lit/directives/ref.js";
 import type { PixelFrame } from "../lib/grid.ts";
 import { ledSizeFor, type LedSize } from "../lib/led-size.ts";
-import { frameIndexAtTime } from "../lib/frame-player.ts";
-import { prefersReducedMotion, SURFACES_CSS, TOKENS_CSS } from "../styles/tokens.ts";
-import { tileAnimationBudget, tileAutoRetryDelay, tileRetryUrl } from "../lib/tile-policy.ts";
+import { SURFACES_CSS, TOKENS_CSS } from "../styles/tokens.ts";
+import { posterFrameIndex, tileAnimationBudget, tileAutoRetryDelay, tileRetryUrl } from "../lib/tile-policy.ts";
 import "./iledclock-led-preview.ts";
 import "./lu-icon-button.ts";
 
@@ -26,9 +25,10 @@ export class IledclockArtTile extends LitElement {
     subtitle: { type: String },
     _failed: { state: true },
     _retryUrl: { state: true },
-    _visible: { state: true },
     _granted: { state: true },
     _imageSize: { state: true },
+    _active: { state: true },
+    _posterReady: { state: true },
   };
 
   declare itemId: string;
@@ -44,19 +44,23 @@ export class IledclockArtTile extends LitElement {
   declare subtitle: string;
   declare _failed: boolean;
   declare _retryUrl: string;
-  declare _visible: boolean;
   declare _granted: boolean;
   declare _imageSize: LedSize | null;
+  declare _active: boolean;
+  declare _posterReady: boolean;
 
   private readonly _surfaceRef = createRef<HTMLDivElement>();
-  private _observer: IntersectionObserver | null = null;
+  private readonly _posterRef = createRef<HTMLCanvasElement>();
   private _resizeObserver: ResizeObserver | null = null;
   private _motionQuery: MediaQueryList | null = null;
+  private _hoverQuery: MediaQueryList | null = null;
   private _tileKey = "";
   private _attempts = 0;
   private _autoRetryTimer: ReturnType<typeof setTimeout> | undefined;
   private _reducedMotion = false;
-
+  private _hoverCapable = false;
+  private _pointerActive = false;
+  private _focusActive = false;
   constructor() {
     super();
     this.itemId = "";
@@ -72,30 +76,26 @@ export class IledclockArtTile extends LitElement {
     this.subtitle = "";
     this._failed = false;
     this._retryUrl = "";
-    this._visible = false;
     this._granted = false;
     this._imageSize = null;
+    this._active = false;
+    this._posterReady = false;
   }
 
   connectedCallback(): void {
     super.connectedCallback();
     this._tileKey = "art-tile-" + (++nextTileId);
     tileAnimationBudget.register(this._tileKey, this._onBudgetChanged);
-    this._visible = typeof IntersectionObserver === "undefined";
-    if (typeof IntersectionObserver !== "undefined") {
-      this._observer = new IntersectionObserver((entries) => {
-        this._visible = (entries[0]?.intersectionRatio ?? 0) >= 0.5;
-        this._syncBudget();
-      }, { threshold: [0, 0.5, 1] });
-    }
     if (typeof ResizeObserver !== "undefined") this._resizeObserver = new ResizeObserver(() => this._measureImage());
     this._motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     this._reducedMotion = this._motionQuery.matches;
     this._motionQuery.addEventListener("change", this._onMotionChanged);
+    this._hoverQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
+    this._hoverCapable = this._hoverQuery.matches;
+    this._hoverQuery.addEventListener("change", this._onHoverChanged);
   }
 
   protected firstUpdated(): void {
-    if (this._observer) this._observer.observe(this);
     if (this._surfaceRef.value) this._resizeObserver?.observe(this._surfaceRef.value);
     this._measureImage();
   }
@@ -105,12 +105,11 @@ export class IledclockArtTile extends LitElement {
       clearTimeout(this._autoRetryTimer);
       const itemChanged = changed.has("itemId") && changed.get("itemId") !== this.itemId;
       const mediaPathChanged = changed.has("mediaPath") && changed.get("mediaPath") !== this.mediaPath;
-      if (itemChanged || mediaPathChanged || (changed.has("imageUrl") && !this.mediaPath)) {
-        this._attempts = 0;
-      }
+      if (itemChanged || mediaPathChanged || (changed.has("imageUrl") && !this.mediaPath)) this._attempts = 0;
       this._failed = false;
       this._retryUrl = this.imageUrl;
       this._imageSize = null;
+      this._posterReady = false;
     }
     if (changed.has("animated") || changed.has("frames") || changed.has("imageUrl")) this._syncBudget();
   }
@@ -122,12 +121,12 @@ export class IledclockArtTile extends LitElement {
   disconnectedCallback(): void {
     super.disconnectedCallback();
     clearTimeout(this._autoRetryTimer);
-    this._observer?.disconnect();
     this._resizeObserver?.disconnect();
     this._motionQuery?.removeEventListener("change", this._onMotionChanged);
-    this._observer = null;
+    this._hoverQuery?.removeEventListener("change", this._onHoverChanged);
     this._resizeObserver = null;
     this._motionQuery = null;
+    this._hoverQuery = null;
     if (this._tileKey) tileAnimationBudget.unregister(this._tileKey);
   }
 
@@ -136,8 +135,9 @@ export class IledclockArtTile extends LitElement {
   }
 
   private _syncBudget(): void {
-    if (!this._tileKey) return;
-    tileAnimationBudget.setVisible(this._tileKey, this._visible && this._isAnimated() && !this._reducedMotion);
+    const active = this._hoverCapable && !this._reducedMotion && (this._pointerActive || this._focusActive);
+    if (this._active !== active) this._active = active;
+    if (this._tileKey) tileAnimationBudget.setActive(this._tileKey, active && this._isAnimated());
   }
 
   private _onBudgetChanged = (granted: boolean): void => {
@@ -151,7 +151,34 @@ export class IledclockArtTile extends LitElement {
     this._syncBudget();
   };
 
-  private _measureImage(): void {
+  private _onHoverChanged = (event: MediaQueryListEvent): void => {
+    this._hoverCapable = event.matches;
+    this._syncBudget();
+  };
+  private _onPointerEnter = (): void => {
+    if (!this._hoverCapable) return;
+    this._pointerActive = true;
+    this._syncBudget();
+  };
+
+  private _onPointerLeave = (): void => {
+    this._pointerActive = false;
+    this._syncBudget();
+  };
+
+  private _onFocusIn = (): void => {
+    this._focusActive = true;
+    this._syncBudget();
+  };
+
+  private _onFocusOut = (event: FocusEvent): void => {
+    const target = event.relatedTarget;
+    if (target instanceof Node && this.renderRoot.contains(target)) return;
+    this._focusActive = false;
+    this._syncBudget();
+  };
+
+   private _measureImage(): void {
     const box = this._surfaceRef.value?.getBoundingClientRect();
     if (!box || box.width <= 0 || box.height <= 0) return;
     const image = this.renderRoot.querySelector<HTMLImageElement>("img.art-image");
@@ -174,6 +201,18 @@ export class IledclockArtTile extends LitElement {
     this._attempts = 0;
     clearTimeout(this._autoRetryTimer);
     this._measureImage();
+  };
+
+  private _onPosterLoad = (event: Event): void => {
+    const image = event.currentTarget as HTMLImageElement;
+    const canvas = this._posterRef.value;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context || image.naturalWidth === 0 || image.naturalHeight === 0) return;
+    if (canvas.width !== image.naturalWidth) canvas.width = image.naturalWidth;
+    if (canvas.height !== image.naturalHeight) canvas.height = image.naturalHeight;
+    context.drawImage(image, 0, 0);
+    this._posterReady = true;
+    this._onImageLoad();
   };
 
   private _retry = (event?: Event): void => {
@@ -203,18 +242,38 @@ export class IledclockArtTile extends LitElement {
     this._select();
   };
 
+  private _posterSource: readonly PixelFrame[] | null = null;
+  private _posterCache: PixelFrame[] = [];
+
+  /** One stable still frame (memoised per frames array so the canvas does not repaint on re-render). */
+  private _posterFrames(): PixelFrame[] {
+    if (this._posterSource !== this.frames) {
+      this._posterSource = this.frames;
+      this._posterCache = this.frames.length ? [this.frames[posterFrameIndex(this.frames)]!] : [];
+    }
+    return this._posterCache;
+  }
+
   render() {
     const useFrames = this.frames.length > 0;
+    const animatedImage = this.animated && !useFrames;
     const imageUrl = this._retryUrl || this.imageUrl;
     const sizeStyle = this._imageSize ? "width:" + this._imageSize.width + "px;height:" + this._imageSize.height + "px" : "";
     const imageVisible = !this._failed && Boolean(imageUrl);
-    return html`<article class="tile">
+    const playing = this._active && this._granted && !this._reducedMotion;
+    return html`<article class="tile" @pointerenter=${this._onPointerEnter} @pointerleave=${this._onPointerLeave} @focusin=${this._onFocusIn} @focusout=${this._onFocusOut}>
       <div class="plate ${this.aspect === "design" ? "design" : "square"}" ${ref(this._surfaceRef)} @click=${this._select}>
         ${useFrames
-          ? html`<iledclock-led-preview context="tile" max-pitch="4" .frames=${this.frames} .delays=${this.delays} .playing=${this._granted && !this._reducedMotion} label=${this.title || "Pixel art"}></iledclock-led-preview>`
-          : imageVisible && imageUrl
-            ? html`<img class="art-image" src=${imageUrl} alt="" style=${sizeStyle} @load=${this._onImageLoad} @error=${this._onImageError}>`
-            : html`<div class="placeholder" aria-hidden="true"><span class="glyph">${this._failed ? "▧" : "▦"}</span></div>`}
+          ? html`<iledclock-led-preview context="tile" max-pitch="4" .frames=${playing ? this.frames : this._posterFrames()} .delays=${this.delays} .playing=${playing} label=${this.title || "Pixel art"}></iledclock-led-preview>`
+          : animatedImage
+            ? imageVisible
+              ? html`<canvas class="poster" ${ref(this._posterRef)} width=${Math.max(1, this.pixelWidth)} height=${Math.max(1, this.pixelHeight)} style=${sizeStyle} ?hidden=${!this._posterReady || playing} aria-hidden="true"></canvas>
+                  ${this._posterReady ? nothing : html`<img class="art-image poster-source" src=${imageUrl} alt="" style=${sizeStyle} @load=${this._onPosterLoad} @error=${this._onImageError}>`}
+                  ${this._posterReady && playing ? html`<img class="art-image live-image" src=${imageUrl} alt="" style=${sizeStyle} @load=${this._onImageLoad} @error=${this._onImageError}>` : nothing}`
+              : html`<div class="placeholder" aria-hidden="true"><span class="glyph">${this._failed ? "▧" : "▦"}</span></div>`
+            : imageVisible
+              ? html`<img class="art-image" src=${imageUrl} alt="" style=${sizeStyle} @load=${this._onImageLoad} @error=${this._onImageError}>`
+              : html`<div class="placeholder" aria-hidden="true"><span class="glyph">${this._failed ? "▧" : "▦"}</span></div>`}
         <div class="badges"><slot name="badges"></slot></div>
         ${this._failed && this.imageUrl ? html`<lu-icon-button class="retry" icon="mdi:refresh" tooltip="Retry image" aria-label="Retry loading image" @lu-press=${this._retry}></lu-icon-button>` : nothing}
       </div>
@@ -226,19 +285,21 @@ export class IledclockArtTile extends LitElement {
   }
 
   static styles = [TOKENS_CSS, SURFACES_CSS, css`
-    :host { display: block; min-width: 0; container-type: inline-size; }
+    :host { display: block; min-width: 0; }
     .tile { display: flex; min-width: 0; flex-direction: column; gap: var(--lu-space-2); }
     .plate { position: relative; display: grid; place-items: center; width: 100%; overflow: hidden; border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-tile); background: #050607; }
     .plate.square { aspect-ratio: 1 / 1; }
     .plate.design { aspect-ratio: 2 / 1; }
     .art-image { display: block; max-width: none; max-height: none; image-rendering: pixelated; object-fit: contain; }
+    .poster { display: block; max-width: none; max-height: none; image-rendering: pixelated; }
+    .poster[hidden] { display: none; }
     .placeholder { display: grid; place-items: center; width: 100%; height: 100%; color: var(--lu-ink-3); }
     .glyph { font: 400 var(--lu-type-display)/1 var(--lu-font); }
     .badges { position: absolute; top: var(--lu-space-2); left: var(--lu-space-2); display: flex; max-width: calc(100% - 2 * var(--lu-space-2)); flex-wrap: wrap; gap: var(--lu-space-1); align-items: flex-start; pointer-events: none; }
     ::slotted([slot="badges"]) { pointer-events: auto; }
-    ::slotted(.tile-badge) { display: inline-flex; min-height: 24px; align-items: center; padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-glass-raised, var(--lu-tile)); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1 var(--lu-font); white-space: nowrap; }
+    ::slotted(.tile-badge) { display: inline-flex; min-height: 20px; align-items: center; padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-glass-raised, var(--lu-tile)); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1 var(--lu-font); white-space: nowrap; }
     ::slotted(.tile-badge.exact) { color: var(--lu-positive); }
-    ::slotted(.tile-badge.size) { color: var(--lu-ink-3); }
+    ::slotted(.tile-badge.play) { width: 20px; height: 20px; min-height: 20px; justify-content: center; padding: 0; }
     .retry { position: absolute; right: var(--lu-space-2); bottom: var(--lu-space-2); }
     .text { display: flex; flex-direction: column; min-width: 0; min-height: 48px; gap: var(--lu-space-1); padding: 0; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
     .text:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; border-radius: var(--lu-radius-control); }

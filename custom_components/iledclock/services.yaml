@@ -154,6 +154,10 @@ clock_face:
       default: false
       selector:
         boolean:
+    background:
+      default: true
+      selector:
+        boolean:
 
 countdown_reset:
   fields:

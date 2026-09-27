@@ -25,15 +25,15 @@ const FILTERS: ReadonlyArray<{ value: LibraryFilter; label: string }> = [
   { value: "from-explore", label: "From Explore" },
 ];
 
-const FRAME_CACHE = new WeakMap<StoredDesign, PixelFrame[]>();
+interface CachedDesignPreview { updated: number; frames: PixelFrame[]; delays: number[]; }
+const FRAME_CACHE = new Map<string, CachedDesignPreview>();
 
-function framesFor(design: StoredDesign): PixelFrame[] {
-  let frames = FRAME_CACHE.get(design);
-  if (!frames) {
-    frames = designToFrames(design);
-    FRAME_CACHE.set(design, frames);
-  }
-  return frames;
+function previewFor(design: StoredDesign): CachedDesignPreview {
+  const cached = FRAME_CACHE.get(design.id);
+  if (cached?.updated === design.updated) return cached;
+  const preview = { updated: design.updated, frames: designToFrames(design), delays: design.delays };
+  FRAME_CACHE.set(design.id, preview);
+  return preview;
 }
 
 export class IledclockLibraryPanel extends LitElement {
@@ -275,25 +275,29 @@ export class IledclockLibraryPanel extends LitElement {
   }
 
   private _renderDesignTile(design: StoredDesign) {
-    const frames = framesFor(design);
+    const { frames, delays } = previewFor(design);
     const selected = this._selectedIds.includes(design.id);
     const metadata = design as StoredDesign & { origin?: unknown };
     const fromExplore = metadata.origin !== undefined && metadata.origin !== null;
+    const details = [`${design.width}×${design.height}`];
+    if (design.kind === "animation" && frames.length > 1) details.push(`${frames.length} frames`);
+    const badge = design.kind === "animation"
+      ? html`<span slot="badges" class="tile-badge play" role="img" aria-label="Animated" title="Animated"><ha-icon .icon=${"mdi:play"} aria-hidden="true" style="--mdc-icon-size:12px"></ha-icon></span>`
+      : designHasClockRegion(design)
+        ? html`<span slot="badges" class="tile-badge">With clock</span>`
+        : fromExplore ? html`<span slot="badges" class="tile-badge">Explore</span>` : nothing;
     return html`
       <article class="design-tile ${selected ? "selected" : ""}">
         <iledclock-art-tile
           item-id=${design.id}
           aspect="design"
           .frames=${frames}
-          .delays=${design.delays}
+          .delays=${delays}
           ?animated=${design.kind === "animation"}
           .title=${design.name}
+          .subtitle=${details.join(" · ")}
           @tile-selected=${this._onTileSelected}
-        >
-          ${design.kind === "animation" ? html`<span slot="badges" class="tile-badge">Animated</span>` : nothing}
-          ${designHasClockRegion(design) ? html`<span slot="badges" class="tile-badge">With clock</span>` : nothing}
-          ${fromExplore ? html`<span slot="badges" class="tile-badge">Explore</span>` : nothing}
-        </iledclock-art-tile>
+        >${badge}</iledclock-art-tile>
         ${this._selectMode ? html`
           <button type="button" class="select-toggle ${selected ? "selected" : ""}" aria-pressed=${selected} aria-label=${`${selected ? "Deselect" : "Select"} ${design.name}`} @click=${() => this._toggleSelected(design.id)}>
             <span aria-hidden="true">${selected ? mdiIcon("check") : mdiIcon("plus")}</span>
@@ -305,11 +309,11 @@ export class IledclockLibraryPanel extends LitElement {
   }
 
   private _renderDesignSheet(design: StoredDesign) {
-    const frames = framesFor(design);
+    const { frames, delays } = previewFor(design);
     const canRename = this._renameValue.trim().length > 0 && this._renameValue.trim() !== design.name;
     return html`
       <div class="design-sheet-body">
-        <div class="hero"><iledclock-led-preview context="hero" .frames=${frames} .delays=${design.delays} ?playing=${design.kind === "animation"} .label=${design.name}></iledclock-led-preview></div>
+        <div class="hero"><iledclock-led-preview context="hero" .frames=${frames} .delays=${delays} ?playing=${design.kind === "animation"} .label=${design.name}></iledclock-led-preview></div>
         <label class="rename-field">
           <span>Design name</span>
           <input type="text" maxlength="80" autocomplete="off" .value=${this._renameValue || design.name} ?disabled=${this.disabled} @input=${this._renameInput} @keydown=${(event: KeyboardEvent) => this._onRenameKeydown(event, design)} />

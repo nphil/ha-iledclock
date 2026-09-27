@@ -149,6 +149,23 @@ async def test_ws_designs_delete_success_and_invalid(hass, hass_ws_client, confi
     assert response["success"] is False
 
 
+# -- iledclock/clock_backgrounds --------------------------------------------------------------
+
+
+async def test_ws_clock_backgrounds_shape(hass, hass_ws_client, config_entry) -> None:
+    """No `entry_id` needed -- these are static bundled assets, not per-device state."""
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "iledclock/clock_backgrounds"})
+    response = await client.receive_json()
+    assert response["success"] is True
+    result = response["result"]
+    assert sorted(result["styles"], key=int) == [str(n) for n in range(1, 42)]
+    style1 = result["styles"]["1"]
+    assert len(style1["frames"]) == len(style1["delays"]) > 0
+    assert len(base64.b64decode(style1["frames"][0])) == _FRAME_BYTES
+    assert len(base64.b64decode(result["date"]["frames"][0])) == _FRAME_BYTES
+
+
 # -- iledclock/render ------------------------------------------------------------------------
 
 
@@ -168,6 +185,37 @@ async def test_ws_render_text_success(hass, hass_ws_client, config_entry) -> Non
     assert len(result["delays"]) == len(result["frames"])
     for frame_b64 in result["frames"]:
         assert len(base64.b64decode(frame_b64)) == _FRAME_BYTES
+
+
+async def test_ws_render_clock_is_pixel_accurate_not_approximate(hass, hass_ws_client, config_entry) -> None:
+    """Regression: this used to render a generic '12:34' text placeholder and always report
+    `approximate: true`; it now uses the vendor's real per-style digit glyphs and background."""
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id(
+        {
+            "type": "iledclock/render",
+            "entry_id": config_entry.entry_id,
+            "spec": {"type": "clock", "style": 24, "color": [255, 255, 255], "h24": True},
+        }
+    )
+    response = await client.receive_json()
+    assert response["success"] is True
+    result = response["result"]
+    assert "approximate" not in result
+    assert len(result["frames"]) >= 1
+    assert len(result["delays"]) == len(result["frames"])
+    for frame_b64 in result["frames"]:
+        assert len(base64.b64decode(frame_b64)) == _FRAME_BYTES
+
+    await client.send_json_auto_id(
+        {
+            "type": "iledclock/render",
+            "entry_id": config_entry.entry_id,
+            "spec": {"type": "clock", "style": 999, "color": [255, 255, 255], "h24": True},
+        }
+    )
+    response = await client.receive_json()
+    assert response["success"] is False
 
 
 async def test_ws_render_generative_success(hass, hass_ws_client, config_entry) -> None:

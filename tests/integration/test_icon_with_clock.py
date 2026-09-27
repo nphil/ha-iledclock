@@ -61,13 +61,26 @@ class ClockStyleGeometryTest(unittest.TestCase):
 
     def test_clock_face_uses_the_vendor_geometry(self):
         from custom_components.iledclock.clock_styles import CLOCK_STYLES
+        from custom_components.iledclock.protocol.programs import AnimationContent
 
         program = build_programs([PlaylistItem(kind="clock", params={"style": 1}, duration_s=10)], designs={})[0]
-        clock = program.contents[0]
+        background, clock = program.contents
         style = CLOCK_STYLES[1]
+        self.assertIsInstance(background, AnimationContent)
+        self.assertEqual((background.show_width, background.show_height), (32, 16))
+        self.assertIsInstance(clock, ClockContent)
         self.assertEqual((clock.num_width, clock.num_height), (style.num_width, style.num_height))
         self.assertEqual((clock.hour.start_column, clock.hour.start_row, clock.hour.width, clock.hour.height), style.hour)
         self.assertEqual((clock.minute.start_column, clock.minute.width), style.minute[0:1] + style.minute[2:3])
+        self.assertEqual(program.resolved_program_type(), 7)
+
+    def test_clock_background_false_keeps_the_plain_firmware_clock(self):
+        program = build_programs(
+            [PlaylistItem(kind="clock", params={"style": 1, "background": False}, duration_s=10)], designs={}
+        )[0]
+        self.assertEqual(len(program.contents), 1)
+        self.assertIsInstance(program.contents[0], ClockContent)
+        self.assertEqual(program.resolved_program_type(), 7)
 
     def test_icon_with_clock_picks_a_half_panel_vendor_style(self):
         design = _design(clock_region={"x": 16, "y": 0, "w": 16, "h": 16})
@@ -75,3 +88,4 @@ class ClockStyleGeometryTest(unittest.TestCase):
                                designs={design.id: design})[0].contents[1]
         self.assertEqual(clock.style_index, 16)
         self.assertEqual((clock.num_width, clock.num_height), (6, 7))
+

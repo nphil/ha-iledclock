@@ -26,6 +26,7 @@ from typing import Any, Mapping, Sequence
 
 from .const import CLOCK_COLOR_RGB, DISPLAY_HEIGHT, DISPLAY_WIDTH
 from .clock_styles import CLOCK_STYLES
+from .clock_backgrounds import CLOCK_BACKGROUNDS, DATE_BACKGROUND, ClockBackground
 from .content_layouts import (
     DATE_LAYOUT,
     HUMIDITY_LAYOUT,
@@ -122,8 +123,44 @@ def _style_clock(style_index: int, params: Mapping[str, Any]) -> ClockContent:
     )
 
 
-def _clock_content(params: Mapping[str, Any]) -> ClockContent:
-    return _style_clock(int(_require(params, "style")), params)
+def _background_content(background: ClockBackground) -> AnimationContent:
+    """The vendor's full-panel background animation, layered *underneath* a clock/date digit
+    layer in the same combine-program -- `ILedClockClockTimeFragment.getClockCombineProgram`
+    builds this exact shape for both the clock's own background (~line 1170:
+    `if (cLockStyleItem.clockBgImageId > 0) { ... }`) and the date companion's (~line 1201),
+    each an `ILedClockAnimationProgramContent` covering the full panel
+    (`startRow=0, startColumn=0, showWidth=DEVICE_COLUMN, showHeight=DEVICE_ROW`), added to
+    `combinePrograms` *before* the clock/date item so it renders behind the digits.
+
+    Neither vendor call site sets `.layerType` explicitly, so the wire byte comes from
+    `ILedClockAnimationProgramContent`'s own Java field default, `layerType = 1`
+    [VENDOR ILedClockManager.java:1307] -- NOT this dataclass's own default of 0 (an existing,
+    unrelated mismatch between this port's `AnimationContent.layer_type` default and the
+    vendor's true default for that content type, out of scope here; passed explicitly instead
+    of relied upon)."""
+    frames = [
+        _rgb888_to_frame(frame, width=background.width, height=background.height, duration_ms=background.delay_ms)
+        for frame in background.frames
+    ]
+    return AnimationContent(
+        start_column=0, start_row=0, show_width=background.width, show_height=background.height,
+        frames=frames, layer_type=1,
+    )
+
+
+def _clock_content(params: Mapping[str, Any]) -> ClockContent | list[Content]:
+    """The `clock` playlist kind / `RenderSpec` -- the vendor always pairs a clock style with
+    its own 32x16 background art (`CLockStyleItem.clockBgImageId`, always > 0 for every style);
+    `background` (default `True`) mirrors that, but stays optional so a plain firmware-only
+    clock (this integration's original behaviour) is still reachable."""
+    style_index = int(_require(params, "style"))
+    clock = _style_clock(style_index, params)
+    if not bool(params.get("background", True)):
+        return clock
+    background = CLOCK_BACKGROUNDS.get(style_index)
+    if background is None:
+        return clock
+    return [_background_content(background), clock]
 
 
 def _date_content(params: Mapping[str, Any]) -> DateContent:
@@ -147,6 +184,19 @@ def _date_content(params: Mapping[str, Any]) -> DateContent:
         year_num_height=DATE_LAYOUT.year_num_height,
         year_num_width=DATE_LAYOUT.year_num_width,
     )
+
+
+def _date_content_with_background(params: Mapping[str, Any]) -> DateContent | list[Content]:
+    """The `date` playlist kind: the vendor's date companion screen always pairs the date
+    digits with `CLockStyleItem.dateBgImageId` (one shared background for every style --
+    `getClockCombineProgram` ~line 1201). `_date_content` itself stays a pure digit-only
+    builder (its own direct unit tests -- test_firmware_layouts.py -- pin that shape); this
+    wrapper is `date`'s actual `_BUILDERS` entry, matching `_clock_content`'s `background`
+    default-`True` opt-out."""
+    date = _date_content(params)
+    if not bool(params.get("background", True)):
+        return date
+    return [_background_content(DATE_BACKGROUND), date]
 
 
 _TIMER_MODE_TO_WIRE = {"countdown": 0, "stopwatch": 1}
@@ -360,9 +410,20 @@ def frames_to_content(frames: Sequence[Frame], *, still: bool) -> Content:
     )
 
 
+#: `program_type` for a combine-program with more than one content, keyed by its LAST
+#: content's type. The vendor always orders a combine-program [background/art, ...,
+#: native-content] and reports the native content's own `programType` for the whole thing:
+#: `ILedClockClockTimeFragment.getClockCombineProgram` uses 7 for [animation, clock] and 6 for
+#: [animation, date]; the "icon with clock" template (`_design_content`) is the same 7 for
+#: [art, clock]. `Program.resolved_program_type()`'s own default (keyed by `contents[0]`) is
+#: wrong for any of these -- the first content is always the background/art, never the
+#: type-defining one.
+_TERMINAL_PROGRAM_TYPE: dict[type, int] = {ClockContent: 7, DateContent: 6}
+
+
 _BUILDERS = {
     "clock": lambda params, designs: _clock_content(params),
-    "date": lambda params, designs: _date_content(params),
+    "date": lambda params, designs: _date_content_with_background(params),
     "text": lambda params, designs: _text_content(params),
     "design": _design_content,
     "timer": lambda params, designs: _timer_content(params),
@@ -399,9 +460,10 @@ def build_programs(
             contents=contents,
             show_count=item.duration_s,
             is_clock_in_list=has_clock,
-            # Art + live clock is a clock program, exactly like the vendor's animated clock faces
-            # (ILedClockClockTimeActivity: [animation, clock], programType 7).
-            program_type=7 if len(contents) > 1 and isinstance(contents[-1], ClockContent) else None,
+            # A combine-program with more than one content is background/art + a native layer;
+            # the vendor reports that native layer's own programType for the whole thing (see
+            # `_TERMINAL_PROGRAM_TYPE`).
+            program_type=_TERMINAL_PROGRAM_TYPE.get(type(contents[-1])) if len(contents) > 1 else None,
         )
         for item, contents in zip(items, built)
     ]

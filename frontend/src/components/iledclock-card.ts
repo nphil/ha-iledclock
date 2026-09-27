@@ -26,6 +26,7 @@ interface CardDescriptor {
   color?: readonly number[];
   h24?: boolean;
   hours24?: boolean;
+  background?: boolean;
   text?: string;
   speed?: number;
   [key: string]: unknown;
@@ -307,7 +308,9 @@ export class IledclockCard extends LitElement {
         const style = Number(descriptor.style) || 1;
         const color = Array.isArray(descriptor.color) && descriptor.color.length >= 3 ? descriptor.color.slice(0, 3).map(Number) as [number, number, number] : [255, 255, 255] as [number, number, number];
         const hours24 = descriptor.h24 ?? descriptor.hours24 !== false;
-        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "clock", style, color, h24: hours24 }));
+        const wantsBackground = descriptor.background !== false;
+        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "clock", style, color, h24: hours24, background: wantsBackground }));
+        if (revision !== this._previewRevision) return;
         frames = result.approximate ? clockFacePreviewFrames(style, color, hours24) : decodeFrames(result);
         approximate = Boolean(result.approximate);
       } else if (descriptor.kind === "image" && Array.isArray(descriptor.frames) && descriptor.frames.length > 0) {
@@ -391,7 +394,7 @@ export class IledclockCard extends LitElement {
           <div class="controls">
             <iledclock-mode-deck .hass=${this.hass} .entryId=${this._entryId} .state=${state}></iledclock-mode-deck>
             <section class="brightness-control" aria-label="Brightness control">
-              ${brightness !== null ? html`<label for="brightness">Brightness <strong>${brightness}%</strong></label><input id="brightness" type="range" min="5" max="100" .value=${String(brightness)} @input=${this._setBrightness}>` : html`<p class="brightness-hint">Brightness control is unavailable until device state is available.</p>`}
+              ${brightness !== null ? html`<label for="brightness">Brightness <strong>${brightness}%</strong></label><input id="brightness" type="range" min="1" max="100" .value=${String(brightness)} @change=${this._setBrightness}>` : html`<p class="brightness-hint">Brightness control is unavailable until device state is available.</p>`}
             </section>
           </div>
         </div>

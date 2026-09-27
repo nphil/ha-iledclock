@@ -66,6 +66,7 @@ export class IledclockAppShell extends LitElement {
       this._resizeObserver = new ResizeObserver((entries) => {
         const mobile = (entries[0]?.contentRect.width ?? 0) < 720;
         this.toggleAttribute("mobile", mobile);
+        this.toggleAttribute("wide", !mobile);
         if (mobile !== this._mobile) this._mobile = mobile;
       });
       this._resizeObserver.observe(this);
@@ -88,6 +89,15 @@ export class IledclockAppShell extends LitElement {
       void this._unsubscribe();
       this._unsubscribe = null;
     }
+  }
+
+  protected shouldUpdate(changed: PropertyValues): boolean {
+    if (changed.size !== 1 || !changed.has("hass")) return true;
+    const previous = changed.get("hass") as HomeAssistant | undefined;
+    return !previous
+      || previous.connection !== this.hass?.connection
+      || previous.entities !== this.hass?.entities
+      || previous.devices !== this.hass?.devices;
   }
 
   protected willUpdate(changed: PropertyValues): void {
@@ -220,7 +230,7 @@ export class IledclockAppShell extends LitElement {
   }
 
   static styles = [TOKENS_CSS, SURFACES_CSS, css`
-    :host { display: block; min-height: 100%; color: var(--lu-ink); font-family: var(--lu-font); container-type: inline-size; }
+    :host { display: block; min-height: 100%; color: var(--lu-ink); font-family: var(--lu-font); }
     .shell { display: flex; min-height: 100%; flex-direction: column; }
     .app-bar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: var(--lu-space-2); min-height: var(--header-height, 56px); padding: 0 var(--lu-space-3); color: var(--app-header-text-color, var(--lu-ink)); background: var(--app-header-background-color, var(--lu-card)); border-bottom: 1px solid var(--lu-edge); }
     h1 { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; color: inherit; font: 600 var(--lu-type-title)/1.2 var(--lu-font); letter-spacing: -0.015em; text-overflow: ellipsis; white-space: nowrap; }
@@ -228,13 +238,13 @@ export class IledclockAppShell extends LitElement {
     .clock-chip.positive .dot { background: var(--lu-positive); }
     .clock-chip.warning .dot { background: var(--lu-warning); }
     .dot { width: var(--lu-space-2); height: var(--lu-space-2); flex: none; border-radius: var(--lu-radius-pill); background: var(--lu-ink-3); }
-    .status-label { overflow: hidden; max-width: 10ch; text-overflow: ellipsis; white-space: nowrap; }
+    .status-label { white-space: nowrap; }
     .device-picker { flex: 0 1 9rem; min-width: var(--lu-target); max-width: 9rem; height: var(--lu-target); padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
     .content { width: min(100%, 1200px); box-sizing: border-box; margin: 0 auto; padding: var(--lu-space-4) var(--lu-space-4) var(--lu-space-6); }
-    @container (min-width: 720px) { .content { padding: var(--lu-space-5) var(--lu-space-6) var(--lu-space-6); } }
+    :host([wide]) .content { padding: var(--lu-space-5) var(--lu-space-6) var(--lu-space-6); }
     :host([mobile]) .content { padding-bottom: calc(64px + var(--lu-space-4) + env(safe-area-inset-bottom)); }
     :host([mobile]) .app-bar { gap: var(--lu-space-1); padding-inline: var(--lu-space-2); }
-    :host([mobile]) .status-label { max-width: 8ch; }
+    :host([mobile]) .status-label { max-width: none; }
     :host([mobile]) .device-picker { max-width: 5rem; }
   `];
 }

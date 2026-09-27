@@ -70,6 +70,12 @@ export class IledclockDestLibrary extends LitElement {
     this._importOpen = false;
   }
 
+  protected shouldUpdate(changed: PropertyValues): boolean {
+    if (changed.size !== 1 || !changed.has("hass")) return true;
+    const previous = changed.get("hass") as HomeAssistant | undefined;
+    return !previous || previous.connection !== this.hass?.connection;
+  }
+
   protected willUpdate(changed: PropertyValues): void {
     const entryChanged = this.entryId !== this._loadedEntryId;
     const connection = this.hass?.connection;

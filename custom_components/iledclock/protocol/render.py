@@ -20,6 +20,7 @@ import colorsys
 import math
 import random
 from dataclasses import dataclass
+from typing import NamedTuple
 
 from .fonts import get_font, glyph_height
 from .hexutil import rgb444_expand, rgb444_pixel
@@ -507,4 +508,128 @@ def generative(
                 height=height,
             )
         )
+    return frames
+
+
+# ---------------------------------------------------------------------------------------------
+# Clock face preview: pixel-accurate, using the vendor's own bit-packed digit glyphs
+# ---------------------------------------------------------------------------------------------
+#
+# clock_faces.py's STYLE_n_NUMBER/STYLE_n_SPACE tables are the literal bytes `programs.py`
+# sends the device (`_encode_clock`'s `_table(number_table)`/`_table(space_table)`) -- opaque
+# firmware payloads that module's own docstring says nothing here used to decode. Reverse
+# engineered from the data itself (this module never had a spec for it): each glyph is
+# COLUMN-major, MSB-first within each byte, top-aligned to the style's `num_height` -- `ceil
+# (num_height/8)` bytes per column, so a byte's low bits beyond `num_height` are unused padding.
+# Verified against DATE_NUMBER's "0" (bytes 254,130,130,254,0 at num_width=5,num_height=7
+# decode to a clean rectangle: column0/3 fully lit (254=0b1111111_0 -> top7 all set), column1/2
+# lit only at row0+row6 (130=0b1000001_0), column4 blank spacer) and STYLE_10_SPACE's colon
+# (216,216 at height=5 decodes to rows 0,1,3,4 lit, row2 blank -- two stacked dots).
+def _glyph_grid(table: bytes, width: int, height: int, offset: int = 0) -> list[list[bool]]:
+    """One glyph's own `grid[row][col]` lit/unlit map."""
+    bytes_per_col = (height + 7) // 8
+    grid = [[False] * width for _ in range(height)]
+    for col in range(width):
+        start = offset + col * bytes_per_col
+        bits = "".join(f"{byte:08b}" for byte in table[start : start + bytes_per_col])
+        for row in range(height):
+            if row < len(bits) and bits[row] == "1":
+                grid[row][col] = True
+    return grid
+
+
+def _draw_glyph(canvas: "Canvas", grid: list[list[bool]], x: int, y: int, color: RGB) -> None:
+    for row_index, row in enumerate(grid):
+        for col_index, lit in enumerate(row):
+            if lit:
+                canvas.set(x + col_index, y + row_index, color)
+
+
+def _draw_number(canvas: "Canvas", rect: tuple[int, int, int, int], value: str, num_width: int, num_height: int, table: bytes, color: RGB) -> None:
+    x, y, _w, _h = rect
+    bytes_per_col = (num_height + 7) // 8
+    for index, char in enumerate(value):
+        digit = int(char)
+        grid = _glyph_grid(table, num_width, num_height, offset=digit * num_width * bytes_per_col)
+        _draw_glyph(canvas, grid, x + index * num_width, y, color)
+
+
+def _draw_space(canvas: "Canvas", rect: tuple[int, int, int, int], num_height: int, table: bytes, color: RGB) -> None:
+    if not table:
+        return
+    x, y, width, _h = rect
+    _draw_glyph(canvas, _glyph_grid(table, width, num_height), x, y, color)
+
+
+def _canvas_from_rgb888(data: bytes, width: int, height: int) -> "Canvas":
+    canvas = Canvas(width, height)
+    for row in range(height):
+        offset = row * width * 3
+        canvas.pixels[row] = [
+            (data[offset + col * 3], data[offset + col * 3 + 1], data[offset + col * 3 + 2]) for col in range(width)
+        ]
+    return canvas
+
+
+class ClockFaceGeometry(NamedTuple):
+    """Everything `clock_face_frames` needs about one firmware clock style -- assembled by the
+    caller from `clock_styles.CLOCK_STYLES[style_index]` (geometry) and
+    `clock_faces.STYLE_NUMBER`/`STYLE_SPACE[style_index]` (glyph bytes) so this module stays
+    free of any import reaching outside `protocol/` (Contract A)."""
+
+    num_width: int
+    num_height: int
+    hour: tuple[int, int, int, int]
+    space_hour: tuple[int, int, int, int]
+    minute: tuple[int, int, int, int]
+    space_minute: tuple[int, int, int, int] | None
+    seconds: tuple[int, int, int, int] | None
+    show_space_minute: bool
+    number_table: bytes
+    space_table: bytes
+
+
+class ClockFaceBackground(NamedTuple):
+    """One style's (or the date companion's) real background animation -- assembled by the
+    caller from `clock_backgrounds.CLOCK_BACKGROUNDS`/`DATE_BACKGROUND`, same reasoning as
+    `ClockFaceGeometry` above."""
+
+    width: int
+    height: int
+    delay_ms: int
+    frames: tuple[bytes, ...]
+
+
+def clock_face_frames(
+    geometry: ClockFaceGeometry, color: RGB, hours24: bool, background: ClockFaceBackground | None = None
+) -> list[Frame]:
+    """Pixel-accurate preview of a firmware clock style: the vendor's own digit/colon glyphs
+    (not our old blocky approximation -- those overlapped/garbled on tight styles like 24-27's
+    4x5 digits) in `color`, at `program_builder._style_clock`'s exact geometry, optionally
+    composited over that style's real background animation (one output frame per background
+    frame, matching `program_builder._background_content`'s device-side layering).
+
+    A representative demo time (13:34:56), not the live clock -- the real device ticks its own
+    firmware clock; this is a static preview, like the vendor app's own style-picker thumbnails.
+    """
+    hour_value = "13" if hours24 else "01"
+
+    def render_digits(canvas: Canvas) -> None:
+        _draw_number(canvas, geometry.hour, hour_value, geometry.num_width, geometry.num_height, geometry.number_table, color)
+        _draw_space(canvas, geometry.space_hour, geometry.num_height, geometry.space_table, color)
+        _draw_number(canvas, geometry.minute, "34", geometry.num_width, geometry.num_height, geometry.number_table, color)
+        if geometry.show_space_minute and geometry.space_minute:
+            _draw_space(canvas, geometry.space_minute, geometry.num_height, geometry.space_table, color)
+        if geometry.seconds:
+            _draw_number(canvas, geometry.seconds, "56", geometry.num_width, geometry.num_height, geometry.number_table, color)
+
+    if background is None:
+        canvas = Canvas(DISPLAY_WIDTH, DISPLAY_HEIGHT)
+        render_digits(canvas)
+        return [canvas.to_frame(200)]
+    frames: list[Frame] = []
+    for raw in background.frames:
+        canvas = _canvas_from_rgb888(raw, background.width, background.height)
+        render_digits(canvas)
+        frames.append(canvas.to_frame(background.delay_ms))
     return frames

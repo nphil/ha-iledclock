@@ -53,6 +53,7 @@ export class IledclockModeDeck extends LitElement {
     _clockColor: { state: true },
     _hours24: { state: true },
     _showDate: { state: true },
+    _background: { state: true },
     _text: { state: true },
     _textColor: { state: true },
     _textEffect: { state: true },
@@ -79,6 +80,7 @@ export class IledclockModeDeck extends LitElement {
   declare _clockColor: number;
   declare _hours24: boolean;
   declare _showDate: boolean;
+  declare _background: boolean;
   declare _text: string;
   declare _textColor: string;
   declare _textEffect: number;
@@ -109,6 +111,7 @@ export class IledclockModeDeck extends LitElement {
     this._clockColor = 6;
     this._hours24 = true;
     this._showDate = false;
+    this._background = true;
     this._text = "";
     this._textColor = "#ffffff";
     this._textEffect = 1;
@@ -230,7 +233,7 @@ export class IledclockModeDeck extends LitElement {
   }
 
   private _clockSpec(): RenderSpec {
-    return buildClockRenderSpec(this._clockStyle, CLOCK_COLORS[this._clockColor]?.rgb ?? [255, 255, 255], this._hours24, CLOCK_FACE_COUNT);
+    return buildClockRenderSpec(this._clockStyle, CLOCK_COLORS[this._clockColor]?.rgb ?? [255, 255, 255], this._hours24, CLOCK_FACE_COUNT, this._background);
   }
 
   private _showClock(): void {
@@ -351,12 +354,13 @@ export class IledclockModeDeck extends LitElement {
     return html`<div class="panel-content">
       <div class="control-label"><h3>Clock face</h3><span>Choose a built-in style</span></div>
       <div class="faces" role="group" aria-label="Clock face previews">
-        ${CLOCK_FACES.map((face) => html`<iledclock-clock-face-thumb .hass=${this.hass} .entryId=${this.entryId} .faceStyle=${face.style} .color=${color} .hours24=${this._hours24} ?selected=${face.style === this._clockStyle} @face-selected=${(event: CustomEvent<{ style: number }>) => (this._clockStyle = event.detail.style)}></iledclock-clock-face-thumb>`)}
+        ${CLOCK_FACES.map((face) => html`<iledclock-clock-face-thumb .hass=${this.hass} .entryId=${this.entryId} .faceStyle=${face.style} .color=${color} .hours24=${this._hours24} .background=${this._background} ?selected=${face.style === this._clockStyle} @face-selected=${(event: CustomEvent<{ style: number }>) => (this._clockStyle = event.detail.style)}></iledclock-clock-face-thumb>`)}
       </div>
       <div class="color-row" role="group" aria-label="Clock colour">
         ${CLOCK_COLORS.map((item) => html`<button type="button" class="swatch ${item.index === this._clockColor ? "selected" : ""}" style=${"background:rgb(" + quantizePreviewRgbLinear(item.rgb).join(",") + ")"} aria-label=${item.label} aria-pressed=${item.index === this._clockColor ? "true" : "false"} @click=${() => this._selectColor(item.index)}></button>`)}
       </div>
       <iledclock-segmented-picker group-label="Hour format" content-fit .options=${[{ value: "24", label: "24-hour" }, { value: "12", label: "12-hour" }]} .value=${this._hours24 ? "24" : "12"} @option-selected=${(event: CustomEvent<{ value: string }>) => (this._hours24 = event.detail.value === "24")}></iledclock-segmented-picker>
+      <button type="button" class="toggle-row" role="switch" aria-checked=${this._background ? "true" : "false"} @click=${() => (this._background = !this._background)}><span>Face background</span><span class="switch ${this._background ? "on" : ""}"></span></button>
       <button type="button" class="toggle-row" role="switch" aria-checked=${this._showDate ? "true" : "false"} @click=${() => (this._showDate = !this._showDate)}><span>Show date instead of time</span><span class="switch ${this._showDate ? "on" : ""}"></span></button>
       <p class="hint">The clock can show a date program or a time face, but its firmware does not layer the date over a face.</p>
       <lu-pill-button variant="primary" label=${this._showDate ? "Show date" : "Show clock"} icon="mdi:television-play" ?disabled=${!this.entryId || this._busy !== null} ?loading=${this._busy === "show"} @lu-press=${this._showClock}></lu-pill-button>
@@ -467,7 +471,7 @@ export class IledclockModeDeck extends LitElement {
     .deck-heading h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); letter-spacing: -0.01em; }
     .deck-heading p { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
     .mode-tabs { display: flex; min-width: 0; gap: var(--lu-space-1); overflow-x: auto; padding: 2px; scrollbar-width: thin; }
-    .mode-tab { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: var(--lu-glass-raised); font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .mode-tab { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: transparent; font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
     .mode-tab.selected { border-color: var(--lu-accent); color: var(--lu-accent-ink); background: var(--lu-accent); }
     .mode-tab:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
     .mode-select-label { display: none; }

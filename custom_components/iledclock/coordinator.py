@@ -865,9 +865,12 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         await self.client.async_request(commands.mirror(on))
         self.async_set_updated_data(merge_state(self.data, {"mirror": on}))
 
-    async def async_set_clock_face(self, style: int, color: int, hours24: bool, show_seconds: bool = False) -> None:
+    async def async_set_clock_face(
+        self, style: int, color: int, hours24: bool, show_seconds: bool = False, background: bool = True
+    ) -> None:
         await self.async_show(
-            {"type": "clock", "style": style, "color": color, "hours24": hours24, "show_seconds": show_seconds}
+            {"type": "clock", "style": style, "color": color, "hours24": hours24, "show_seconds": show_seconds,
+             "background": background}
         )
 
     async def async_set_stored_password(self, password: str) -> None:

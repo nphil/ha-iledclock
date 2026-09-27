@@ -80,10 +80,13 @@ export class IledclockExploreShelf extends LitElement {
             ? html`<p class="empty">${this.status === "loading" ? "Looking for designs…" : "No designs here yet."}</p>`
             : html`<div class="rail" role="list" aria-label=${this.shelf.title}>
                 ${this.items.map((item) => {
-                  const size = `${item.width}×${item.height}`;
                   const exact = fitsClockExactly(item);
                   const noTitle = !item.title || /^Trending\s+\d+$/i.test(item.title);
                   const category = this.source?.categories?.find((entry) => entry.id === item.category)?.label;
+                  const title = noTitle ? category ?? "Trending" : item.title;
+                  const badge = item.animated
+                    ? html`<span slot="badges" class="tile-badge play" role="img" aria-label="Animated" title="Animated"><ha-icon .icon=${"mdi:play"} aria-hidden="true" style="--mdc-icon-size:12px"></ha-icon></span>`
+                    : exact ? html`<span slot="badges" class="tile-badge exact">Fits exactly</span>` : nothing;
                   return html`<div class="tile-wrap" role="listitem">
                     <iledclock-art-tile
                       .itemId=${itemKey(item)}
@@ -93,16 +96,10 @@ export class IledclockExploreShelf extends LitElement {
                       .pixelHeight=${item.height}
                       .aspect=${exploreTileAspect(item)}
                       .animated=${item.animated}
-                      .title=${noTitle ? "" : item.title}
-                      .subtitle=${noTitle ? "" : meta(item) ?? ""}
+                      .title=${title}
+                      .subtitle=${meta(item)}
                       @tile-selected=${() => this._open(item)}
-                    >
-                      ${noTitle
-                        ? category ? html`<span slot="badges" class="tile-badge">${category}</span>` : nothing
-                        : html`${exact ? html`<span slot="badges" class="tile-badge exact">Fits exactly</span>` : nothing}
-                            ${item.animated ? html`<span slot="badges" class="tile-badge">${item.frames && item.frames > 1 ? `${item.frames} frames` : "Animated"}</span>` : nothing}
-                            <span slot="badges" class="tile-badge size">${size}</span>`}
-                    </iledclock-art-tile>
+                    >${badge}</iledclock-art-tile>
                   </div>`;
                 })}
               </div>`}
@@ -116,7 +113,7 @@ export class IledclockExploreShelf extends LitElement {
   static styles = [TOKENS_CSS, css`
     :host { display: block; min-width: 0; container-type: inline-size; color: var(--lu-ink); }
     .shelf { min-width: 0; }
-    .heading { display: flex; align-items: center; gap: var(--lu-space-2); margin-bottom: var(--lu-space-3); }
+    .heading { display: flex; align-items: center; gap: var(--lu-space-2); margin-bottom: var(--lu-space-2); }
     .heading-copy { min-width: 0; flex: 1; }
     h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); letter-spacing: -.01em; }
     .heading p { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); }
@@ -124,9 +121,9 @@ export class IledclockExploreShelf extends LitElement {
     .see-all span { padding-left: var(--lu-space-1); color: var(--lu-accent); font-size: 20px; }
     .arrows { display: none; }
     .rail { display: flex; gap: var(--lu-space-3); min-width: 0; overflow-x: auto; padding: 2px 2px var(--lu-space-2); scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: thin; }
-    .tile-wrap { flex: 0 0 clamp(148px, 18cqi, 224px); scroll-snap-align: start; }
+    .tile-wrap { flex: 0 0 clamp(152px, 18cqi, 224px); scroll-snap-align: start; }
     .empty { margin: 0; padding: var(--lu-space-3) 0; color: var(--lu-ink-3); font: 400 var(--lu-type-body)/1.4 var(--lu-font); }
-    .skeleton-card { flex: 0 0 clamp(148px, 18cqi, 224px); aspect-ratio: 1.7; }
+    .skeleton-card { flex: 0 0 clamp(152px, 18cqi, 224px); aspect-ratio: 1.7; }
     .skeleton-card lu-skeleton { display: block; height: 100%; }
     @container (min-width: 720px) {
       .arrows { display: flex; gap: var(--lu-space-1); }

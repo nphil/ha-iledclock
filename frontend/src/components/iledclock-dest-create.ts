@@ -208,6 +208,7 @@ export class IledclockDestCreate extends LitElement {
     this._resizeObserver = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width ?? this.getBoundingClientRect().width;
       const wide = width >= 900;
+      this.toggleAttribute("compact", !wide);
       if (wide !== this._wideLayout) this._wideLayout = wide;
     });
     this._resizeObserver.observe(this);
@@ -854,7 +855,7 @@ export class IledclockDestCreate extends LitElement {
   }
 
   static styles = [TOKENS_CSS, SURFACES_CSS, css`
-    :host { display: block; min-width: 0; container-type: inline-size; }
+    :host { display: block; min-width: 0; }
     .destination { display: grid; gap: var(--lu-space-4); min-width: 0; width: 100%; }
     .editor-header { display: grid; gap: var(--lu-space-3); min-width: 0; }
     .identity-row { display: flex; align-items: center; gap: var(--lu-space-2); min-width: 0; flex-wrap: wrap; }
@@ -889,17 +890,15 @@ export class IledclockDestCreate extends LitElement {
     .save-state { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); }
     .icon-actions { gap: 0; }
     .overflow-button { border-radius: var(--lu-radius-control); }
-    @container (max-width: 899px) {
-      .destination { padding-bottom: 80px; }
-      .workspace { grid-template-columns: minmax(0, 1fr); gap: var(--lu-space-2); }
-      .inspector { display: none; }
-      .primary-actions { position: fixed; z-index: 30; inset-inline: 8px; bottom: calc(64px + env(safe-area-inset-bottom)); justify-content: stretch; padding: var(--lu-space-1); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); background: var(--lu-glass); backdrop-filter: blur(var(--lu-blur)) saturate(1.2); box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest); }
-      .primary-actions lu-pill-button { flex: 1 1 0; min-width: 0 !important; }
-      .primary-actions lu-pill-button:last-child { min-width: 0; }
-    }
+    :host([compact]) .destination { padding-bottom: 80px; }
+    :host([compact]) .workspace { grid-template-columns: minmax(0, 1fr); gap: var(--lu-space-2); }
+    :host([compact]) .inspector { display: none; }
+    :host([compact]) .primary-actions { position: fixed; z-index: 90; inset-inline: 8px; bottom: calc(64px + env(safe-area-inset-bottom)); justify-content: stretch; padding: var(--lu-space-1); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); background: var(--lu-card); box-shadow: var(--lu-highlight-rest); }
+    :host([compact]) .primary-actions lu-pill-button { flex: 1 1 0; min-width: 0 !important; }
+    :host([compact]) .primary-actions lu-pill-button:last-child { min-width: 0; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     button:focus-visible, input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
-    @container (max-width: 899px) { .workspace { grid-template-columns: minmax(0, 1fr); } .inspector { display: none; } .editor-header { gap: var(--lu-space-2); } }
+    :host([compact]) .editor-header { gap: var(--lu-space-2); }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   `];
 }

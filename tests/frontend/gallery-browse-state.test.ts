@@ -123,14 +123,18 @@ test("formatCount floors a negative input at 0", () => {
   assert.equal(formatCount(-5), "0");
 });
 
-test("tileMetaLine composes author and counts as one capitalised sentence", () => {
-  assert.equal(tileMetaLine({ author: "Marcus", likes: 1200, downloads: null }), "By Marcus, 1.2k likes");
-  assert.equal(tileMetaLine({ author: "Marcus", likes: null, downloads: null }), "By Marcus");
-  assert.equal(tileMetaLine({ author: null, likes: 88, downloads: null }), "88 likes");
-  assert.equal(tileMetaLine({ author: null, likes: 10, downloads: 20 }), "10 likes and 20 downloads");
+test("tileMetaLine keeps the available artwork facts and attribution visible", () => {
+  const caption = tileMetaLine({ author: "Marcus", likes: 1200, downloads: null, width: 32, height: 16, animated: true, frames: 12 });
+  assert.ok(caption?.includes("32×16"));
+  assert.ok(caption?.includes("12 frames"));
+  assert.ok(caption?.includes("Marcus"));
+  assert.ok(caption?.includes("1.2k likes"));
 });
 
-test("tileMetaLine is null when the item has no author, likes, or downloads", () => {
+test("tileMetaLine omits absent dimensions and returns null with no available facts", () => {
+  const caption = tileMetaLine({ author: null, likes: 88, downloads: null });
+  assert.ok(caption?.includes("88 likes"));
+  assert.ok(!caption?.includes("undefined"));
   assert.equal(tileMetaLine({ author: null, likes: null, downloads: null }), null);
   assert.equal(tileMetaLine({}), null);
 });

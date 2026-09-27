@@ -25,6 +25,7 @@ interface NowDescriptor extends ShowHistoryDescriptor {
   color?: readonly number[];
   hours24?: boolean;
   h24?: boolean;
+  background?: boolean;
   text?: string;
   speed?: number;
   effect?: string;
@@ -129,6 +130,12 @@ export class IledclockDestNow extends LitElement {
     }
   }
 
+  protected shouldUpdate(changed: PropertyValues): boolean {
+    if (changed.size !== 1 || !changed.has("hass")) return true;
+    const previous = changed.get("hass") as HomeAssistant | undefined;
+    return !previous || previous.connection !== this.hass?.connection;
+  }
+
   protected willUpdate(changed: PropertyValues): void {
     const entryChanged = changed.has("entryId") && this.entryId !== this._lastEntryId;
     const connection = this.hass?.connection;
@@ -227,7 +234,9 @@ export class IledclockDestNow extends LitElement {
         const style = Number(descriptor.style) || 1;
         const color = Array.isArray(descriptor.color) && descriptor.color.length >= 3 ? descriptor.color.slice(0, 3).map(Number) as [number, number, number] : [255, 255, 255] as [number, number, number];
         const hours24 = descriptor.h24 ?? descriptor.hours24 !== false;
-        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "clock", style, color, h24: hours24 }));
+        const wantsBackground = descriptor.background !== false;
+        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "clock", style, color, h24: hours24, background: wantsBackground }));
+        if (revision !== this._previewRevision) return;
         frames = result.approximate ? clockFacePreviewFrames(style, color, hours24) : decodeFrames(result);
       } else if (descriptor.kind === "image" && Array.isArray(descriptor.frames) && descriptor.frames.length > 0) {
         frames = decodeFrames({ frames: descriptor.frames, delays: descriptor.delays ?? [] });
@@ -313,7 +322,7 @@ export class IledclockDestNow extends LitElement {
       <iledclock-mode-deck .hass=${this.hass} .entryId=${this.entryId} .state=${state}></iledclock-mode-deck>
       <lu-section title="Quick controls" icon="mdi:tune-variant">
         ${state ? html`<div class="quick-controls">
-          <label class="field"><span>Brightness <strong>${brightnessToPercent(state.brightness)}%</strong></span><input type="range" min="5" max="100" .value=${String(brightnessToPercent(state.brightness))} ?disabled=${!connected || this._busy !== null} @input=${this._setBrightness} aria-label="Display brightness"></label>
+          <label class="field"><span>Brightness <strong>${brightnessToPercent(state.brightness)}%</strong></span><input type="range" min="1" max="100" .value=${String(brightnessToPercent(state.brightness))} ?disabled=${!connected || this._busy !== null} @change=${this._setBrightness} aria-label="Display brightness"></label>
           <button type="button" class="quick-row" role="switch" aria-checked=${state.power ? "true" : "false"} ?disabled=${!connected || this._busy !== null} @click=${this._toggleDisplay}><span>Display</span><span class="row-value">${state.power ? "On" : "Off"}</span><span class="switch ${state.power ? "on" : ""}" aria-hidden="true"></span></button>
           <button type="button" class="night-row" @click=${this._openLibrary}><span><strong>Rotation</strong><small>Designs the clock cycles through · edit in Library</small></span><ha-icon icon="mdi:chevron-right"></ha-icon></button>
           <button type="button" class="night-row" @click=${this._openNightMode}><span><strong>Night mode</strong><small>${timeRange(state)}</small></span><ha-icon icon="mdi:chevron-right"></ha-icon></button>

@@ -237,6 +237,10 @@
         "show_seconds": {
           "name": "Show seconds",
           "description": "Include a seconds field, when there is room for one."
+        },
+        "background": {
+          "name": "Face background",
+          "description": "Show the style's own background art behind the digits, like the vendor app does. Turn off for a plain firmware clock on a blank panel."
         }
       }
     },

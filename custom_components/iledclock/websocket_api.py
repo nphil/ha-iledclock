@@ -20,6 +20,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .client import IledClockError
+from .clock_backgrounds import CLOCK_BACKGROUNDS
+from .clock_styles import CLOCK_STYLES
 from .const import DOMAIN, upload_progress_signal
 from .coordinator import (
     IledClockCoordinator,
@@ -29,10 +31,11 @@ from .coordinator import (
 from .designs import DesignValidationError
 from .playlist import PlaylistValidationError, playlist_item_to_json, validate_playlist
 from .program_builder import ProgramBuildError
+from .protocol import clock_faces as protocol_clock_faces
 from .protocol import render as protocol_render
 from .protocol.models import Frame
 from .store import async_get_design_library
-from .ws_shapes import shape_designs_list, shape_frames_payload, shape_state_event
+from .ws_shapes import shape_clock_backgrounds, shape_designs_list, shape_frames_payload, shape_state_event
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,6 +80,7 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_designs_list)
     websocket_api.async_register_command(hass, ws_designs_save)
     websocket_api.async_register_command(hass, ws_designs_delete)
+    websocket_api.async_register_command(hass, ws_clock_backgrounds)
     websocket_api.async_register_command(hass, ws_render)
     websocket_api.async_register_command(hass, ws_show)
     websocket_api.async_register_command(hass, ws_playlist_get)
@@ -190,6 +194,20 @@ async def ws_designs_delete(
     connection.send_result(msg["id"], {})
 
 
+# -- iledclock/clock_backgrounds -----------------------------------------------------------------
+
+
+@websocket_api.websocket_command({vol.Required("type"): "iledclock/clock_backgrounds"})
+@websocket_api.async_response
+async def ws_clock_backgrounds(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
+) -> None:
+    """Every firmware clock style's bundled 32x16 background animation plus the shared date
+    background, in one shot -- static assets bundled with the integration, not per-device
+    state, so this takes no `entry_id` and the frontend fetches it once per session."""
+    connection.send_result(msg["id"], shape_clock_backgrounds())
+
+
 # -- iledclock/render -----------------------------------------------------------------------------
 
 
@@ -216,12 +234,35 @@ async def _async_render_spec(
         frames = await coordinator.async_render_generative(spec)
         return frames, [frame.duration_ms for frame in frames], False
     if spec_type == "clock":
-        # Best-effort approximate preview only -- the real device renders `style_index` itself
-        # in firmware, which we cannot reproduce pixel-for-pixel client-side (Contract D).
+        # Pixel-accurate: the vendor's own per-style digit/colon glyphs (protocol.render.
+        # clock_face_frames, decoded from protocol.clock_faces' bit-packed tables) over that
+        # style's real background animation -- no longer an approximate placeholder.
+        style_index = int(spec.get("style", 1))
+        style = CLOCK_STYLES.get(style_index)
+        if style is None:
+            raise ProgramBuildError(f"unknown clock style {style_index}")
         color = tuple(spec.get("color", (255, 255, 255)))
-        label = "12:34" if spec.get("h24", True) else "12:34p"
-        frames = await hass.async_add_executor_job(protocol_render.text_frames, label, "5x7", color)
-        return frames, [frame.duration_ms for frame in frames], True
+        hours24 = bool(spec.get("h24", True))
+        wants_background = bool(spec.get("background", True))
+        geometry = protocol_render.ClockFaceGeometry(
+            num_width=style.num_width, num_height=style.num_height, hour=style.hour,
+            space_hour=style.space_hour, minute=style.minute, space_minute=style.space_minute,
+            seconds=style.seconds, show_space_minute=style.show_space_minute,
+            number_table=protocol_clock_faces.STYLE_NUMBER[style_index],
+            space_table=protocol_clock_faces.STYLE_SPACE[style_index],
+        )
+        bundled = CLOCK_BACKGROUNDS.get(style_index) if wants_background else None
+        background = (
+            protocol_render.ClockFaceBackground(
+                width=bundled.width, height=bundled.height, delay_ms=bundled.delay_ms, frames=bundled.frames,
+            )
+            if bundled is not None
+            else None
+        )
+        frames = await hass.async_add_executor_job(
+            protocol_render.clock_face_frames, geometry, color, hours24, background,
+        )
+        return frames, [frame.duration_ms for frame in frames], False
     raise ProgramBuildError(f"unsupported render type: {spec_type!r}")
 
 

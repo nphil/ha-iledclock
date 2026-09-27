@@ -1,7 +1,12 @@
-import { createFrame, setPixelMut, type PixelFrame } from "./grid.ts";
+import type { HomeAssistant } from "../types.ts";
+import { base64ToFrame } from "./design-codec.ts";
+import { clockBackgroundsRequest } from "./ws-api.ts";
+import { cloneFrame, createFrame, GRID_HEIGHT, GRID_WIDTH, setPixelMut, type PixelFrame } from "./grid.ts";
 
-/** Built-in 32×16 firmware faces. Style 36 is absent from the vendor geometry table. */
-const CLOCK_STYLE_IDS = [...Array.from({ length: 35 }, (_, i) => i + 1), 37, 38, 39, 40, 41];
+/** Built-in 32x16 firmware faces, styles 1-41 -- all 41 are real, selectable styles (style 36
+ * shares its digit geometry with 37 but has its own glyph font and background asset; it is
+ * not a gap in the vendor's own style range). */
+const CLOCK_STYLE_IDS = Array.from({ length: 41 }, (_, i) => i + 1);
 
 export const CLOCK_FACE_COUNT = 41;
 export const CLOCK_FACE_STYLE_IDS: ReadonlyArray<number> = CLOCK_STYLE_IDS;
@@ -68,6 +73,7 @@ const CLOCK_FACE_GEOMETRY: Readonly<Record<number, ClockFaceGeometry>> = {
   33: { digitWidth: 7, digitHeight: 10, blinkColon: true, showAmpm: true, showSpaceMinute: false, hour: [1, 3, 14, 10], spaceHour: [15, 3, 2, 10], minute: [18, 3, 14, 10], spaceMinute: null, seconds: null },
   34: { digitWidth: 7, digitHeight: 10, blinkColon: true, showAmpm: true, showSpaceMinute: false, hour: [1, 6, 14, 10], spaceHour: [15, 6, 2, 10], minute: [18, 6, 14, 10], spaceMinute: null, seconds: null },
   35: { digitWidth: 7, digitHeight: 10, blinkColon: true, showAmpm: true, showSpaceMinute: false, hour: [1, 3, 14, 10], spaceHour: [15, 3, 2, 10], minute: [18, 3, 14, 10], spaceMinute: null, seconds: null },
+  36: { digitWidth: 7, digitHeight: 12, blinkColon: true, showAmpm: true, showSpaceMinute: false, hour: [0, 2, 14, 12], spaceHour: [15, 2, 2, 12], minute: [19, 2, 14, 12], spaceMinute: null, seconds: null },
   37: { digitWidth: 7, digitHeight: 12, blinkColon: true, showAmpm: true, showSpaceMinute: false, hour: [0, 2, 14, 12], spaceHour: [15, 2, 2, 12], minute: [19, 2, 14, 12], spaceMinute: null, seconds: null },
   38: { digitWidth: 7, digitHeight: 13, blinkColon: true, showAmpm: true, showSpaceMinute: false, hour: [0, 2, 14, 13], spaceHour: [15, 2, 2, 13], minute: [19, 2, 14, 13], spaceMinute: null, seconds: null },
   39: { digitWidth: 7, digitHeight: 14, blinkColon: true, showAmpm: true, showSpaceMinute: false, hour: [0, 1, 14, 14], spaceHour: [15, 1, 2, 14], minute: [19, 1, 14, 14], spaceMinute: null, seconds: null },
@@ -88,7 +94,55 @@ const DIGITS = [
   ["01110", "10001", "10001", "01111", "00001", "00001", "01110"],
 ] as const;
 
-const previewCache = new Map<string, PixelFrame[]>();
+/** One background animation (a firmware clock style's own, or the shared date-companion one):
+ * real 32x16 frames decoded from `iledclock/clock_backgrounds`, plus their one uniform
+ * per-frame delay (the vendor's own `DecoderAnimationItem.speed` -- every style's background
+ * plays at a single constant rate, not variable per-frame timing). */
+export interface ClockBackgroundFrames {
+  readonly delayMs: number;
+  readonly frames: readonly PixelFrame[];
+}
+
+export interface ClockBackgroundSet {
+  readonly styles: Readonly<Record<string, ClockBackgroundFrames>>;
+  readonly date: ClockBackgroundFrames;
+}
+
+interface ClockBackgroundsWireResult {
+  styles: Record<string, { frames: string[]; delays: number[] }>;
+  date: { frames: string[]; delays: number[] };
+}
+
+function decodeBackgroundFrames(payload: { frames: string[]; delays: number[] }): ClockBackgroundFrames {
+  return {
+    delayMs: payload.delays[0] ?? 100,
+    frames: payload.frames.map((b64, index) => base64ToFrame(b64, GRID_WIDTH, GRID_HEIGHT, payload.delays[index] ?? 100)),
+  };
+}
+
+let backgroundsPromise: Promise<ClockBackgroundSet> | null = null;
+
+/** Fetches every firmware clock style's bundled background animation plus the shared date
+ * background, once per session -- these are static assets bundled with the integration, not
+ * per-device state, so the picker's many thumbnails and the Now/card hero all share one fetch
+ * (cached module-wide, not per-component). Returns `null` with nothing fetched if `hass` isn't
+ * ready yet (e.g. during initial render); callers fall back to a plain digit-only preview. */
+export function loadClockBackgrounds(hass: Pick<HomeAssistant, "callWS"> | undefined): Promise<ClockBackgroundSet> | null {
+  if (!hass?.callWS) return null;
+  if (!backgroundsPromise) {
+    backgroundsPromise = hass.callWS<ClockBackgroundsWireResult>(clockBackgroundsRequest()).then((result) => ({
+      styles: Object.fromEntries(Object.entries(result.styles).map(([style, payload]) => [style, decodeBackgroundFrames(payload)])),
+      date: decodeBackgroundFrames(result.date),
+    })).catch((error) => {
+      backgroundsPromise = null;
+      throw error;
+    });
+  }
+  return backgroundsPromise;
+}
+
+const plainPreviewCache = new Map<string, PixelFrame[]>();
+const backgroundPreviewCache = new WeakMap<ClockBackgroundFrames, Map<string, PixelFrame[]>>();
 
 function drawNumber(frame: PixelFrame, rect: ClockRect, value: string, digitWidth: number, color: readonly [number, number, number]): void {
   const [left, top, , height] = rect;
@@ -112,24 +166,59 @@ function drawColon(frame: PixelFrame, rect: ClockRect, color: readonly [number, 
   setPixelMut(frame, x, top + Math.floor((2 * height) / 3), color);
 }
 
-/** Client preview of the firmware's clock layout, using its style-specific digit regions. */
-export function clockFacePreviewFrames(style: number, color: readonly [number, number, number], hours24: boolean): PixelFrame[] {
-  const resolvedStyle = CLOCK_FACE_GEOMETRY[style] ? style : 1;
-  const key = [resolvedStyle, color.join(","), hours24 ? "24" : "12"].join("|");
-  const cached = previewCache.get(key);
-  if (cached) return cached;
-
-  const geometry = CLOCK_FACE_GEOMETRY[resolvedStyle]!;
-  const frame = createFrame();
+function drawClockDigits(frame: PixelFrame, geometry: ClockFaceGeometry, hours24: boolean, color: readonly [number, number, number]): void {
   drawNumber(frame, geometry.hour, hours24 ? "13" : "01", geometry.digitWidth, color);
   drawColon(frame, geometry.spaceHour, color);
   drawNumber(frame, geometry.minute, "34", geometry.digitWidth, color);
   if (geometry.showSpaceMinute && geometry.spaceMinute) drawColon(frame, geometry.spaceMinute, color);
   if (geometry.seconds) drawNumber(frame, geometry.seconds, "56", geometry.digitWidth, color);
+}
 
-  const frames = [frame];
-  if (previewCache.size >= 256) previewCache.delete(previewCache.keys().next().value!);
-  previewCache.set(key, frames);
+/** Client preview of the firmware's clock layout: the vendor's per-style digit regions, in the
+ * requested colour, drawn over that style's real background animation (played frame-by-frame,
+ * exactly like the device shows it) when `background` is given -- truthful to what the clock
+ * will actually display, including recolouring: the vendor's own preview bakes in a fixed demo
+ * digit colour, but the background pixels themselves are never tinted by chrome (Lucent: only
+ * digits carry the user's chosen colour). Falls back to a blank panel when `background` is
+ * omitted -- before `loadClockBackgrounds` resolves, or when its own toggle is off. */
+export function clockFacePreviewFrames(
+  style: number,
+  color: readonly [number, number, number],
+  hours24: boolean,
+  background?: ClockBackgroundFrames | null,
+): PixelFrame[] {
+  const resolvedStyle = CLOCK_FACE_GEOMETRY[style] ? style : 1;
+  const geometry = CLOCK_FACE_GEOMETRY[resolvedStyle]!;
+  const key = [resolvedStyle, color.join(","), hours24 ? "24" : "12"].join("|");
+
+  if (!background || !background.frames.length) {
+    const cached = plainPreviewCache.get(key);
+    if (cached) return cached;
+    const frame = createFrame();
+    drawClockDigits(frame, geometry, hours24, color);
+    const frames = [frame];
+    if (plainPreviewCache.size >= 256) plainPreviewCache.delete(plainPreviewCache.keys().next().value!);
+    plainPreviewCache.set(key, frames);
+    return frames;
+  }
+
+  // Keyed by the background object's own identity (a given style's real background, from the
+  // one shared `loadClockBackgrounds` fetch, is always the same object) rather than its
+  // content, so distinct backgrounds -- including two independently-built ones in tests --
+  // never collide.
+  let byColor = backgroundPreviewCache.get(background);
+  if (!byColor) {
+    byColor = new Map();
+    backgroundPreviewCache.set(background, byColor);
+  }
+  const cachedWithBg = byColor.get(key);
+  if (cachedWithBg) return cachedWithBg;
+  const frames = background.frames.map((bg) => {
+    const frame = cloneFrame(bg, background.delayMs);
+    drawClockDigits(frame, geometry, hours24, color);
+    return frame;
+  });
+  byColor.set(key, frames);
   return frames;
 }
 

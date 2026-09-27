@@ -60,7 +60,7 @@ export class LuNav extends LitElement {
     .nav-item.selected { color: var(--lu-accent-ink); background: var(--lu-accent); }
     .nav-item:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
     :host([mobile]) nav { justify-content: stretch; }
-    :host([mobile]) .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 100; display: grid; height: calc(64px + env(safe-area-inset-bottom)); box-sizing: border-box; grid-template-columns: repeat(4, minmax(0, 1fr)); width: auto; gap: var(--lu-space-1); padding: var(--lu-space-1) var(--lu-space-2) calc(var(--lu-space-1) + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid var(--lu-edge); border-radius: 0; background: color-mix(in srgb, var(--lu-card) 88%, transparent); backdrop-filter: blur(var(--lu-blur)) saturate(1.2); }
+    :host([mobile]) .tabs { position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 100; display: grid; height: calc(64px + env(safe-area-inset-bottom)); box-sizing: border-box; grid-template-columns: repeat(4, minmax(0, 1fr)); width: auto; gap: var(--lu-space-1); padding: var(--lu-space-1) var(--lu-space-2) calc(var(--lu-space-1) + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid var(--lu-edge); border-radius: 0; background: color-mix(in srgb, var(--lu-card) 88%, transparent); backdrop-filter: blur(var(--lu-blur)) saturate(1.2); }
     :host([mobile]) .nav-item { flex-direction: column; gap: var(--lu-space-1); min-height: 48px; padding: var(--lu-space-1); font-size: var(--lu-type-caption); }
     :host([mobile]) .nav-item span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
     @media (prefers-reduced-motion: reduce) { .nav-item { transition: none; } }

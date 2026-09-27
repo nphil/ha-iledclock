@@ -26,7 +26,7 @@ import { LitElement, css, html, type PropertyValues } from "lit";
 import { createRef, ref } from "lit/directives/ref.js";
 import { GRID_HEIGHT, GRID_WIDTH, type PixelFrame } from "../lib/grid.ts";
 import { TOKENS_CSS } from "../styles/tokens.ts";
-import { cellCenter, computeMatrixLayout, pointToCell, type MatrixLayout } from "../lib/matrix-layout.ts";
+import { computeMatrixLayout, pointToCell, type MatrixLayout } from "../lib/matrix-layout.ts";
 
 export interface MatrixPointerDetail {
   x: number;
@@ -36,7 +36,11 @@ export interface MatrixPointerDetail {
   pointerId: number;
 }
 
-const OFF_DOT_ALPHA = 0.08;
+const OFF_DOT_COLOR = "rgba(255, 255, 255, 0.08)";
+
+function clampByte(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
 
 export class IledclockMatrixCanvas extends LitElement {
   static properties = {
@@ -54,7 +58,16 @@ export class IledclockMatrixCanvas extends LitElement {
   private readonly _canvasRef = createRef<HTMLCanvasElement>();
   private _resizeObserver: ResizeObserver | null = null;
   private _layout: MatrixLayout | null = null;
-  private _dpr = 1;
+  private _layoutWidth = 0;
+  private _layoutHeight = 0;
+  private _layoutDpr = 0;
+
+  private _drawnFrame: PixelFrame | null | undefined;
+  private _drawnLayout: MatrixLayout | null = null;
+  private _drawnShowGrid = false;
+  private _drawnBloom = false;
+  private _drawnWidth = 0;
+  private _drawnHeight = 0;
 
   constructor() {
     super();
@@ -81,7 +94,9 @@ export class IledclockMatrixCanvas extends LitElement {
   }
 
   protected updated(changed: PropertyValues): void {
-    if (changed.has("frame") || changed.has("showGrid") || changed.has("bloom")) this._draw();
+    const frameChanged = changed.has("frame");
+    if (frameChanged) this._resize();
+    if (frameChanged || changed.has("showGrid") || changed.has("bloom")) this._draw();
   }
 
   private _resize(): void {
@@ -89,12 +104,27 @@ export class IledclockMatrixCanvas extends LitElement {
     if (!canvas) return;
     const box = canvas.getBoundingClientRect();
     if (box.width === 0 || box.height === 0) return;
-    this._dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.max(1, Math.round(box.width * this._dpr));
-    canvas.height = Math.max(1, Math.round(box.height * this._dpr));
+    const dpr = window.devicePixelRatio || 1;
+    const canvasWidth = Math.max(1, Math.round(box.width * dpr));
+    const canvasHeight = Math.max(1, Math.round(box.height * dpr));
     const width = this.frame?.width ?? GRID_WIDTH;
     const height = this.frame?.height ?? GRID_HEIGHT;
+    let backingSizeChanged = false;
+    if (canvas.width !== canvasWidth) {
+      canvas.width = canvasWidth;
+      backingSizeChanged = true;
+    }
+    if (canvas.height !== canvasHeight) {
+      canvas.height = canvasHeight;
+      backingSizeChanged = true;
+    }
+    const layoutChanged = backingSizeChanged || this._layoutWidth !== width || this._layoutHeight !== height || this._layoutDpr !== dpr;
+
+    if (!layoutChanged) return;
     this._layout = computeMatrixLayout(canvas.width, canvas.height, width, height);
+    this._layoutWidth = width;
+    this._layoutHeight = height;
+    this._layoutDpr = dpr;
     this._draw();
   }
 
@@ -105,23 +135,32 @@ export class IledclockMatrixCanvas extends LitElement {
     const layout = this._layout;
     const width = this.frame?.width ?? GRID_WIDTH;
     const height = this.frame?.height ?? GRID_HEIGHT;
+    if (
+      this._drawnFrame === this.frame &&
+      this._drawnLayout === layout &&
+      this._drawnShowGrid === this.showGrid &&
+      this._drawnBloom === this.bloom &&
+      this._drawnWidth === canvas.width &&
+      this._drawnHeight === canvas.height
+    ) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#050607";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const pixels = this.frame?.pixels;
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
-        const [r, g, b] = this.frame
-          ? [clamp(this.frame.pixels[(y * width + x) * 3]!), clamp(this.frame.pixels[(y * width + x) * 3 + 1]!), clamp(this.frame.pixels[(y * width + x) * 3 + 2]!)]
-          : [0, 0, 0];
-        const [cx, cy] = cellCenter(layout, x, y);
+        const offset = (y * width + x) * 3;
+        const r = pixels ? clampByte(pixels[offset]!) : 0;
+        const g = pixels ? clampByte(pixels[offset + 1]!) : 0;
+        const b = pixels ? clampByte(pixels[offset + 2]!) : 0;
+        const cx = layout.offsetX + x * layout.cellSize;
+        const cy = layout.offsetY + y * layout.cellSize;
         const lit = r > 0 || g > 0 || b > 0;
 
         if (!lit) {
           ctx.beginPath();
-          ctx.fillStyle = `rgba(255, 255, 255, ${OFF_DOT_ALPHA})`;
+          ctx.fillStyle = OFF_DOT_COLOR;
           ctx.arc(cx, cy, layout.dotRadius * 0.72, 0, Math.PI * 2);
           ctx.fill();
           continue;
@@ -138,9 +177,6 @@ export class IledclockMatrixCanvas extends LitElement {
           ctx.restore();
         }
 
-        // A crisp core on top of the (possibly restored-away) glow, always drawn: without
-        // `bloom` this is simply the whole dot, matching a small thumbnail's need for a clean
-        // read with no soft edges competing at a handful of screen pixels per LED.
         const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, layout.dotRadius);
         gradient.addColorStop(0, `rgb(${Math.min(255, r + 40)}, ${Math.min(255, g + 40)}, ${Math.min(255, b + 40)})`);
         gradient.addColorStop(1, `rgb(${r}, ${g}, ${b})`);
@@ -169,7 +205,16 @@ export class IledclockMatrixCanvas extends LitElement {
         ctx.stroke();
       }
     }
+
+    this._drawnFrame = this.frame;
+    this._drawnLayout = layout;
+    this._drawnShowGrid = this.showGrid;
+    this._drawnBloom = this.bloom;
+    this._drawnWidth = canvas.width;
+    this._drawnHeight = canvas.height;
   }
+
+
 
   private _emitPointer(event: PointerEvent, phase: MatrixPointerDetail["phase"]): void {
     const canvas = this._canvasRef.value;

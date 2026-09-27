@@ -96,9 +96,9 @@ export function resolveSort(sorts: ReadonlyArray<{ id: string }>, defaultSort: s
   return sorts.some((sort) => sort.id === requested) ? requested : defaultSort;
 }
 
-// ---- tile display text (DESIGN.md: no eyebrows, no middle-dot metadata rows -- plain sentences) ----
+// ---- compact artwork facts for the single caption line beneath each tile ----
 
-/** "1.2k"/"3.4M"-style compact count, floored at 0 for a negative/garbage input. */
+/** Compact "1.2k"/"3.4M" count for tile captions. */
 export function formatCount(n: number): string {
   const trimZero = (s: string) => (s.endsWith(".0") ? s.slice(0, -2) : s);
   if (n >= 1_000_000) return `${trimZero((n / 1_000_000).toFixed(1))}M`;
@@ -106,17 +106,16 @@ export function formatCount(n: number): string {
   return String(Math.max(0, Math.round(n)));
 }
 
-/** One plain-sentence secondary line for a tile -- author and/or likes/downloads joined as facts
- * in a sentence ("By Marcus, 1.2k likes"), never a middle-dot-separated metadata row. `null` when
- * the item carries none of these (several sources report neither on some items). */
-export function tileMetaLine(item: Pick<GalleryItem, "author" | "likes" | "downloads">): string | null {
-  const parts: string[] = [];
-  if (item.author) parts.push(`by ${item.author}`);
-  const counts: string[] = [];
-  if (item.likes != null) counts.push(`${formatCount(item.likes)} likes`);
-  if (item.downloads != null) counts.push(`${formatCount(item.downloads)} downloads`);
-  if (counts.length > 0) parts.push(counts.join(" and "));
-  if (parts.length === 0) return null;
-  const sentence = parts.join(", ");
-  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+/** One quiet caption line: dimensions, animation count and optional attribution. */
+export type GalleryTileMetadata = Partial<Pick<GalleryItem, "author" | "likes" | "downloads" | "width" | "height" | "animated">> & { frames?: number | null };
+
+export function tileMetaLine(item: GalleryTileMetadata): string | null {
+  const facts: string[] = [];
+  if (item.width != null && item.width > 0 && item.height != null && item.height > 0) facts.push(`${item.width}×${item.height}`);
+  if (item.animated && item.frames && item.frames > 1) facts.push(`${item.frames} frames`);
+  const author = item.author?.trim();
+  if (author) facts.push(`by ${author}`);
+  if (item.likes != null) facts.push(`${formatCount(item.likes)} likes`);
+  if (item.downloads != null) facts.push(`${formatCount(item.downloads)} downloads`);
+  return facts.length > 0 ? facts.join(" · ") : null;
 }

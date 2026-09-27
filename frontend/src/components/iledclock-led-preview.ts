@@ -40,6 +40,7 @@ export class IledclockLedPreview extends LitElement {
   private _visible = true;
   private _reducedMotion = false;
   private _startedAt = 0;
+  private _lastDrawAt = 0;
   private _rafId: number | null = null;
 
   constructor() {
@@ -78,11 +79,24 @@ export class IledclockLedPreview extends LitElement {
   }
 
   protected willUpdate(changed: PropertyValues): void {
-    if (changed.has("frames") || changed.has("delays")) {
-      this._playFrames = this.frames.map((frame, index) => ({ ...frame, durationMs: Math.max(1, this.delays[index] ?? frame.durationMs) }));
-      this._frameIndex = 0;
-      this._startedAt = performance.now();
+    if (!changed.has("frames") && !changed.has("delays")) return;
+    let needsDurationOverride = false;
+    for (let index = 0; index < this.frames.length; index++) {
+      const frame = this.frames[index]!;
+      if (Math.max(1, this.delays[index] ?? frame.durationMs) !== frame.durationMs) {
+        needsDurationOverride = true;
+        break;
+      }
     }
+    this._playFrames = needsDurationOverride
+      ? this.frames.map((frame, index) => {
+          const durationMs = Math.max(1, this.delays[index] ?? frame.durationMs);
+          return durationMs === frame.durationMs ? frame : { ...frame, durationMs };
+        })
+      : this.frames;
+    this._frameIndex = 0;
+    this._startedAt = performance.now();
+    this._lastDrawAt = 0;
   }
 
   protected updated(changed: PropertyValues): void {
@@ -116,15 +130,19 @@ export class IledclockLedPreview extends LitElement {
   private _startPlayback(): void {
     if (this._rafId !== null) return;
     this._startedAt = performance.now();
+    this._lastDrawAt = 0;
     const tick = (now: number) => {
       if (!this._canAnimate()) {
         this._rafId = null;
         return;
       }
-      const index = frameIndexAtTime(this._playFrames, now - this._startedAt);
-      if (index !== this._frameIndex) {
-        this._frameIndex = index;
-        this.requestUpdate();
+      if (now - this._lastDrawAt >= 1000 / 60) {
+        this._lastDrawAt = now;
+        const index = frameIndexAtTime(this._playFrames, now - this._startedAt);
+        if (index !== this._frameIndex) {
+          this._frameIndex = index;
+          this.requestUpdate();
+        }
       }
       this._rafId = requestAnimationFrame(tick);
     };

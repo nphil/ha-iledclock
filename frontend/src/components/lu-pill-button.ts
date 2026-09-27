@@ -52,7 +52,7 @@ export class LuPillButton extends LitElement {
     .secondary { color: var(--lu-ink); background: var(--lu-glass-raised); border-color: var(--lu-edge-raised); box-shadow: var(--lu-highlight-rest); }
     .danger { color: var(--lu-danger); background: var(--lu-glass-raised); border-color: color-mix(in srgb, var(--lu-danger) 36%, var(--lu-edge)); }
     .quiet { color: var(--lu-ink-2); background: transparent; border-color: var(--lu-edge); }
-    .button:disabled { opacity: 0.55; cursor: default; }
+    .button:disabled { color: var(--lu-ink-2); background: var(--lu-tile); border-color: var(--lu-edge); box-shadow: none; cursor: not-allowed; }
     .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .loader { width: var(--lu-space-3); height: var(--lu-space-3); border: 2px solid currentColor; border-right-color: transparent; border-radius: var(--lu-radius-pill); }
     @media (prefers-reduced-motion: reduce) { .button { transition-duration: var(--lu-motion-layer); } }

@@ -2,7 +2,11 @@
 (`ILedClockClockTimeActivity.getClockCombineProgram`, 32x16 branch). Each firmware clock style
 draws its digits from a fixed glyph table, so the digit size and every segment position must be
 these values: anything else renders garbled fragments (observed on the live clock 2026-09-26).
-The vendor defines no style 36 for this geometry.
+Style 36 shares this geometry with style 37 (vendor: `styleIndex == 36 || styleIndex == 37` is
+one branch, ILedClockClockTimeFragment.java:1058) but has its own distinct digit glyph font
+(`protocol/clock_faces.py`'s `STYLE_36_NUMBER` differs from `STYLE_37_NUMBER`) and its own
+distinct background asset (`ic_clock_style_bg36_1632_iledclock.gif`, clock_backgrounds.py) --
+it is a real, selectable 41st style, not a gap.
 
 Segment tuples are (start_column, start_row, width, height); missing = not shown.
 Generated from the decompiled vendor source; do not hand-edit.
@@ -61,6 +65,7 @@ CLOCK_STYLES: dict[int, ClockStyle] = {
     33: ClockStyle(7, 10, True, True, False, (1, 3, 14, 10), (15, 3, 2, 10), (18, 3, 14, 10), None, None),
     34: ClockStyle(7, 10, True, True, False, (1, 6, 14, 10), (15, 6, 2, 10), (18, 6, 14, 10), None, None),
     35: ClockStyle(7, 10, True, True, False, (1, 3, 14, 10), (15, 3, 2, 10), (18, 3, 14, 10), None, None),
+    36: ClockStyle(7, 12, True, True, False, (0, 2, 14, 12), (15, 2, 2, 12), (19, 2, 14, 12), None, None),
     37: ClockStyle(7, 12, True, True, False, (0, 2, 14, 12), (15, 2, 2, 12), (19, 2, 14, 12), None, None),
     38: ClockStyle(7, 13, True, True, False, (0, 2, 14, 13), (15, 2, 2, 13), (19, 2, 14, 13), None, None),
     39: ClockStyle(7, 14, True, True, False, (0, 1, 14, 14), (15, 1, 2, 14), (19, 1, 14, 14), None, None),

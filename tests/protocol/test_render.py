@@ -204,5 +204,76 @@ class GenerativeTest(unittest.TestCase):
         self.assertGreater(len(long), len(short))
 
 
+class ClockFaceFramesTest(unittest.TestCase):
+    """`render.clock_face_frames`: pixel-accurate digit/colon glyphs, replacing the old
+    client-side blocky-font approximation that overlapped/garbled on tight styles."""
+
+    def _geometry(self, style_index: int) -> render.ClockFaceGeometry:
+        from clock_styles import CLOCK_STYLES
+        from protocol import clock_faces
+
+        style = CLOCK_STYLES[style_index]
+        return render.ClockFaceGeometry(
+            num_width=style.num_width, num_height=style.num_height, hour=style.hour,
+            space_hour=style.space_hour, minute=style.minute, space_minute=style.space_minute,
+            seconds=style.seconds, show_space_minute=style.show_space_minute,
+            number_table=clock_faces.STYLE_NUMBER[style_index], space_table=clock_faces.STYLE_SPACE[style_index],
+        )
+
+    def test_glyph_grid_decodes_date_number_zero_as_a_clean_rectangle(self) -> None:
+        from protocol import clock_faces
+
+        grid = render._glyph_grid(clock_faces.DATE_NUMBER, 5, 7)
+        expected = [
+            [True, True, True, True, False],
+            [True, False, False, True, False],
+            [True, False, False, True, False],
+            [True, False, False, True, False],
+            [True, False, False, True, False],
+            [True, False, False, True, False],
+            [True, True, True, True, False],
+        ]
+        self.assertEqual(grid, expected)
+
+    def test_glyph_grid_decodes_style10_colon_as_two_dots(self) -> None:
+        from protocol import clock_faces
+
+        grid = render._glyph_grid(clock_faces.STYLE_10_SPACE, 2, 5)
+        lit_rows = [row_index for row_index, row in enumerate(grid) if any(row)]
+        self.assertEqual(lit_rows, [0, 1, 3, 4])  # two 2px dots, gap at the middle row
+
+    def test_every_style_renders_lit_pixels_in_every_digit_and_colon_region(self) -> None:
+        for style_index in range(1, 42):
+            with self.subTest(style=style_index):
+                geometry = self._geometry(style_index)
+                frames = render.clock_face_frames(geometry, (255, 255, 255), True)
+                lit = {(r, c) for f in frames[:1] for r, row in enumerate(f.pixels) for c, p in enumerate(row) if p != (0, 0, 0)}
+                x, y, w, h = geometry.hour
+                self.assertTrue(any(x <= c < x + w and y <= r < y + h for r, c in lit), f"style {style_index}: hour digits not lit")
+                mx, my, mw, mh = geometry.minute
+                self.assertTrue(any(mx <= c < mx + mw and my <= r < my + mh for r, c in lit), f"style {style_index}: minute digits not lit")
+
+    def test_background_produces_one_frame_per_background_frame(self) -> None:
+        geometry = self._geometry(3)  # style 3's real background has 40 frames
+        background = render.ClockFaceBackground(width=32, height=16, delay_ms=300, frames=tuple(bytes(32 * 16 * 3) for _ in range(40)))
+        frames = render.clock_face_frames(geometry, (255, 255, 255), True, background)
+        self.assertEqual(len(frames), 40)
+        self.assertTrue(all(f.duration_ms == 300 for f in frames))
+
+    def test_no_background_is_a_single_frame(self) -> None:
+        frames = render.clock_face_frames(self._geometry(1), (255, 255, 255), True, None)
+        self.assertEqual(len(frames), 1)
+
+    def test_purely_importable_with_no_cross_package_reach(self) -> None:
+        """Regression: an earlier version reached `from ..clock_styles import ...` inside
+        `clock_face_frames`, which crashes the moment `protocol` is loaded as the pure
+        top-level package this whole test package (see tests/protocol/__init__.py) relies on
+        -- `ClockFaceGeometry`/`ClockFaceBackground` must be plain data the caller assembles,
+        not something this module looks up itself."""
+        geometry = self._geometry(24)  # a style with a seconds field, exercised for good measure
+        frames = render.clock_face_frames(geometry, (0, 255, 0), False)
+        self.assertEqual(len(frames), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

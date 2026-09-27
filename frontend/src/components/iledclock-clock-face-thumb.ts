@@ -1,12 +1,21 @@
 import { LitElement, css, html, type PropertyValues } from "lit";
-import type { HomeAssistant } from "../types.ts";
+import type { HomeAssistant, RenderResult } from "../types.ts";
 import type { PixelFrame } from "../lib/grid.ts";
 import { clockFaceLabel, clockFacePreviewFrames } from "../lib/clock-faces.ts";
 import { GRID_HEIGHT, GRID_WIDTH, createFrame } from "../lib/grid.ts";
+import { base64ToFrame } from "../lib/design-codec.ts";
+import { renderRequest } from "../lib/ws-api.ts";
 import { TOKENS_CSS } from "../styles/tokens.ts";
 import "./iledclock-led-preview.ts";
 
-/** A clock face thumbnail is rendered from the firmware geometry only when it enters the picker. */
+function decodeFrames(result: RenderResult): PixelFrame[] {
+  return result.frames.map((b64, index) => base64ToFrame(b64, GRID_WIDTH, GRID_HEIGHT, result.delays[index] ?? 100));
+}
+
+/** A clock face thumbnail: the vendor's own per-style digit/colon glyphs and real background
+ * animation, pixel-accurate (`iledclock/render`, `protocol.render.clock_face_frames`) -- our
+ * older client-side approximate font overlapped/garbled on tight styles (e.g. 24-27's 4x5
+ * digits). Rendered only once it enters the picker. */
 export class IledclockClockFaceThumb extends LitElement {
   static properties = {
     hass: { attribute: false },
@@ -14,6 +23,7 @@ export class IledclockClockFaceThumb extends LitElement {
     faceStyle: { type: Number, attribute: "face-style" },
     color: { attribute: false },
     hours24: { type: Boolean, attribute: "hours24" },
+    background: { type: Boolean, attribute: "background" },
     selected: { type: Boolean, reflect: true },
     _frames: { state: true },
   };
@@ -23,6 +33,7 @@ export class IledclockClockFaceThumb extends LitElement {
   declare faceStyle: number;
   declare color: readonly [number, number, number];
   declare hours24: boolean;
+  declare background: boolean;
   declare selected: boolean;
   declare _frames: PixelFrame[];
 
@@ -35,6 +46,7 @@ export class IledclockClockFaceThumb extends LitElement {
     this.faceStyle = 1;
     this.color = [255, 255, 255];
     this.hours24 = true;
+    this.background = true;
     this.selected = false;
     this._frames = [createFrame(GRID_WIDTH, GRID_HEIGHT)];
   }
@@ -44,16 +56,16 @@ export class IledclockClockFaceThumb extends LitElement {
     if (typeof IntersectionObserver !== "undefined") {
       this._observer = new IntersectionObserver((entries) => {
         this._visible = entries[0]?.isIntersecting ?? false;
-        if (this._visible) this._loadPreview();
+        if (this._visible) void this._loadPreview();
       }, { rootMargin: "48px" });
       this._observer.observe(this);
     } else {
-      this._loadPreview();
+      void this._loadPreview();
     }
   }
 
   protected updated(changed: PropertyValues): void {
-    if ((changed.has("entryId") || changed.has("faceStyle") || changed.has("color") || changed.has("hours24")) && this._visible) this._loadPreview();
+    if ((changed.has("entryId") || changed.has("faceStyle") || changed.has("color") || changed.has("hours24") || changed.has("background")) && this._visible) void this._loadPreview();
   }
 
   disconnectedCallback(): void {
@@ -62,11 +74,24 @@ export class IledclockClockFaceThumb extends LitElement {
     this._observer = null;
   }
 
-  private _loadPreview(): void {
-    const key = [this.entryId ?? "", this.faceStyle, this.color.join(","), this.hours24 ? "24" : "12"].join("|");
+  private async _loadPreview(): Promise<void> {
+    const key = [this.entryId ?? "", this.faceStyle, this.color.join(","), this.hours24 ? "24" : "12", this.background ? "bg" : "plain"].join("|");
     if (key === this._loadedKey) return;
-    this._frames = clockFacePreviewFrames(this.faceStyle, this.color, this.hours24);
     this._loadedKey = key;
+    // Immediate, synchronous placeholder (our own approximate font) so the thumb never sits
+    // blank while the real render round-trips; replaced the moment the real one resolves.
+    this._frames = clockFacePreviewFrames(this.faceStyle, this.color, this.hours24);
+    if (!this.entryId || !this.hass?.callWS) return;
+    try {
+      const result = await this.hass.callWS<RenderResult>(
+        renderRequest(this.entryId, { type: "clock", style: this.faceStyle, color: this.color, h24: this.hours24, background: this.background }),
+      );
+      if (key !== this._loadedKey) return;
+      if (!result.approximate) this._frames = decodeFrames(result);
+    } catch {
+      // Keep the approximate placeholder on failure -- a broken thumbnail preview must never
+      // block picking a style.
+    }
   }
 
   private _select(): void {

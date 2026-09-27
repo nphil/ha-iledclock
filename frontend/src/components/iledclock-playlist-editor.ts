@@ -154,7 +154,7 @@ export class IledclockPlaylistEditor extends LitElement {
   private _renderThumbnail(item: PlaylistItem) {
     const design = this._itemDesign(item);
     if (!design) return html`<div class="thumbnail" aria-hidden="true">${mdiIcon(playlistItemIcon(item, this.designs))}</div>`;
-    return html`<div class="thumbnail design-thumbnail"><iledclock-led-preview context="thumb" .frames=${framesFor(design)} .delays=${design.delays} ?playing=${design.kind === "animation"} .label=${design.name}></iledclock-led-preview></div>`;
+    return html`<div class="thumbnail design-thumbnail"><iledclock-led-preview context="thumb" .frames=${framesFor(design)} .delays=${design.delays} ?playing=${false} .label=${design.name}></iledclock-led-preview></div>`;
   }
 
   render() {
