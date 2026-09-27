@@ -10,6 +10,7 @@ import pytest
 import yaml
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from custom_components.iledclock import const
 from custom_components.iledclock.const import DOMAIN
@@ -51,6 +52,41 @@ async def test_show_text_uploads_and_can_restore(hass, config_entry, clock: Fake
     )
     assert len(clock.uploads) == 1
     assert clock.uploads[0][0][0] == 0x02  # program start
+
+
+async def test_show_uses_cached_program_start_ack_and_finishes_progress(
+    hass, config_entry, clock: FakeClockDevice
+) -> None:
+    clock.start_ack_result = 1
+    clock.written.clear()
+    coordinator = config_entry.runtime_data
+    progress: list[dict] = []
+    unsubscribe = async_dispatcher_connect(
+        hass, const.upload_progress_signal(config_entry.entry_id), progress.append
+    )
+    try:
+        descriptor = await coordinator.async_show(
+            {
+                "type": "clock",
+                "style": 17,
+                "color": [255, 255, 255],
+                "hours24": False,
+                "background": True,
+            }
+        )
+    finally:
+        unsubscribe()
+
+    assert descriptor["kind"] == "clock"
+    assert descriptor["style"] == 17
+    assert descriptor["background"] is True
+    assert coordinator.show_store.now_showing == descriptor
+    assert len(clock.uploads) == 1
+    assert clock.uploads[0][1] == []
+    completed = next(event for event in progress if event["state"] == "done" and event["upload"] is not None)
+    assert completed["upload"]["done"] == completed["upload"]["total"]
+    assert progress[-1]["state"] == "done"
+    assert progress[-1]["upload"] is None
 
 
 async def test_show_design_uploads(hass, config_entry, clock: FakeClockDevice, device_id: str) -> None:

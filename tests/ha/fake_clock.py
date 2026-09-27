@@ -148,7 +148,7 @@ class FakeClockDevice:
         self.silent_keys: set[tuple[int, int | None]] = set()
         #: `response_key` -> decoded reply payload, taking precedence over `LIVE_REPLIES`.
         self.reply_overrides: dict[tuple[int, int | None], bytes] = {}
-        #: Result byte for the program-start ack / per-chunk acks (0 == accepted).
+        #: Start result 0=send chunks, 1=program already present; chunk result 0=accepted.
         self.start_ack_result = 0
         self.chunk_ack_result = 0
         self.chunk_ack_results: dict[int, int] = {}

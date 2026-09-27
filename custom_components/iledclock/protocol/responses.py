@@ -197,8 +197,10 @@ class ScoreboardStatus:
 
 @dataclass(frozen=True)
 class ProgramStartAck:
-    """Opcode 0x02 (or the rare reminder-content 0x1a variant), a 2-byte
-    ``[opcode, result]`` reply to a ``plan_upload`` start frame. ``result == 0`` is success."""
+    """Opcode 0x02, a 2-byte ``[opcode, result]`` reply to a ``plan_upload`` start frame.
+    ``result == 0`` means send chunks; ``result == 1`` means the matching program is already
+    present and the upload is complete without chunks.
+    """
 
     result: int
 

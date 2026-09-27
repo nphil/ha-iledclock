@@ -388,8 +388,8 @@ has **24** fields, so this branch never fires and it silently defaults to **1024
 `[DEVICE]`.
 
 **Errors**: `[VENDOR DeviceManager.java, program-upload state machine]` — opcode `0x02`
-("program start") ack byte: `0`=ready to send chunks, `1`=device already has this program
-(skip chunks entirely), other=unknown-error. Opcode `0x03` chunk ack: `0`=success,
+("program start") ack byte: `0`=ready to send chunks, `1`=matching program already stored
+(successful cache hit: skip chunks and complete the show), other=unknown-error. Opcode `0x03`
 `1`/`2`/`3`=distinct device/data-error codes (exact per-code distinction not cleanly
 recoverable from decompiled logic; opcode `0xff` mirrors this for OTA chunks). Retries:
 `MAX_RETRY_TIMES_FOR_PACKAGE=3`, `MAX_RETRY_TIMES_FOR_ALL=3`, `MESSAGE_SEND_OVERTIME=5000ms`

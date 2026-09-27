@@ -122,9 +122,9 @@ class IledClockClient:
         *,
         on_progress: UploadProgressCallback | None = None,
     ) -> None:
-        """Upload `programs` as the device's whole active program list, one at a time: for each,
-        send the start packet (awaiting its ack), then every content chunk in order (awaiting
-        `ProgramChunkAck(index)`), retrying each up to `UPLOAD_CHUNK_RETRIES` times."""
+        """Upload `programs` as the device's whole active program list, one at a time.
+        Start result 0 sends acknowledged chunks; result 1 completes from the device's cached
+        program without chunks. Individual requests are retried up to `UPLOAD_CHUNK_RETRIES` times."""
         async with self._lock:
             await self._async_ensure_connected_locked()
             total = len(programs)
@@ -305,7 +305,9 @@ class IledClockClient:
 
     async def _async_send_start_locked(self, payload: bytes) -> ProgramStartAck:
         response = await self._async_request_locked(payload)
-        if isinstance(response, ProgramStartAck) and response.result != 0:
+        # The vendor uses start result 1 as a cache hit: the device already has this
+        # program, so the transfer is complete without any data chunks.
+        if isinstance(response, ProgramStartAck) and response.result not in (0, 1):
             raise IledClockProtocolError(
                 f"iLedClock {self._address} reported error {response.result} for program start"
             )
@@ -324,10 +326,19 @@ class IledClockClient:
         if on_progress is not None:
             on_progress("start", program_index, program_count, 0, chunk_count)
 
-        await self._async_retry_locked(
+        start_ack = await self._async_retry_locked(
             lambda: self._async_send_start_locked(plan.start),
             description=f"program {program_index} start",
         )
+        if isinstance(start_ack, ProgramStartAck) and start_ack.result == 1:
+            _LOGGER.debug(
+                "iLedClock upload: program %s is already present; skipping %s chunks",
+                program_index,
+                chunk_count,
+            )
+            if on_progress is not None:
+                on_progress("done", program_index, program_count, chunk_count, chunk_count)
+            return
 
         for chunk_index, chunk_payload in enumerate(plan.chunks):
             await self._async_retry_locked(
