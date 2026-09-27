@@ -228,20 +228,17 @@ def _h_tomato_set(v: Vector) -> tuple[bytes, bytes]:
 
 
 def _h_night_mode_set(v: Vector) -> tuple[bytes, bytes]:
+    # Byte positions only: the harness called getSetNightMode(1, 22, 0, 6, 30, 1, 3, 10, 1, 2) and
+    # labelled argument 8 "wakeUpDuration", but the vendor call site passes voiceControlEnabled
+    # there (DeviceManager.java:6983), so the recorded labels cannot be used to map settings.
+    # Which setting lands in which byte is pinned by tests/protocol/test_commands.py instead.
     a = v["args"]
-    cfg = NightMode(
-        enabled=bool(a["nightModeEnabled"]),
-        start_hour=a["startHour"],
-        start_minute=a["startMinute"],
-        end_hour=a["endHour"],
-        end_minute=a["endMinute"],
-        device_state_enabled=bool(a["deviceStateEnabled"]),
-        brightness=a["brightness"],
-        voice_control_enabled=bool(a["voiceControlEnabled"]),
-        wake_up_duration=a["wakeUpDuration"],
-        voice_sensitivity=a["voiceSensitivity"],
+    positional = (
+        a["nightModeEnabled"], a["startHour"], a["startMinute"], a["endHour"], a["endMinute"],
+        a["deviceStateEnabled"], a["brightness"], a["wakeUpDuration"], a["voiceControlEnabled"],
+        a["voiceSensitivity"],
     )
-    return _framed(commands.night_mode_set(cfg), v["out"])
+    return _framed(commands.night_mode_bytes(positional), v["out"])
 
 
 def _h_device_setting(v: Vector) -> tuple[bytes, bytes]:

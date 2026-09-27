@@ -29,6 +29,8 @@ misaligned) for any input, and the vendor never guards them either:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from datetime import datetime
 
 from . import color_tables
@@ -462,13 +464,21 @@ def night_mode_get() -> bytes:
     return b"\x14\x02"
 
 
+def night_mode_bytes(values: Sequence[int]) -> bytes:
+    """``getSetNightMode``'s ten positional bytes (opcode 0x14 0x01), emitted in argument order."""
+    if len(values) != 10:
+        raise ValueError("night mode takes exactly 10 values")
+    return b"\x14\x01" + bytes(values)
+
+
 def night_mode_set(cfg: NightMode) -> bytes:
-    """``getSetNightMode`` (opcode 0x14 0x01). Field order verified against the golden
-    vector directly (``getSetNightMode(1, 22, 0, 6, 30, 1, 3, 10, 1, 2)`` ->
-    ``...03 0a 01 02``): ``wake_up_duration`` precedes ``voice_control_enabled`` on the
-    wire, opposite of one plausible reading of the call-site argument names in
-    ``DeviceManager.java`` -- the golden vector's actual bytes are the deciding evidence."""
-    return b"\x14\x01" + bytes(
+    """``getSetNightMode`` (opcode 0x14 0x01). Argument order is the vendor's real call site,
+    ``DeviceManager.java:6983``: ..., brightness, voiceControlEnabled, wakeUpDuration,
+    voiceSensitivity - the same order the device reports back in ``14 02`` and
+    ``_parse_night_mode`` reads. [DEVICE] 2026-09-26: sending wake before voice made the clock
+    store "wake 1 min" and ignore a clap; the golden vector only fixes byte positions (its harness
+    mislabelled arguments 8 and 9), so it cannot decide this."""
+    return night_mode_bytes(
         (
             1 if cfg.enabled else 0,
             cfg.start_hour,
@@ -477,8 +487,8 @@ def night_mode_set(cfg: NightMode) -> bytes:
             cfg.end_minute,
             1 if cfg.device_state_enabled else 0,
             cfg.brightness,
-            cfg.wake_up_duration,
             1 if cfg.voice_control_enabled else 0,
+            cfg.wake_up_duration,
             cfg.voice_sensitivity,
         )
     )

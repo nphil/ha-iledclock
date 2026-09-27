@@ -97,7 +97,21 @@ class MiscCommandTest(unittest.TestCase):
             voice_control_enabled=True, voice_sensitivity=2,
         )
         payload = commands.night_mode_set(cfg)
-        self.assertEqual(payload, bytes((0x14, 0x01, 1, 22, 0, 6, 30, 1, 3, 10, 1, 2)))
+        # voice on/off precedes wake minutes (vendor call site DeviceManager.java:6983; confirmed
+        # on the live clock, where the opposite order stored "wake 1 minute").
+        self.assertEqual(payload, bytes((0x14, 0x01, 1, 22, 0, 6, 30, 1, 3, 1, 10, 2)))
+
+    def test_night_mode_set_reads_back_as_sent(self) -> None:
+        from protocol import responses
+
+        cfg = NightMode(
+            enabled=True, start_hour=21, start_minute=0, end_hour=8, end_minute=0,
+            device_state_enabled=True, brightness=25, wake_up_duration=30,
+            voice_control_enabled=True, voice_sensitivity=6,
+        )
+        # The clock echoes the stored bytes in its 14 02 reply.
+        reply = b"\x14\x02" + commands.night_mode_set(cfg)[2:]
+        self.assertEqual(responses.parse(reply), cfg)
 
     def test_alarms_set_empty_list(self) -> None:
         self.assertEqual(commands.alarms_set([]), b"\x16\x01\x00")
