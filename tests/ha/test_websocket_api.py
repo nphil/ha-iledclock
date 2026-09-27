@@ -230,7 +230,17 @@ async def test_ws_show_uploads_through_fake_transport(hass, hass_ws_client, conf
     )
     response = await client.receive_json()
     assert response["success"] is True
-    assert response["result"] == {}
+    descriptor = response["result"]["now_showing"]
+    assert descriptor["kind"] == "text"
+    assert descriptor["text"] == "HI"
+    assert descriptor["title"] == "Text · HI"
+    assert descriptor["shown_at"]
+
+    state_client = await hass_ws_client(hass)
+    await state_client.send_json_auto_id({"type": "iledclock/state", "entry_id": config_entry.entry_id})
+    state = (await state_client.receive_json())["result"]
+    assert state["now_showing"] == descriptor
+    assert state["history"] == [descriptor]
 
     assert len(clock.uploads) == 1
     start_payload, chunk_payloads = clock.uploads[0]
@@ -251,6 +261,105 @@ async def test_ws_show_invalid_item_errors(hass, hass_ws_client, config_entry) -
     response = await client.receive_json()
     assert response["success"] is False
     assert response["error"]["code"] == "show_failed"
+
+
+async def test_ws_show_restore_previous_and_nothing_to_restore(hass, hass_ws_client, config_entry) -> None:
+    client = await hass_ws_client(hass)
+
+    async def show(text: str) -> dict:
+        await client.send_json_auto_id({"type": "iledclock/show", "entry_id": config_entry.entry_id, "item": {"spec": {"type": "text", "text": text}}})
+        return await client.receive_json()
+
+    first = await show("FIRST")
+    assert first["success"] is True
+    second = await show("SECOND")
+    assert second["success"] is True
+    assert second["result"]["now_showing"]["text"] == "SECOND"
+
+    await client.send_json_auto_id({"type": "iledclock/show", "entry_id": config_entry.entry_id, "item": {"restore": "previous"}})
+    restored = await client.receive_json()
+    assert restored["success"] is True
+    assert restored["result"]["now_showing"]["text"] == "FIRST"
+
+    state_client = await hass_ws_client(hass)
+    await state_client.send_json_auto_id({"type": "iledclock/state", "entry_id": config_entry.entry_id})
+    state = (await state_client.receive_json())["result"]
+    assert state["now_showing"] == restored["result"]["now_showing"]
+    assert state["history"][0]["text"] == "FIRST"
+    assert state["history"][1]["text"] == "SECOND"
+
+
+async def test_generative_show_descriptor_restores_without_kind_collision(hass, hass_ws_client, config_entry) -> None:
+    client = await hass_ws_client(hass)
+
+    async def show(item: dict) -> dict:
+        await client.send_json_auto_id({"type": "iledclock/show", "entry_id": config_entry.entry_id, "item": item})
+        return await client.receive_json()
+
+    generative = await show({"spec": {"type": "generative", "kind": "plasma", "seconds": 1}})
+    assert generative["success"] is True
+    assert generative["result"]["now_showing"]["kind"] == "generative"
+    assert generative["result"]["now_showing"]["effect"] == "plasma"
+    assert (await show({"spec": {"type": "text", "text": "NEXT"}}))["success"] is True
+
+    restored = await show({"restore": "previous"})
+    assert restored["success"] is True
+    assert restored["result"]["now_showing"]["kind"] == "generative"
+    assert restored["result"]["now_showing"]["effect"] == "plasma"
+
+
+async def test_deleted_design_is_marked_and_skipped_by_undo(hass, hass_ws_client, config_entry) -> None:
+    client = await hass_ws_client(hass)
+
+    async def send(message: dict) -> dict:
+        await client.send_json_auto_id(message)
+        return await client.receive_json()
+
+    base = {"type": "iledclock/show", "entry_id": config_entry.entry_id}
+    assert (await send({**base, "item": {"spec": {"type": "text", "text": "KEEP"}}}))["success"]
+    saved = await send({"type": "iledclock/designs/save", "design": {"name": "Soon Deleted", "kind": "image", "frames": [_solid_frame_b64()]}})
+    design_id = saved["result"]["id"]
+    assert (await send({**base, "item": {"design_id": design_id}}))["success"]
+    assert (await send({**base, "item": {"spec": {"type": "text", "text": "LATEST"}}}))["success"]
+
+    assert (await send({"type": "iledclock/designs/delete", "design_id": design_id}))["success"]
+    state = await send({"type": "iledclock/state", "entry_id": config_entry.entry_id})
+    design_entry = next(item for item in state["result"]["history"] if item.get("design_id") == design_id)
+    assert design_entry["unavailable"] is True
+
+    restored = await send({**base, "item": {"restore": "previous"}})
+    assert restored["success"] is True
+    assert restored["result"]["now_showing"]["text"] == "KEEP"
+
+
+async def test_ws_show_restore_without_history_errors(hass, hass_ws_client, config_entry) -> None:
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "iledclock/show", "entry_id": config_entry.entry_id, "item": {"restore": "previous"}})
+    response = await client.receive_json()
+    assert response["success"] is False
+    assert response["error"]["code"] == "nothing_to_restore"
+
+
+async def test_ws_subscribe_pushes_chunk_progress_and_clears_upload(hass, hass_ws_client, config_entry) -> None:
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "iledclock/subscribe", "entry_id": config_entry.entry_id})
+    assert (await client.receive_json())["success"] is True
+
+    show_client = await hass_ws_client(hass)
+    await show_client.send_json_auto_id({"type": "iledclock/show", "entry_id": config_entry.entry_id, "item": {"spec": {"type": "text", "text": "PROGRESS"}}})
+    assert (await show_client.receive_json())["success"] is True
+
+    events = []
+    for _ in range(20):
+        message = await client.receive_json()
+        if message.get("type") == "event":
+            events.append(message["event"])
+            if message["event"].get("upload") is None:
+                break
+    progress = [event["upload"] for event in events if isinstance(event.get("upload"), dict)]
+    assert progress
+    assert all(set(item) == {"done", "total"} for item in progress)
+    assert any(event.get("upload") is None for event in events)
 
 
 # -- iledclock/playlist/* ----------------------------------------------------------------------

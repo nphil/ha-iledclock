@@ -82,7 +82,7 @@ from .state import (
     TomatoState,
     merge_state,
 )
-from .store import IledClockDesignLibrary, IledClockPlaylistStore, async_get_design_library
+from .store import IledClockDesignLibrary, IledClockPlaylistStore, IledClockShowStore, async_get_design_library
 from .ws_shapes import shape_upload_progress
 
 _LOGGER = logging.getLogger(__name__)
@@ -259,6 +259,7 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         self.client.set_idle_timeout(options[CONF_IDLE_TIMEOUT])
         self.design_library: IledClockDesignLibrary = async_get_design_library(hass)
         self.playlist_store = IledClockPlaylistStore(hass, entry.entry_id)
+        self.show_store = IledClockShowStore(hass, entry.entry_id)
         self._time_sync_enabled: bool = options[CONF_TIME_SYNC]
         self._synced_since_start = False
         self._unsub_daily_sync: Callable[[], None] | None = None
@@ -415,15 +416,17 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         self._cancel_pending_restore()
         self._saved_playlist = None
         await self.playlist_store.async_set_playlist(items)
-        await self._async_upload_playlist(items)
+        await self._async_upload_playlist(items, record_showing=True)
 
-    async def _async_upload_playlist(self, items: list[PlaylistItem]) -> None:
+    async def _async_upload_playlist(self, items: list[PlaylistItem], *, record_showing: bool = False) -> None:
         programs = build_programs(items, designs=self._designs_by_id())
         await self._async_upload_programs(programs)
         self.active_item = items[0] if items else None
         await self._async_update_preview_for_item(self.active_item)
+        if record_showing and self.active_item is not None:
+            await self._async_record_showing(self._descriptor_for_playlist_item(self.active_item))
 
-    async def async_show(self, spec: Mapping[str, Any], *, restore_after_s: float | None = None) -> None:
+    async def async_show(self, spec: Mapping[str, Any], *, restore_after_s: float | None = None) -> dict[str, Any]:
         """Contract D `iledclock/show` / every `show_*` service: upload `spec` as a single-
         program playlist override. `spec` is `{"type": <playlist kind>, **params}` for anything
         that already has a native wire content type, or `{"type": "image"|"generative", ...}`
@@ -433,6 +436,7 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         "notify-style temporary message" behaviour."""
         show_type = spec.get("type")
         params = {key: value for key, value in spec.items() if key != "type"}
+        descriptor_params = dict(params)
 
         if show_type in PLAYLIST_KINDS:
             item = PlaylistItem(kind=show_type, params=params, duration_s=int(params.pop("duration_s", 10)))
@@ -461,14 +465,80 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             self.active_item = preview_item
             await self._async_update_preview_for_item(preview_item)
 
+        descriptor = self._descriptor_for_spec(show_type, descriptor_params)
+        await self._async_record_showing(descriptor)
         if restore_after_s:
             self._restore_unsub = async_call_later(self.hass, restore_after_s, self._async_restore_playlist)
+        return dict(self.show_store.now_showing or descriptor)
+
+    def _descriptor_for_spec(self, kind: str, params: Mapping[str, Any]) -> dict[str, Any]:
+        fields = dict(params)
+        title = fields.pop("title", None)
+        if kind == "design":
+            design = self.design_library.get_design(str(fields.get("design_id", "")))
+            title = title or (design.name if design else "Unavailable design")
+        elif kind == "clock":
+            title = title or f"Clock · style {fields.get('style', '?')}"
+        elif kind == "text":
+            title = title or f"Text · {fields.get('text', '')}"
+        elif kind == "timer":
+            title = title or "Timer"
+        elif kind == "scoreboard":
+            title = title or "Scoreboard"
+        elif kind == "image":
+            title = title or "Image"
+        elif kind == "generative":
+            title = title or str(fields.get("kind", "Generative")).replace("_", " ").title()
+            if "kind" in fields:
+                fields["effect"] = fields.pop("kind")
+        else:
+            title = title or kind.replace("_", " ").title()
+        return {"kind": kind, **fields, "title": str(title), "shown_at": dt_util.utcnow().isoformat()}
+
+    def _descriptor_for_playlist_item(self, item: PlaylistItem) -> dict[str, Any]:
+        return self._descriptor_for_spec(item.kind, {**dict(item.params), "duration_s": item.duration_s})
+
+    async def _async_record_showing(self, descriptor: dict[str, Any]) -> None:
+        await self.show_store.async_record(descriptor)
+        self.async_set_updated_data(merge_state(self.data, {
+            "now_showing": dict(self.show_store.now_showing or {}),
+            "show_history": tuple(dict(item) for item in self.show_store.history),
+        }))
+
+    async def async_restore_previous(self) -> dict[str, Any]:
+        """Re-show the newest available distinct prior item, marking deleted designs skipped."""
+        for descriptor in list(self.show_store.history[1:]):
+            if descriptor.get("unavailable"):
+                continue
+            kind = str(descriptor.get("kind", ""))
+            if kind == "design" and self.design_library.get_design(str(descriptor.get("design_id", ""))) is None:
+                await self.show_store.async_mark_unavailable(str(descriptor.get("design_id", "")))
+                self.async_set_updated_data(merge_state(self.data, {
+                    "now_showing": self.show_store.now_showing,
+                    "show_history": tuple(dict(item) for item in self.show_store.history),
+                }))
+                continue
+            fields = {key: value for key, value in descriptor.items() if key not in {"kind", "title", "shown_at", "unavailable"}}
+            if kind == "generative" and "effect" in fields:
+                fields["kind"] = fields.pop("effect")
+            return await self.async_show({"type": kind, **fields, "title": descriptor.get("title")})
+        raise ValueError("nothing_to_restore")
+
+    async def async_mark_design_deleted(self, design_id: str) -> None:
+        """Mark any retained reference so clients and Undo can skip the deleted design."""
+        if not any(item.get("kind") == "design" and item.get("design_id") == design_id for item in self.show_store.history):
+            return
+        await self.show_store.async_mark_unavailable(design_id)
+        self.async_set_updated_data(merge_state(self.data, {
+            "now_showing": self.show_store.now_showing,
+            "show_history": tuple(dict(item) for item in self.show_store.history),
+        }))
 
     async def _async_restore_playlist(self, _now: datetime) -> None:
         self._restore_unsub = None
         saved, self._saved_playlist = self._saved_playlist, None
         if saved:
-            await self._async_upload_playlist(saved)
+            await self._async_upload_playlist(saved, record_showing=True)
 
     def _cancel_pending_restore(self) -> None:
         if self._restore_unsub is not None:
@@ -484,19 +554,26 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             payload = shape_upload_progress(
                 state=state, program=program, programs=programs_count, chunk=chunk, chunks=chunks,
             )
+            payload["upload"] = {"done": chunk, "total": chunks} if state in {"start", "chunk", "done"} else None
             async_dispatcher_send(self.hass, upload_progress_signal(entry_id), payload)
 
         self.busy = True
+        failed = False
         try:
             await self.client.async_upload(programs, on_progress=on_progress)
         except IledClockError as err:
+            failed = True
             async_dispatcher_send(
                 self.hass, upload_progress_signal(entry_id),
-                shape_upload_progress(state="error", program=0, programs=total, chunk=0, chunks=0, error=str(err)),
+                {**shape_upload_progress(state="error", program=0, programs=total, chunk=0, chunks=0, error=str(err)), "upload": None},
             )
             raise
         finally:
             self.busy = False
+            async_dispatcher_send(
+                self.hass, upload_progress_signal(entry_id),
+                {**shape_upload_progress(state="error" if failed else "done", program=total, programs=total, chunk=0, chunks=0), "upload": None},
+            )
 
     # -- Preview (image.<name>_display) ------------------------------------------------------
 

@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+
 import unittest
 from pathlib import Path
 
@@ -14,6 +16,89 @@ _FIXTURES = Path(__file__).parent / "fixtures"
 
 def _load(name: str) -> dict:
     return json.loads((_FIXTURES / name).read_text(encoding="utf-8"))
+
+
+class _FakeResponse:
+    def __init__(self, *, payload=None, data=b"image", status=200, content_type="image/png", json_error=None):
+        self.payload = payload
+        self.data = data
+        self.status = status
+        self.content_type = content_type
+        self.json_error = json_error
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args):
+        return None
+
+    async def json(self, *, content_type=None):
+        if self.json_error is not None:
+            raise self.json_error
+        return self.payload
+
+    async def read(self):
+        return self.data
+
+
+class _FakeSession:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def get(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        response = self.responses.pop(0)
+        if isinstance(response, BaseException):
+            raise response
+        return response
+
+
+class LametricRequestTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self._retry_delay = lametric._RETRY_DELAY_S
+        lametric._RETRY_DELAY_S = 0
+
+    def tearDown(self):
+        lametric._RETRY_DELAY_S = self._retry_delay
+
+    async def test_fetch_catalog_requests_the_selected_popular_order_after_transient_503(self):
+        session = _FakeSession([
+            _FakeResponse(status=503),
+            _FakeResponse(payload=_load("lametric_icons_popular.json")),
+        ])
+
+        catalog = await lametric.fetch_catalog(session, order="popular")
+
+        self.assertTrue(catalog)
+        self.assertEqual(len(session.calls), 2)
+        self.assertTrue(all(call[1]["params"]["order"] == "popular" for call in session.calls))
+
+    async def test_invalid_json_is_retried_once(self):
+        session = _FakeSession([
+            _FakeResponse(json_error=json.JSONDecodeError("invalid", "x", 0)),
+            _FakeResponse(payload=_load("lametric_icons_newest.json")),
+        ])
+
+        catalog = await lametric.fetch_catalog(session, order="newest")
+
+        self.assertEqual(len(catalog), 20)
+        self.assertEqual(len(session.calls), 2)
+
+    async def test_missing_media_is_not_retried_and_maps_to_not_found(self):
+        from custom_components.iledclock.gallery.models import SourceNotFound, SourceTimeout
+
+        catalog = lametric.parse_catalog_response(_load("lametric_icons_popular.json"))
+        session = _FakeSession([_FakeResponse(status=404)])
+        with self.assertRaises(SourceNotFound):
+            await lametric.fetch_media(session, catalog, "66")
+        self.assertEqual(len(session.calls), 1)
+
+        timed_out = _FakeSession([asyncio.TimeoutError(), asyncio.TimeoutError()])
+        with self.assertRaises(SourceTimeout):
+            await lametric.fetch_catalog(timed_out)
+        self.assertEqual(len(timed_out.calls), 2)
+
 
 
 class LametricParseTests(unittest.TestCase):

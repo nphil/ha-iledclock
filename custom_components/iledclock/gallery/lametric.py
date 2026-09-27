@@ -14,10 +14,18 @@ paginates the cached snapshot entirely in memory -- no I/O, no network. Every ic
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
+import time
 from typing import Any, Sequence
 
-from .models import GalleryItem, SearchPage, SortOption, SourceInfo, SourceRequestError
+from .models import GalleryItem, SearchPage, SortOption, SourceInfo, SourceNotFound, SourceRequestError, SourceTimeout
+
+_LOGGER = logging.getLogger(__name__)
+_WARNING_INTERVAL_S = 60.0
+_RETRY_DELAY_S = 0.2
+_last_warning_at = 0.0
 
 ID = "lametric"
 NAME = "LaMetric"
@@ -80,31 +88,71 @@ def parse_catalog_response(payload: dict[str, Any]) -> list[GalleryItem]:
     return items
 
 
-async def fetch_catalog(
-    session: Any, *, timeout_s: float = REQUEST_TIMEOUT_S
-) -> list[GalleryItem]:
-    """Fetch the whole current catalog in one request. `session` is an
-    `aiohttp.ClientSession` (the HA layer supplies HA's shared one)."""
+def _warn_failure(error: BaseException) -> None:
+    global _last_warning_at
+    now = time.monotonic()
+    if now - _last_warning_at >= _WARNING_INTERVAL_S:
+        _LOGGER.warning("LaMetric gallery request failed: %s", error)
+        _last_warning_at = now
+
+
+async def _fetch_catalog(session: Any, *, order: str, timeout_s: float) -> list[GalleryItem]:
     import aiohttp
 
     params = {
         "page": "1",
         "page_size": str(MAX_CATALOG_SIZE),
-        "order": "newest",
+        "order": order,
         "fields": REQUEST_FIELDS,
     }
-    try:
-        async with session.get(
-            BASE_URL, params=params, timeout=aiohttp.ClientTimeout(total=timeout_s)
-        ) as resp:
-            resp.raise_for_status()
-            payload = await resp.json(content_type=None)
-    except aiohttp.ClientError as err:
-        raise SourceRequestError(f"LaMetric request failed: {err}") from err
-    except json.JSONDecodeError as err:
-        raise SourceRequestError(f"LaMetric returned invalid JSON: {err}") from err
-    return parse_catalog_response(payload)
+    for attempt in range(2):
+        try:
+            async with session.get(
+                BASE_URL, params=params, timeout=aiohttp.ClientTimeout(total=timeout_s)
+            ) as resp:
+                if resp.status == 404:
+                    raise SourceNotFound("LaMetric catalog was not found")
+                if resp.status >= 400:
+                    if (resp.status == 429 or resp.status >= 500) and attempt == 0:
+                        await asyncio.sleep(_RETRY_DELAY_S)
+                        continue
+                    error = SourceRequestError(f"LaMetric catalog returned HTTP {resp.status}")
+                    _warn_failure(error)
+                    raise error
+                payload = await resp.json(content_type=None)
+            if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+                raise ValueError("catalog response has no data list")
+            if any(not isinstance(row, dict) for row in payload["data"]):
+                raise ValueError("catalog response contains a malformed row")
+            return parse_catalog_response(payload)
+        except SourceNotFound:
+            raise
+        except asyncio.TimeoutError as err:
+            if attempt == 0:
+                await asyncio.sleep(_RETRY_DELAY_S)
+                continue
+            _warn_failure(err)
+            raise SourceTimeout("LaMetric catalog request timed out") from err
+        except (aiohttp.ClientError, ValueError) as err:
+            if isinstance(err, aiohttp.ClientResponseError) and err.status < 500 and err.status != 429:
+                _warn_failure(err)
+                raise SourceRequestError(f"LaMetric catalog request failed: {err}") from err
+            if attempt == 0:
+                await asyncio.sleep(_RETRY_DELAY_S)
+                continue
+            _warn_failure(err)
+            raise SourceRequestError(f"LaMetric catalog request failed: {err}") from err
+    raise AssertionError("unreachable")
 
+
+async def fetch_catalog(
+    session: Any, *, order: str = "newest", timeout_s: float = REQUEST_TIMEOUT_S
+) -> list[GalleryItem]:
+    """Fetch the whole current catalog in one request, in the requested API order.
+    The API supports title order; the pure search helper also sorts titles locally."""
+    if order not in {"popular", "newest", "title"}:
+        raise SourceRequestError(f"unknown LaMetric order {order!r}")
+    return await _fetch_catalog(session, order=order, timeout_s=timeout_s)
 
 def search(
     catalog: Sequence[GalleryItem],
@@ -116,13 +164,8 @@ def search(
     animated_only: bool = False,
     page_size: int = PAGE_SIZE,
 ) -> SearchPage:
-    """Filter/sort/paginate an already-fetched catalog snapshot. Pure, no I/O.
-
-    `sort="popular"` and `sort="newest"` both preserve `catalog`'s own order: the API has
-    no per-item popularity score once cached client-side, only a live `order=popular`
-    request-time ordering we can't replay locally, and `fetch_catalog` already fetches
-    `order=newest` so that ordering is already newest-first.
-    """
+    """Filter/sort/paginate a cached snapshot. The caller fetches it in the selected
+    popularity or newest order; title order is sorted locally."""
     rows: Sequence[GalleryItem] = catalog
     if size is not None and size not in SIZES:
         rows = ()  # only size this source has; anything else is an empty result
@@ -155,28 +198,61 @@ def media_url(item: GalleryItem) -> str:
     return f"{MEDIA_BASE_URL}/{item.id}.{ext}"
 
 
+async def _fetch_media_bytes(
+    session: Any, url: str, *, fallback_type: str, timeout_s: float
+) -> tuple[bytes, str]:
+    import aiohttp
+
+    for attempt in range(2):
+        try:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout_s)) as resp:
+                if resp.status == 404:
+                    raise SourceNotFound("LaMetric media was not found")
+                if resp.status >= 400:
+                    if (resp.status == 429 or resp.status >= 500) and attempt == 0:
+                        await asyncio.sleep(_RETRY_DELAY_S)
+                        continue
+                    error = SourceRequestError(f"LaMetric media returned HTTP {resp.status}")
+                    _warn_failure(error)
+                    raise error
+                data = await resp.read()
+                content_type = resp.content_type or fallback_type
+            if not data:
+                raise ValueError("LaMetric media response was empty")
+            return data, content_type
+        except SourceNotFound:
+            raise
+        except asyncio.TimeoutError as err:
+            if attempt == 0:
+                await asyncio.sleep(_RETRY_DELAY_S)
+                continue
+            _warn_failure(err)
+            raise SourceTimeout("LaMetric media request timed out") from err
+        except (aiohttp.ClientError, ValueError) as err:
+            if isinstance(err, aiohttp.ClientResponseError) and err.status < 500 and err.status != 429:
+                _warn_failure(err)
+                raise SourceRequestError(f"LaMetric media request failed: {err}") from err
+            if attempt == 0:
+                await asyncio.sleep(_RETRY_DELAY_S)
+                continue
+            _warn_failure(err)
+            raise SourceRequestError(f"LaMetric media request failed: {err}") from err
+    raise AssertionError("unreachable")
+
+
 async def fetch_media(
     session: Any, catalog: Sequence[GalleryItem], item_id: str,
     *, timeout_s: float = REQUEST_TIMEOUT_S,
 ):
-    """Download one item's original media bytes. Requires the catalog snapshot (to
-    resolve the id -> exact URL/extension); raises `SourceRequestError` for an unknown id
-    (a stale id from a catalog that has since refreshed) or a failed download."""
-    import aiohttp
-
+    """Download one item's original media bytes from the cached catalog snapshot."""
     from .models import SourceMedia
 
     item = find_item(catalog, item_id)
     if item is None:
-        raise SourceRequestError(f"LaMetric icon {item_id!r} not found in cached catalog")
-    url = media_url(item)
-    try:
-        async with session.get(
-            url, timeout=aiohttp.ClientTimeout(total=timeout_s)
-        ) as resp:
-            resp.raise_for_status()
-            data = await resp.read()
-            content_type = resp.content_type or ("image/gif" if item.animated else "image/png")
-    except aiohttp.ClientError as err:
-        raise SourceRequestError(f"LaMetric media fetch failed for {item_id!r}: {err}") from err
+        raise SourceNotFound(f"LaMetric icon {item_id!r} not found in cached catalog")
+    data, content_type = await _fetch_media_bytes(
+        session, media_url(item),
+        fallback_type="image/gif" if item.animated else "image/png",
+        timeout_s=timeout_s,
+    )
     return SourceMedia(data=data, content_type=content_type)

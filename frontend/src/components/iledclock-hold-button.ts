@@ -123,6 +123,18 @@ export class IledclockHoldButton extends LitElement {
     this._startLoop();
   }
 
+  private _onKeyDown = (event: KeyboardEvent): void => {
+    if ((event.key !== " " && event.key !== "Enter") || this.disabled || this._settled || this._hold.phase === "charging") return;
+    event.preventDefault();
+    this._hold = holdPress();
+    fireHaptic("light");
+    this._startLoop();
+  };
+
+  private _onKeyUp = (event: KeyboardEvent): void => {
+    if (event.key === " " || event.key === "Enter") this._release();
+  };
+
   private _onPointerUp = (): void => this._release();
   private _onPointerLeave = (): void => this._release();
 
@@ -137,6 +149,8 @@ export class IledclockHoldButton extends LitElement {
         ?disabled=${this.disabled}
         aria-label=${showCheck ? this.completeLabel : this.label}
         @pointerdown=${this._onPointerDown}
+        @keydown=${this._onKeyDown}
+        @keyup=${this._onKeyUp}
         @pointerup=${this._onPointerUp}
         @pointercancel=${this._onPointerUp}
         @pointerleave=${this._onPointerLeave}
@@ -174,9 +188,9 @@ export class IledclockHoldButton extends LitElement {
       width: 100%;
       min-height: var(--lu-target, 48px);
       border-radius: var(--lu-radius-pill);
-      border: 1px solid var(--divider-color);
-      background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
-      color: var(--primary-text-color);
+      border: 1px solid var(--lu-edge-raised);
+      background: var(--lu-glass-raised);
+      color: var(--lu-ink);
       overflow: hidden;
       cursor: pointer;
       padding: 0;
@@ -195,16 +209,17 @@ export class IledclockHoldButton extends LitElement {
     .fill {
       position: absolute;
       inset: 0;
-      background: var(--lu-accent);
+      background: var(--lu-accent-soft);
       transform-origin: left center;
       transform: scaleX(0);
       pointer-events: none;
     }
     .hold:not(.reduced) .fill {
-      transition: transform 60ms linear;
+      transition: transform var(--lu-motion-press) linear;
     }
-    .hold.danger .fill {
-      background: var(--lu-danger);
+    .hold.danger {
+      border-color: color-mix(in srgb, var(--lu-danger) 36%, var(--lu-edge));
+      color: var(--lu-danger);
     }
     .content {
       position: relative;
@@ -212,9 +227,9 @@ export class IledclockHoldButton extends LitElement {
       align-items: center;
       justify-content: center;
       gap: 10px;
-      padding: 12px 20px;
-      font-size: 15px;
-      font-weight: 700;
+      padding: var(--lu-space-3) var(--lu-space-5);
+      font-size: var(--lu-type-body);
+      font-weight: 600;
     }
     .ring {
       display: inline-flex;

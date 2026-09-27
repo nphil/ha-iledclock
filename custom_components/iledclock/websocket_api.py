@@ -59,6 +59,8 @@ def _state_event(coordinator: IledClockCoordinator) -> dict[str, Any]:
         busy=coordinator.busy,
         state=coordinator.data,
         playlist=coordinator.playlist_store.playlist,
+        now_showing=coordinator.show_store.now_showing,
+        show_history=coordinator.show_store.history,
     )
 
 
@@ -182,6 +184,9 @@ async def ws_designs_delete(
     library = async_get_design_library(hass)
     await library.async_load()
     await library.async_delete_design(msg["design_id"])
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.state == ConfigEntryState.LOADED:
+            await entry.runtime_data.async_mark_design_deleted(msg["design_id"])
     connection.send_result(msg["id"], {})
 
 
@@ -287,12 +292,22 @@ async def ws_show(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
         connection.send_error(msg["id"], "unknown_entry", str(err))
         return
     try:
+        if msg["item"].get("restore") == "previous":
+            descriptor = await coordinator.async_restore_previous()
+            connection.send_result(msg["id"], {"now_showing": descriptor})
+            return
         spec = _show_spec_from_item(msg["item"])
-        await coordinator.async_show(spec)
-    except (ProgramBuildError, IledClockError, DesignValidationError, KeyError, ValueError) as err:
+        descriptor = await coordinator.async_show(spec)
+    except ValueError as err:
+        if str(err) == "nothing_to_restore":
+            connection.send_error(msg["id"], "nothing_to_restore", str(err))
+            return
         connection.send_error(msg["id"], "show_failed", str(err))
         return
-    connection.send_result(msg["id"], {})
+    except (ProgramBuildError, IledClockError, DesignValidationError, KeyError) as err:
+        connection.send_error(msg["id"], "show_failed", str(err))
+        return
+    connection.send_result(msg["id"], {"now_showing": descriptor})
 
 
 # -- iledclock/playlist/* -------------------------------------------------------------------------

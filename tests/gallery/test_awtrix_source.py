@@ -3,16 +3,55 @@ parser tiny and fixture-tested")."""
 
 from __future__ import annotations
 
+import asyncio
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from custom_components.iledclock.gallery import awtrix
+from custom_components.iledclock.gallery.models import SourceNotFound, SourceRequestError, SourceTimeout
 
 _FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def _read(name: str) -> str:
     return (_FIXTURES / name).read_text(encoding="utf-8")
+
+
+class _FakeResponse:
+    def __init__(self, *, body="", data=b"image", status=200, content_type="image/webp"):
+        self.body = body
+        self.data = data
+        self.status = status
+        self.content_type = content_type
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args):
+        return None
+
+    async def text(self):
+        return self.body
+
+    async def read(self):
+        return self.data
+
+
+class _FakeSession:
+    def __init__(self, responses, clock=None):
+        self.responses = list(responses)
+        self.calls = []
+        self.clock = clock or (lambda: 0.0)
+
+    def get(self, url, **kwargs):
+        self.calls.append((url, kwargs, self.clock()))
+        response = self.responses.pop(0)
+        if isinstance(response, BaseException):
+            raise response
+        return response
+
+
 
 
 class AwtrixListingParseTests(unittest.TestCase):
@@ -104,6 +143,104 @@ class AwtrixSourceInfoTests(unittest.TestCase):
         self.assertEqual(info.sizes, ("8x8", "32x8"))
         self.assertFalse(info.requires_account)
         self.assertTrue(info.supports_search)
+
+class AwtrixRequestTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self._min_interval = awtrix.MIN_REQUEST_INTERVAL_S
+        self._retry_delay = awtrix._RETRY_DELAY_S
+        self._last_request_at = awtrix._last_request_at
+        awtrix.MIN_REQUEST_INTERVAL_S = 0
+        awtrix._RETRY_DELAY_S = 0
+        awtrix._last_request_at = 0
+        awtrix._listing_cache.clear()
+
+    def tearDown(self):
+        awtrix.MIN_REQUEST_INTERVAL_S = self._min_interval
+        awtrix._RETRY_DELAY_S = self._retry_delay
+        awtrix._last_request_at = self._last_request_at
+        awtrix._listing_cache.clear()
+
+    async def test_listing_cache_is_scoped_by_sort_and_page_filters(self):
+        html = _read("awtrix_icons_list.html")
+        session = _FakeSession([_FakeResponse(body=html), _FakeResponse(body=html)])
+
+        popular = await awtrix.search(session, sort="popular", page=1)
+        cached = await awtrix.search(session, sort="popular", page=1)
+        newest = await awtrix.search(session, sort="newest", page=1)
+
+        self.assertEqual([item.id for item in popular.items], [item.id for item in cached.items])
+        self.assertTrue(popular.has_more)
+        self.assertEqual(len(session.calls), 2)
+        self.assertEqual(session.calls[0][1]["params"], {})
+        self.assertEqual(session.calls[1][1]["params"]["sort"], "newest")
+        self.assertTrue(newest.has_more)
+
+    async def test_invalid_listing_html_is_retried_and_transient_http_is_retried(self):
+        html = _read("awtrix_icons_list.html")
+        malformed = _FakeSession([_FakeResponse(body="<html></html>"), _FakeResponse(body=html)])
+        page = await awtrix.search(malformed, query="clock")
+        self.assertEqual(len(page.items), 4)
+        self.assertEqual(len(malformed.calls), 2)
+
+        transient = _FakeSession([_FakeResponse(status=503), _FakeResponse(body=html)])
+        page = await awtrix.search(transient, sort="picked")
+        self.assertTrue(page.items)
+        self.assertEqual(len(transient.calls), 2)
+
+    async def test_unparseable_counted_listing_retries_but_filtered_empty_is_valid(self):
+        counted_empty = '<p role="status">2,216 icons in the collection</p>'
+        malformed = _FakeSession([_FakeResponse(body=counted_empty), _FakeResponse(body=counted_empty)])
+        with self.assertRaises(SourceRequestError):
+            await awtrix.search(malformed)
+        self.assertEqual(len(malformed.calls), 2)
+
+        no_matches = _FakeSession([_FakeResponse(body=counted_empty)])
+        page = await awtrix.search(no_matches, query="no matching icon")
+        self.assertEqual(page.items, ())
+        self.assertFalse(page.has_more)
+        self.assertEqual(len(no_matches.calls), 1)
+
+        bad_card = '<p role="status">2,216 icons in the collection</p><article class="icon-card"><h3>Title</h3></article>'
+        unrecognized = _FakeSession([_FakeResponse(body=bad_card), _FakeResponse(body=bad_card)])
+        with self.assertRaises(SourceRequestError):
+            await awtrix.search(unrecognized, query="filtered page")
+        self.assertEqual(len(unrecognized.calls), 2)
+
+    async def test_media_404_and_timeout_are_classified_and_webp_type_is_preserved(self):
+        missing = _FakeSession([_FakeResponse(status=404)])
+        with self.assertRaises(SourceNotFound):
+            await awtrix.fetch_media(missing, "missing-icon")
+        self.assertEqual(len(missing.calls), 1)
+
+        timed_out = _FakeSession([asyncio.TimeoutError(), asyncio.TimeoutError()])
+        with self.assertRaises(SourceTimeout):
+            await awtrix.fetch_media(timed_out, "slow-icon")
+        self.assertEqual(len(timed_out.calls), 2)
+
+        media = await awtrix.fetch_media(
+            _FakeSession([_FakeResponse(data=b"image-bytes", content_type=None)]), "landscape-2"
+        )
+        self.assertEqual(media.data, b"image-bytes")
+        self.assertEqual(media.content_type, "image/webp")
+
+    async def test_request_starts_are_spaced_by_the_source_limit(self):
+        now = [100.0]
+        session = _FakeSession(
+            [_FakeResponse(body="ok"), _FakeResponse(body="ok")],
+            clock=lambda: now[0],
+        )
+
+        async def fake_sleep(delay):
+            now[0] += delay
+
+        with patch.object(awtrix, "_monotonic", side_effect=lambda: now[0]):
+            with patch.object(awtrix, "MIN_REQUEST_INTERVAL_S", 1.0):
+                with patch.object(awtrix.asyncio, "sleep", new=fake_sleep):
+                    await awtrix._request(session, "https://awtrix.de/one")
+                    await awtrix._request(session, "https://awtrix.de/two")
+
+        self.assertEqual([call[2] for call in session.calls], [100.0, 101.0])
+
 
 
 if __name__ == "__main__":

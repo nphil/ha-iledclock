@@ -96,6 +96,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: IledClockConfigEntry) ->
     library = async_get_design_library(hass)
     await library.async_load()
     await coordinator.playlist_store.async_load()
+    await coordinator.show_store.async_load()
+    coordinator.data = coordinator.data.merge(
+        now_showing=coordinator.show_store.now_showing,
+        show_history=tuple(dict(item) for item in coordinator.show_store.history),
+    )
 
     await coordinator.async_config_entry_first_refresh()
 

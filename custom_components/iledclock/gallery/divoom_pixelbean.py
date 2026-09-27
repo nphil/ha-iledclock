@@ -1,27 +1,23 @@
-"""Decoders for Divoom Cloud "pixel bean" (`.dat`) artwork containers.
+"""Divoom Cloud pixel-bean (.dat) artwork decoders.
 
-Ported, with modification, from two community reverse-engineering projects (full
-attribution + license text in /NOTICE):
-- github.com/redphx/apixoo (MIT) `pixel_bean.py`/`pixel_bean_decoder.py`: the original
-  AES-CBC+LZO decoders for formats 9 ("single" 16x16 animation), 17/18 ("multiple"
-  picture/animation), and the tile-reassembly (`_compact`) logic.
-- github.com/fabkury/servoom (Apache-2.0) `pixel_bean_decoder.py`/`FILE_FORMATS.md`: the
-  extended format registry (8, 12, 26, 31, 41, 42, 43) and the per-format documentation
-  reproduced in each decoder's docstring below.
+Known layouts are adapted from community reverse-engineering projects (full attribution
+and license text in /NOTICE):
+- github.com/redphx/apixoo (MIT): the original AES-CBC+LZO decoders for formats 9 and
+  17/18, plus tile reassembly.
+- github.com/fabkury/servoom (Apache-2.0): extended formats 8, 12, 26, 31, 41, 42, 43;
+  see its FILE_FORMATS.md survey for the evidence and file-container descriptions.
 
-Modification: every decoder here returns a plain `bytes` RGB buffer per frame directly
-(no numpy) since Pillow already covers this integration's raster needs; a `DecodedImage`
-gets built by wrapping those buffers with `PIL.Image.frombytes`, never a numpy array.
+Formats 3 and 4 are empirical additions from real Divoom gallery files 33678 and 33674,
+captured as tests/gallery/fixtures/divoom_33678.dat and divoom_33674.dat. The public apixoo
+and servoom decoders do not document those IDs. Their plain RGB layouts are inferred from
+the captured headers, exact payload lengths, and rendered contact sheets, not attributed
+to upstream code.
 
-Nothing here has been exercised against a real Divoom-served file (no test account was
-available -- see the assignment report): the AES/LZO/zstd-based formats (8, 9, 12, 17,
-18, 42, 43) are round-trip tested against synthetic fixtures this repo's own tests build
-with the *same* algorithm (a legitimate correctness check: it proves the decode direction
-matches the documented byte layout, since the test's "encoder" is nothing but that same
-documented layout written out by hand). The hierarchical quadtree sub-decoder used by
-some format-26 frames (`_Decoder0x1AFrame`, marker bytes 0x11/0x13/0x15) has no equivalent
-independent encoder to build a synthetic test against -- it is ported faithfully but
-UNVERIFIED; see its docstring.
+Each decoder returns row-major RGB bytes. Formats 3 and 4 are tested against those real
+files; the other known-format round-trip tests build independent fixtures from the
+published layouts. The hierarchical quadtree sub-decoder used by some format-26 frames
+(marker bytes 0x11/0x13/0x15) remains unverified because no independent fixture encoder is
+available.
 """
 
 from __future__ import annotations
@@ -107,6 +103,38 @@ def _compact(frames_data: list[bytes], row_count: int = 1, column_count: int = 1
         out_frames.append(bytes(out))
     return out_frames
 
+
+# --------------------------------------------------------------------------------------
+# Formats 3 (0x03) and 4 (0x04): raw 16x16 RGB artwork.
+# --------------------------------------------------------------------------------------
+def _decode_format_3(fp: io.BufferedIOBase) -> DecodedContainer:
+    """One 16x16 RGB still: exactly 768 row-major RGB bytes, with no header beyond
+    the leading format byte. Observed in real gallery file 33678 (769 bytes total)."""
+    pixels = fp.read()
+    if len(pixels) != 16 * 16 * 3:
+        raise PixelBeanDecodeError(f"format 3: expected 768 RGB bytes, got {len(pixels)}")
+    return DecodedContainer(width=16, height=16, frames_rgb=[pixels], delay_ms=_STILL_DELAY_MS)
+
+
+def _decode_format_4(fp: io.BufferedIOBase) -> DecodedContainer:
+    """[frame_count][speed BE16] followed by frame_count raw 16x16 RGB frames.
+    Observed in real gallery file 33674: count 4, speed 176ms, and exactly 4*768 bytes.
+    The public apixoo/servoom references do not document this legacy format."""
+    rest = fp.read()
+    if len(rest) < 3:
+        raise PixelBeanDecodeError("format 4: payload too short for frame-count/speed header")
+    frame_count = rest[0]
+    speed = int.from_bytes(rest[1:3], "big")
+    if frame_count < 1:
+        raise PixelBeanDecodeError("format 4: frame count must be positive")
+    frame_size = 16 * 16 * 3
+    payload = rest[3:]
+    if len(payload) != frame_count * frame_size:
+        raise PixelBeanDecodeError(
+            f"format 4: expected {frame_count * frame_size} RGB bytes, got {len(payload)}"
+        )
+    frames = [payload[offset : offset + frame_size] for offset in range(0, len(payload), frame_size)]
+    return DecodedContainer(width=16, height=16, frames_rgb=frames, delay_ms=speed)
 
 # --------------------------------------------------------------------------------------
 # Format 8 (0x08): single 16x16 picture.
@@ -723,6 +751,8 @@ def _decode_format_43(fp: io.BufferedIOBase) -> DecodedContainer:
 
 
 _DECODERS = {
+    3: _decode_format_3,
+    4: _decode_format_4,
     8: _decode_format_8,
     9: _decode_format_9,
     12: _decode_format_12,

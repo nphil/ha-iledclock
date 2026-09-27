@@ -6,25 +6,27 @@ Needs a free Divoom account (email + MD5-hashed password); the HA layer reads
 `entry.options["divoom_email"]`/`["divoom_password_md5"]` and this source reports itself
 "not configured" otherwise (docs/GALLERY.md: "Enabled only when the account is set").
 
-**Scope note (no live Divoom account was available for this port -- see the assignment
-report)**: every request-shape/field-name claim below is taken directly from apixoo's/
-servoom's own source and reference docs (a real, working community client), not
-independently re-verified against a live response by this integration. Decoding the
-downloaded artwork itself (`divoom_pixelbean.decode`) is separately verified with
-synthetic fixtures built from the documented byte layout (see `test_divoom_pixelbean.py`)
--- that part does not depend on live API access at all, only the *listing*/*metadata*
-shapes below are unverified.
+**Scope note**: the gallery call was exercised against the live Divoom API using the configured account. Tests keep synthetic listing rows to stay deterministic.
+Decoder format 3/4 evidence uses checked-in captures, while public servoom format tables do not document those layouts.
 """
-
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import io
 import json
+import logging
+import time
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any, Sequence
+from typing import Any, Awaitable, Callable, Sequence
 
-from .models import GalleryItem, SearchPage, SortOption, SourceInfo, SourceRequestError, SourceUnavailable
+from .models import (
+    GalleryItem, SearchPage, SortOption, SourceDecodeError, SourceInfo,
+    SourceNotFound, SourceRequestError, SourceTimeout, SourceUnavailable,
+)
+
+_LOGGER = logging.getLogger(__name__)
 
 ID = "divoom"
 NAME = "Divoom Cloud"
@@ -32,6 +34,17 @@ HOMEPAGE = "https://app.divoom-gz.com"
 API_HOST = "app.divoom-gz.com"
 FILE_HOST = "f.divoom-gz.com"
 REQUEST_TIMEOUT_S = 10
+
+# Successful auth responses are cached in memory only. The API has no documented expiry
+# field, so refresh well before the conservative local lifetime and on HTTP auth failures.
+TOKEN_CACHE_TTL_S = 15 * 60
+TOKEN_REFRESH_MARGIN_S = 60
+_RETRY_DELAY_S = 0.2
+_WARNING_INTERVAL_S = 60.0
+_last_warning_at = 0.0
+_monotonic = time.monotonic
+_token_cache: dict[str, tuple[dict[str, Any], float]] = {}
+_login_locks: dict[str, asyncio.Lock] = {}
 
 #: apixoo/servoom `ApiEndpoint` (paths joined onto `API_HOST`).
 ENDPOINT_LOGIN = "/UserLogin"
@@ -197,36 +210,151 @@ def parse_category_items(payload: dict[str, Any], *, size_label: str) -> list[Ga
     return items
 
 
+class _DivoomAuthError(SourceRequestError):
+    """HTTP authentication failure that permits one cached-token refresh."""
+
+
+def _warn_failure(error: BaseException) -> None:
+    global _last_warning_at
+    now = _monotonic()
+    if now - _last_warning_at >= _WARNING_INTERVAL_S:
+        _LOGGER.warning("Divoom gallery request failed: %s", error)
+        _last_warning_at = now
+
+
+def _account_cache_key(account: DivoomAccount) -> str:
+    material = f"{account.email}\0{account.password_md5}".encode("utf-8")
+    return hashlib.sha256(material).hexdigest()
+
+
+def _invalidate_token(account: DivoomAccount, failed_token: Any = None) -> None:
+    key = _account_cache_key(account)
+    cached = _token_cache.get(key)
+    if cached is not None and (failed_token is None or cached[0].get("Token") == failed_token):
+        _token_cache.pop(key, None)
+
+
+def _is_auth_failure_response(response: dict[str, Any]) -> bool:
+    code = str(response.get("ReturnCode", ""))
+    if code == "0":
+        return False
+    message = response.get("ReturnMessage", "")
+    message = message.casefold() if isinstance(message, str) else ""
+    return code in {"401", "403"} or any(word in message for word in ("token", "expired", "unauthor", "login"))
+
+
 async def _post_json(session: Any, path: str, payload: dict[str, Any]) -> dict[str, Any]:
     import aiohttp
 
     url = f"https://{API_HOST}{path}"
+    for attempt in range(2):
+        try:
+            async with session.post(
+                url, json=payload, timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_S)
+            ) as resp:
+                if resp.status == 404:
+                    raise SourceNotFound(f"Divoom endpoint {path} was not found")
+                if resp.status in {401, 403}:
+                    raise _DivoomAuthError("Divoom rejected the current login token")
+                if resp.status >= 400:
+                    if (resp.status == 429 or resp.status >= 500) and attempt == 0:
+                        await asyncio.sleep(_RETRY_DELAY_S)
+                        continue
+                    error = SourceRequestError(f"Divoom endpoint {path} returned HTTP {resp.status}")
+                    _warn_failure(error)
+                    raise error
+                result = await resp.json(content_type=None)
+            if not isinstance(result, dict):
+                raise ValueError("Divoom returned a non-object response")
+            return result
+        except (_DivoomAuthError, SourceNotFound):
+            raise
+        except asyncio.TimeoutError as err:
+            if attempt == 0:
+                await asyncio.sleep(_RETRY_DELAY_S)
+                continue
+            _warn_failure(err)
+            raise SourceTimeout(f"Divoom request to {path} timed out") from err
+        except (aiohttp.ClientError, ValueError) as err:
+            if isinstance(err, aiohttp.ClientResponseError) and err.status < 500 and err.status != 429:
+                _warn_failure(err)
+                raise SourceRequestError(f"Divoom request to {path} failed: {err}") from err
+            if attempt == 0:
+                await asyncio.sleep(_RETRY_DELAY_S)
+                continue
+            _warn_failure(err)
+            raise SourceRequestError(f"Divoom request to {path} failed: {err}") from err
+    raise AssertionError("unreachable")
+
+
+async def login(
+    session: Any, account: DivoomAccount, *, refresh: bool = False
+) -> dict[str, Any]:
+    """Reuse a short-lived in-memory token and refresh it before the local expiry margin.
+    The upstream login response documents no expiry field, so the conservative local
+    lifetime is 15 minutes; rejected tokens trigger an immediate refresh in the caller."""
+    key = _account_cache_key(account)
+    lock = _login_locks.setdefault(key, asyncio.Lock())
+    async with lock:
+        now = _monotonic()
+        cached = _token_cache.get(key)
+        if not refresh and cached is not None and cached[1] - now > TOKEN_REFRESH_MARGIN_S:
+            return dict(cached[0])
+        try:
+            response = await _post_json(
+                session, ENDPOINT_LOGIN,
+                {"Email": account.email, "Password": account.password_md5},
+            )
+        except _DivoomAuthError as err:
+            failure = SourceUnavailable("Divoom login was rejected; check the configured account")
+            _warn_failure(failure)
+            raise failure from err
+        if not response.get("UserId") or not response.get("Token"):
+            failure = SourceUnavailable("Divoom login was rejected; check the configured account")
+            _warn_failure(failure)
+            raise failure
+        _token_cache[key] = (dict(response), now + TOKEN_CACHE_TTL_S)
+        return response
+
+
+def _auth_payload(login_response: dict[str, Any]) -> dict[str, Any]:
+    return {"Token": login_response["Token"], "UserId": login_response["UserId"]}
+
+
+async def _authenticated_post(
+    session: Any, account: DivoomAccount, path: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    for attempt in range(2):
+        login_response = await login(session, account)
+        try:
+            response = await _post_json(
+                session, path, {**_auth_payload(login_response), **payload}
+            )
+        except _DivoomAuthError as err:
+            _invalidate_token(account, login_response.get("Token"))
+            if attempt == 0:
+                continue
+            failure = SourceRequestError("Divoom rejected the refreshed login token")
+            _warn_failure(failure)
+            raise failure from err
+        if _is_auth_failure_response(response):
+            _invalidate_token(account, login_response.get("Token"))
+            if attempt == 0:
+                continue
+            failure = SourceRequestError("Divoom rejected the refreshed login token")
+            _warn_failure(failure)
+            raise failure
+        return response
+    raise AssertionError("unreachable")
+
+
+def _reported_total(response: dict[str, Any]) -> int | None:
+    value = response.get("FileListNum")
     try:
-        async with session.post(
-            url, json=payload, timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_S)
-        ) as resp:
-            resp.raise_for_status()
-            return await resp.json(content_type=None)
-    except aiohttp.ClientError as err:
-        raise SourceRequestError(f"Divoom request to {path} failed: {err}") from err
-    except json.JSONDecodeError as err:
-        raise SourceRequestError(f"Divoom returned invalid JSON from {path}: {err}") from err
-
-
-async def login(session: Any, account: DivoomAccount) -> dict[str, Any]:
-    """`{"UserId": ..., "Token": ...}` on success. Raises `SourceUnavailable` for a
-    rejected login (wrong credentials) and `SourceRequestError` for a network/protocol
-    failure -- callers should surface the former as "check your Divoom account" and the
-    latter as a generic "Divoom is unavailable right now" (docs/GALLERY.md: "Isolate
-    failures")."""
-    resp = await _post_json(session, ENDPOINT_LOGIN, {"Email": account.email, "Password": account.password_md5})
-    if "UserId" not in resp or "Token" not in resp:
-        raise SourceUnavailable(f"Divoom login rejected (response: {resp!r})")
-    return resp
-
-
-def _auth_payload(login_resp: dict[str, Any]) -> dict[str, Any]:
-    return {"Token": login_resp["Token"], "UserId": login_resp["UserId"]}
+        total = int(value)
+    except (TypeError, ValueError):
+        return None
+    return total if total >= 0 else None
 
 
 async def search(
@@ -240,94 +368,154 @@ async def search(
     animated_only: bool = False,
     page_size: int = PAGE_SIZE,
 ) -> SearchPage:
-    login_resp = await login(session, account)
     size_label = size or DEFAULT_SIZE
     dimension = _resolve_size(size_label)
     file_type = _resolve_file_type(size_label, animated_only=animated_only)
+    category_request = _sort_to_request(sort) if not query else None
     start_num = max(1, (page - 1) * page_size + 1)
-    end_num = start_num + page_size - 1
+    end_num = start_num + page_size  # inclusive look-ahead row for a reliable has_more flag
 
     if query:
-        payload = {
-            **_auth_payload(login_resp), "Keywords": query, "StartNum": start_num, "EndNum": end_num,
-        }
-        resp = await _post_json(session, ENDPOINT_SEARCH_GALLERY, payload)
+        path = ENDPOINT_SEARCH_GALLERY
+        payload = {"Keywords": query, "StartNum": start_num, "EndNum": end_num}
     else:
-        category, file_sort = _sort_to_request(sort)
+        category, file_sort = category_request
+        path = ENDPOINT_CATEGORY_FILES
         payload = {
-            **_auth_payload(login_resp),
-            "Classify": int(category),
-            "FileSize": int(dimension),
-            "FileType": int(file_type),
-            "FileSort": int(file_sort),
-            "Version": 12,
-            "RefreshIndex": 0,
-            "StartNum": start_num,
-            "EndNum": end_num,
+            "Classify": int(category), "FileSize": int(dimension),
+            "FileType": int(file_type), "FileSort": int(file_sort),
+            "Version": 12, "RefreshIndex": 0,
+            "StartNum": start_num, "EndNum": end_num,
         }
-        resp = await _post_json(session, ENDPOINT_CATEGORY_FILES, payload)
+    response = await _authenticated_post(session, account, path, payload)
+    if str(response.get("ReturnCode", 0)) != "0":
+        raise SourceRequestError(f"Divoom listing failed (ReturnCode {response.get('ReturnCode')})")
 
-    if resp.get("ReturnCode", 0) != 0:
-        raise SourceRequestError(f"Divoom listing failed (ReturnCode {resp.get('ReturnCode')})")
-    items = parse_category_items(resp, size_label=size_label)
-    return SearchPage(items=tuple(items), has_more=len(items) >= page_size)
+    raw_rows = parse_category_response(response)
+    if not isinstance(raw_rows, list):
+        raise SourceRequestError("Divoom listing returned an invalid file list")
+    items = parse_category_items(response, size_label=size_label)
+    unique_items = []
+    seen_ids: set[str] = set()
+    for item in items:
+        if item.id not in seen_ids:
+            seen_ids.add(item.id)
+            unique_items.append(item)
 
+    total = _reported_total(response)
+    if total is not None:
+        has_more = bool(raw_rows) and start_num - 1 + len(raw_rows) < total
+    else:
+        has_more = len(raw_rows) > page_size
+    return SearchPage(items=tuple(unique_items[:page_size]), has_more=has_more)
 
-async def fetch_artwork_info(session: Any, account: DivoomAccount, gallery_id: str) -> dict[str, Any]:
-    login_resp = await login(session, account)
-    resp = await _post_json(
-        session, ENDPOINT_GALLERY_INFO, {**_auth_payload(login_resp), "GalleryId": int(gallery_id)}
+async def fetch_artwork_info(
+    session: Any, account: DivoomAccount, gallery_id: str
+) -> dict[str, Any]:
+    if not gallery_id.isdecimal():
+        raise SourceNotFound(f"Divoom artwork {gallery_id!r} was not found")
+    response = await _authenticated_post(
+        session, account, ENDPOINT_GALLERY_INFO, {"GalleryId": int(gallery_id)}
     )
-    if resp.get("ReturnCode", 0) != 0:
-        raise SourceRequestError(f"Divoom artwork info failed for {gallery_id!r} (ReturnCode {resp.get('ReturnCode')})")
-    return resp
+    if str(response.get("ReturnCode", 0)) != "0":
+        message = response.get("ReturnMessage", "")
+        message = message.casefold() if isinstance(message, str) else ""
+        if "not found" in message or "no file" in message:
+            raise SourceNotFound(f"Divoom artwork {gallery_id!r} was not found")
+        raise SourceRequestError(
+            f"Divoom artwork info failed for {gallery_id!r} (ReturnCode {response.get('ReturnCode')})"
+        )
+    if not response.get("FileId"):
+        raise SourceNotFound(f"Divoom artwork {gallery_id!r} has no media file")
+    return response
 
 
 async def _download_file(session: Any, file_id: str) -> bytes:
-    """Downloads a raw cloud file (an artwork's `FileId`). No login required -- the file
-    server is public once the id is known (confirmed in servoom's own client)."""
+    """Download a public raw artwork container with one transient-failure retry."""
     import aiohttp
+    from urllib.parse import quote
 
-    url = f"https://{FILE_HOST}/{file_id}"
-    try:
-        async with session.get(url, timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_S)) as resp:
-            resp.raise_for_status()
-            return await resp.read()
-    except aiohttp.ClientError as err:
-        raise SourceRequestError(f"Divoom file download failed for {file_id!r}: {err}") from err
+    if not file_id:
+        raise SourceNotFound("Divoom artwork has no file id")
+    url = f"https://{FILE_HOST}/{quote(file_id, safe='/')}"
+    for attempt in range(2):
+        try:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_S)) as resp:
+                if resp.status == 404:
+                    raise SourceNotFound("Divoom artwork file was not found")
+                if resp.status >= 400:
+                    if (resp.status == 429 or resp.status >= 500) and attempt == 0:
+                        await asyncio.sleep(_RETRY_DELAY_S)
+                        continue
+                    error = SourceRequestError(f"Divoom artwork download returned HTTP {resp.status}")
+                    _warn_failure(error)
+                    raise error
+                data = await resp.read()
+            if not data:
+                raise ValueError("Divoom artwork file was empty")
+            return data
+        except SourceNotFound:
+            raise
+        except asyncio.TimeoutError as err:
+            if attempt == 0:
+                await asyncio.sleep(_RETRY_DELAY_S)
+                continue
+            _warn_failure(err)
+            raise SourceTimeout("Divoom artwork download timed out") from err
+        except (aiohttp.ClientError, ValueError) as err:
+            if isinstance(err, aiohttp.ClientResponseError) and err.status < 500 and err.status != 429:
+                _warn_failure(err)
+                raise SourceRequestError(f"Divoom artwork download failed: {err}") from err
+            if attempt == 0:
+                await asyncio.sleep(_RETRY_DELAY_S)
+                continue
+            _warn_failure(err)
+            raise SourceRequestError(f"Divoom artwork download failed: {err}") from err
+    raise AssertionError("unreachable")
 
 
-async def fetch_media(session: Any, account: DivoomAccount, gallery_id: str):
-    """Download + decode one artwork, then re-encode it as a real GIF -- the raw
-    `.dat` pixel-bean container isn't a displayable image format, so (per docs/GALLERY.md
-    "and Divoom-decoded GIFs") this is the one source whose HTTP media view serves
-    *decoded* bytes, not a proxy of the original file."""
+def _decode_and_encode(raw: bytes, gallery_id: str):
+    from PIL import Image
+
     from . import divoom_pixelbean
     from .models import SourceMedia
 
-    info = await fetch_artwork_info(session, account, gallery_id)
-    file_id = info.get("FileId")
-    if not file_id:
-        raise SourceRequestError(f"Divoom artwork {gallery_id!r} has no FileId in its metadata")
-    raw = await _download_file(session, file_id)
     try:
         container = divoom_pixelbean.decode(raw)
     except divoom_pixelbean.PixelBeanDecodeError as err:
-        raise SourceRequestError(f"Divoom artwork {gallery_id!r} failed to decode: {err}") from err
+        raise SourceDecodeError(f"Divoom artwork {gallery_id!r} failed to decode: {err}") from err
 
-    from PIL import Image
+    try:
+        if not container.frames_rgb:
+            raise ValueError("decoded artwork has no frames")
+        frames = [
+            Image.frombytes("RGB", (container.width, container.height), rgb).convert("RGBA")
+            for rgb in container.frames_rgb
+        ]
+        buf = io.BytesIO()
+        if len(frames) == 1:
+            frames[0].convert("P", palette=Image.ADAPTIVE).save(buf, format="GIF")
+        else:
+            palette_frames = [frame.convert("P", palette=Image.ADAPTIVE) for frame in frames]
+            palette_frames[0].save(
+                buf, format="GIF", save_all=True, append_images=palette_frames[1:],
+                duration=container.delay_ms, loop=0, disposal=2,
+            )
+        data = buf.getvalue()
+        if not data:
+            raise ValueError("GIF encoder returned no data")
+    except (OSError, ValueError) as err:
+        raise SourceDecodeError(f"Divoom artwork {gallery_id!r} could not be encoded: {err}") from err
+    return SourceMedia(data=data, content_type="image/gif")
 
-    frames = [
-        Image.frombytes("RGB", (container.width, container.height), rgb).convert("RGBA")
-        for rgb in container.frames_rgb
-    ]
-    buf = io.BytesIO()
-    if len(frames) == 1:
-        frames[0].convert("P", palette=Image.ADAPTIVE).save(buf, format="GIF")
-    else:
-        palette_frames = [f.convert("P", palette=Image.ADAPTIVE) for f in frames]
-        palette_frames[0].save(
-            buf, format="GIF", save_all=True, append_images=palette_frames[1:],
-            duration=container.delay_ms, loop=0, disposal=2,
-        )
-    return SourceMedia(data=buf.getvalue(), content_type="image/gif")
+
+async def fetch_media(
+    session: Any, account: DivoomAccount, gallery_id: str,
+    *, decode_executor: Callable[..., Awaitable[Any]] | None = None,
+):
+    """Download and decode one artwork into a real GIF; the packed .dat is not browser media."""
+    info = await fetch_artwork_info(session, account, gallery_id)
+    raw = await _download_file(session, str(info["FileId"]))
+    if decode_executor is not None:
+        return await decode_executor(_decode_and_encode, raw, gallery_id)
+    return _decode_and_encode(raw, gallery_id)

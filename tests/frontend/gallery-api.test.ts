@@ -6,6 +6,7 @@ import {
   filenameForUrl,
   galleryImportRequest,
   galleryItemUrl,
+  GALLERY_LAYOUTS,
   galleryLayoutLabel,
   galleryPreviewRequest,
   gallerySearchRequest,
@@ -18,6 +19,8 @@ import {
   isRasterImportFile,
   isSignedPathFresh,
   normalizeAdjustOptions,
+  SignedMediaCache,
+  SIGNED_PATH_TTL_S,
   validateImportFile,
   type SignedPathEntry,
 } from "../../frontend/src/lib/gallery-api.ts";
@@ -111,6 +114,8 @@ test("normalizeAdjustOptions clamps scale, offset, and the background colour", (
 test("galleryLayoutLabel returns the known display label", () => {
   assert.equal(galleryLayoutLabel("auto"), "Auto");
   assert.equal(galleryLayoutLabel("fit"), "Fit");
+  assert.equal(galleryLayoutLabel("icon_with_clock"), "With clock");
+  assert.ok(GALLERY_LAYOUTS.includes("icon_with_clock"));
 });
 
 test("galleryLayoutLabel title-cases an unrecognised layout instead of crashing", () => {
@@ -119,7 +124,7 @@ test("galleryLayoutLabel title-cases an unrecognised layout instead of crashing"
 });
 
 test("galleryLayoutLabel turns an unrecognised snake_case composed layout id into title-cased words", () => {
-  assert.equal(galleryLayoutLabel("icon_with_clock"), "Icon With Clock");
+  assert.equal(galleryLayoutLabel("icon_beside_date"), "Icon Beside Date");
   assert.equal(galleryLayoutLabel("icon-beside-date"), "Icon Beside Date");
 });
 
@@ -140,7 +145,7 @@ test("isRasterImportFile is true only for browser-decodable formats", () => {
 });
 
 test("isAcceptedImportFile covers raster and opaque formats, rejects anything else", () => {
-  for (const name of ["a.gif", "a.aseprite", "a.piskel"]) assert.equal(isAcceptedImportFile(name), true, name);
+  for (const name of ["a.gif", "a.aseprite", "a.ase", "a.piskel"]) assert.equal(isAcceptedImportFile(name), true, name);
   assert.equal(isAcceptedImportFile("a.bmp"), false);
   assert.equal(isAcceptedImportFile("a.txt"), false);
 });
@@ -174,13 +179,48 @@ test("isImportFileSaved distinguishes a preview payload from a saved design_id",
   assert.equal(isImportFileSaved({ frames: [], delays_ms: [], layout: "auto", layouts_available: ["auto"], report: {} as never }), false);
 });
 
-test("isSignedPathFresh is true only with enough validity left past the refresh margin", () => {
+test("isSignedPathFresh requires at least 60 seconds remaining", () => {
   const now = 1_000_000;
-  const fresh: SignedPathEntry = { signedPath: "/x?authSig=1", expiresAtMs: now + 60_000 };
-  const almostExpired: SignedPathEntry = { signedPath: "/x?authSig=1", expiresAtMs: now + 5_000 };
+  const fresh: SignedPathEntry = { signedPath: "/x?authSig=1", expiresAtMs: now + 60_001 };
+  const atMargin: SignedPathEntry = { signedPath: "/x?authSig=1", expiresAtMs: now + 60_000 };
+  const almostExpired: SignedPathEntry = { signedPath: "/x?authSig=1", expiresAtMs: now + 59_999 };
   assert.equal(isSignedPathFresh(fresh, now), true);
+  assert.equal(isSignedPathFresh(atMargin, now), true);
   assert.equal(isSignedPathFresh(almostExpired, now), false);
   assert.equal(isSignedPathFresh(undefined, now), false);
+});
+
+test("SignedMediaCache refreshes near-expiry paths and can force a retry signature", async () => {
+  const realNow = Date.now;
+  let now = 1_000_000;
+  Date.now = () => now;
+  const requests: Record<string, unknown>[] = [];
+  const signedPaths = ["/x?authSig=1", "/x?authSig=2", "/x?authSig=3"];
+  const hass = {
+    callWS: async (request: Record<string, unknown>) => {
+      requests.push(request);
+      return { path: signedPaths.shift()! };
+    },
+  } as never;
+  const cache = new SignedMediaCache();
+
+  try {
+    assert.equal(await cache.sign(hass, "/x"), "/x?authSig=1");
+    now += SIGNED_PATH_TTL_S * 1000 - 60_000;
+    assert.equal(await cache.sign(hass, "/x"), "/x?authSig=1");
+    assert.equal(requests.length, 1);
+
+    now += 1;
+    assert.equal(await cache.sign(hass, "/x"), "/x?authSig=2");
+    assert.equal(requests.length, 2);
+
+    assert.equal(await cache.signFresh(hass, "/x"), "/x?authSig=3");
+    assert.equal(await cache.sign(hass, "/x"), "/x?authSig=3");
+    assert.equal(requests.length, 3);
+    assert.deepEqual(requests[0], { type: "auth/sign_path", path: "/x", expires: SIGNED_PATH_TTL_S });
+  } finally {
+    Date.now = realNow;
+  }
 });
 
 test("no request builder sends a top-level `id` (HA reserves it for the WebSocket message id)", () => {

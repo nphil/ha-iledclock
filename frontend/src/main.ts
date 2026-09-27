@@ -1,8 +1,4 @@
-/** Bundle entry point: importing each module registers its custom element(s) as a side effect
- * (`customElements.define(...)` at the bottom of every component file), exactly like the
- * reference Kibble card's own `kibble-card.ts` entry. This file adds no logic of its own.
- */
-
+/** Bundle entry point; importing a module registers its custom elements. */
 import "./components/iledclock-matrix-canvas.ts";
 import "./components/iledclock-segmented-picker.ts";
 import "./components/iledclock-stepper.ts";
@@ -14,4 +10,22 @@ import "./components/iledclock-pixel-editor.ts";
 import "./components/iledclock-frame-timeline.ts";
 import "./components/iledclock-library-panel.ts";
 import "./components/iledclock-playlist-editor.ts";
+import "./components/iledclock-led-preview.ts";
+import "./components/iledclock-art-tile.ts";
+import "./components/iledclock-app-shell.ts";
+import "./components/iledclock-dest-now.ts";
+import "./components/iledclock-dest-create.ts";
+import "./components/iledclock-dest-explore.ts";
+import "./components/iledclock-dest-library.ts";
+import "./components/lu-section.ts";
+import "./components/lu-status-sheet.ts";
+import "./components/lu-chip.ts";
+import "./components/lu-pill-button.ts";
+import "./components/lu-icon-button.ts";
+import "./components/lu-sheet.ts";
+import "./components/lu-toast.ts";
+import "./components/lu-nav.ts";
+import "./components/lu-empty.ts";
+import "./components/lu-error.ts";
+import "./components/lu-skeleton.ts";
 import "./components/iledclock-studio-panel.ts";

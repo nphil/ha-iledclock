@@ -8,14 +8,23 @@ from __future__ import annotations
 import base64
 import io
 import json
+from datetime import timedelta
 from pathlib import Path
 
+from homeassistant.components.http.auth import async_sign_path
 from PIL import Image
 
-from custom_components.iledclock.gallery import lametric
+import custom_components.iledclock.gallery as gallery
+from custom_components.iledclock.gallery import coolledx, coolledx_anim, lametric
 
 _FIXTURES = Path(__file__).resolve().parents[1] / "gallery" / "fixtures"
 _CATALOG = json.loads((_FIXTURES / "lametric_icons_newest.json").read_text(encoding="utf-8"))
+_COOLLEDX_FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "coolledx"
+_COOLLEDX_CONFIG = json.loads((_COOLLEDX_FIXTURES / "config.json").read_text(encoding="utf-8"))
+_COOLLEDX_CATEGORIES = json.loads((_COOLLEDX_FIXTURES / "category-fc-16x32.json").read_text(encoding="utf-8"))
+_COOLLEDX_CATEGORY_URL = f"{_COOLLEDX_CONFIG['material_url']}/fc/16x32/category.json"
+_COOLLEDX_STATIC = json.loads((_COOLLEDX_FIXTURES / "data1632_static_sample.json").read_text(encoding="utf-8"))
+_COOLLEDX_DYNAMIC = json.loads((_COOLLEDX_FIXTURES / "data1632_dynamic_sample.json").read_text(encoding="utf-8"))
 #: First "picture" (non-animated) row in the fixture -- id 77476, per `test_lametric_source.py`.
 _ITEM_ID = "77476"
 _MEDIA_URL = f"{lametric.MEDIA_BASE_URL}/{_ITEM_ID}.png"
@@ -35,18 +44,43 @@ def _mock_media(aioclient_mock, data: bytes | None = None) -> None:
     aioclient_mock.get(_MEDIA_URL, content=data or _png_bytes())
 
 
+def _mock_coolledx_categories(aioclient_mock, *, category_ids: set[str] | None = None) -> None:
+    categories = list(_COOLLEDX_CATEGORIES["category"])
+    if category_ids is not None:
+        categories = [item for item in categories if item["url"].rsplit("/", 1)[-1] in category_ids]
+    aioclient_mock.get(coolledx.CONFIG_URL, json=_COOLLEDX_CONFIG)
+    aioclient_mock.get(
+        _COOLLEDX_CATEGORY_URL,
+        json={**_COOLLEDX_CATEGORIES, "category": categories},
+    )
+
+
+
+
+
 # -- iledclock/gallery/sources ----------------------------------------------------------------
 
 
-async def test_ws_gallery_sources_shape(hass, hass_ws_client, config_entry) -> None:
+async def test_ws_gallery_sources_shape(hass, hass_ws_client, config_entry, aioclient_mock) -> None:
+    _mock_coolledx_categories(aioclient_mock)
     client = await hass_ws_client(hass)
     await client.send_json_auto_id({"type": "iledclock/gallery/sources", "entry_id": config_entry.entry_id})
     response = await client.receive_json()
     assert response["success"] is True
-    ids = {source["id"] for source in response["result"]}
-    assert ids == {"lametric", "awtrix", "divoom"}
-    divoom = next(s for s in response["result"] if s["id"] == "divoom")
+    sources = response["result"]
+    ids = {source["id"] for source in sources}
+    assert ids == {"iledclock", "iledclock_anim", "lametric", "awtrix", "divoom"}
+    originals = next(s for s in sources if s["id"] == "iledclock")
+    assert originals["kind"] == "native"
+    assert {category["id"] for category in originals["categories"]} == {
+        "trending", "creative", "emoji", "life", "festival", "sport", "flag", "business", "default"
+    }
+    animations = next(s for s in sources if s["id"] == "iledclock_anim")
+    assert animations["kind"] == "native"
+    assert animations["categories"] == [{"id": "static", "label": "Static"}, {"id": "dynamic", "label": "Dynamic"}]
+    divoom = next(s for s in sources if s["id"] == "divoom")
     assert divoom["configured"] is False
+
 
 
 async def test_ws_gallery_sources_unknown_entry_errors(hass, hass_ws_client) -> None:
@@ -54,6 +88,125 @@ async def test_ws_gallery_sources_unknown_entry_errors(hass, hass_ws_client) -> 
     await client.send_json_auto_id({"type": "iledclock/gallery/sources", "entry_id": "nope"})
     response = await client.receive_json()
     assert response["success"] is False
+
+
+async def test_ws_gallery_shelves_plan(hass, hass_ws_client, config_entry, aioclient_mock) -> None:
+    _mock_coolledx_categories(aioclient_mock)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "iledclock/gallery/shelves", "entry_id": config_entry.entry_id})
+    response = await client.receive_json()
+
+    assert response["success"] is True
+    shelves = {shelf["id"]: shelf for shelf in response["result"]}
+    assert shelves["iledclock-trending"]["source"] == "iledclock"
+    assert shelves["iledclock-trending"]["category"] == "trending"
+    assert shelves["iledclock-creative"]["category"] == "creative"
+    assert shelves["iledclock-emoji"]["category"] == "emoji"
+    assert shelves["iledclock-festival"]["category"] == "festival"
+    assert shelves["iledclock-animations"]["source"] == "iledclock_anim"
+    assert shelves["lametric-popular"]["sort"] == "popular"
+    assert shelves["awtrix-new"]["sort"] == "newest"
+    assert "divoom-trending" not in shelves
+
+
+async def test_ws_gallery_search_iledclock_category_and_slash_item_id(
+    hass, hass_ws_client, config_entry, aioclient_mock
+) -> None:
+    _mock_coolledx_categories(aioclient_mock, category_ids={"trending"})
+    category = next(
+        item for item in _COOLLEDX_CATEGORIES["category"]
+        if item["url"].rsplit("/", 1)[-1] == "trending"
+    )
+    manifest = json.loads((_COOLLEDX_FIXTURES / "items-trending-en.json").read_text(encoding="utf-8"))
+    aioclient_mock.get(f"{category['url']}/list_en.json", json=manifest)
+    gallery._cache(hass).put(
+        "frames:iledclock:trending/fc_16x32_254_77.gif", b"1", content_type="text/plain"
+    )
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({
+        "type": "iledclock/gallery/search", "entry_id": config_entry.entry_id,
+        "source": "iledclock", "page": 1, "category": "trending",
+    })
+    response = await client.receive_json()
+
+    assert response["success"] is True
+    result = response["result"]
+    assert len(result["items"]) == 48
+    first = result["items"][0]
+    assert first["id"] == "trending/fc_16x32_254_77.gif"
+    assert first["frames"] == 1
+    assert first["animated"] is False
+    assert first["category"] == "trending"
+    assert first["native_fit"] is True
+    assert first["media_path"].startswith("/api/iledclock/gallery/media/iledclock/trending/")
+    await client.send_json_auto_id({
+        "type": "iledclock/gallery/search", "entry_id": config_entry.entry_id,
+        "source": "iledclock", "page": 1, "category": "trending", "animated_only": True,
+    })
+    filtered_response = await client.receive_json()
+
+    assert filtered_response["success"] is True
+    filtered_ids = {item["id"] for item in filtered_response["result"]["items"]}
+    assert "trending/fc_16x32_254_77.gif" not in filtered_ids
+
+
+async def test_gallery_media_view_coolledx_nested_id_records_decoded_frame_count(
+    hass, hass_client_no_auth, config_entry, aioclient_mock
+) -> None:
+    _mock_coolledx_categories(aioclient_mock, category_ids={"trending"})
+    category = next(
+        item for item in _COOLLEDX_CATEGORIES["category"]
+        if item["url"].rsplit("/", 1)[-1] == "trending"
+    )
+    manifest = json.loads((_COOLLEDX_FIXTURES / "items-trending-en.json").read_text(encoding="utf-8"))
+    aioclient_mock.get(f"{category['url']}/list_en.json", json=manifest)
+    filename = manifest["list"][0]
+    item_id = f"trending/{filename}"
+    media_url = f"{manifest['baseUrl'].rstrip('/')}/{filename}"
+
+    gif_buffer = io.BytesIO()
+    Image.new("P", (32, 16), 1).save(gif_buffer, format="GIF")
+    expected_gif = gif_buffer.getvalue()
+    encrypted_gif = bytearray(expected_gif)
+    for index in range(min(32, len(encrypted_gif))):
+        encrypted_gif[index] ^= 0xDA
+    aioclient_mock.get(media_url, content=bytes(encrypted_gif))
+
+    path = f"/api/iledclock/gallery/media/iledclock/{item_id}?entry_id={config_entry.entry_id}"
+    signed_path = async_sign_path(hass, path, timedelta(seconds=30))
+    client = await hass_client_no_auth()
+    response = await client.get(signed_path)
+
+    assert response.status == 200
+    assert response.content_type == "image/gif"
+    media = await response.read()
+    assert media == expected_gif
+    frame_count = gallery._cache(hass).get(f"frames:iledclock:{item_id}", ttl_s=None)
+    assert frame_count is not None
+    assert frame_count.data == b"1"
+
+
+async def test_ws_gallery_search_animation_source_filters_decoded_frames(
+    hass, hass_ws_client, config_entry, aioclient_mock
+) -> None:
+    aioclient_mock.get(f"{coolledx_anim.BASE_URL}/data1632_static.json", json=_COOLLEDX_STATIC)
+    aioclient_mock.get(f"{coolledx_anim.BASE_URL}/data1632_dynamic.json", json=_COOLLEDX_DYNAMIC)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({
+        "type": "iledclock/gallery/search", "entry_id": config_entry.entry_id,
+        "source": "iledclock_anim", "page": 1, "category": "dynamic", "animated_only": True,
+    })
+    response = await client.receive_json()
+
+    assert response["success"] is True
+    result = response["result"]
+    first = result["items"][0]
+    assert first["id"] == "dynamic-14-0"
+    assert first["frames"] == 14
+    assert first["animated"] is True
+    assert first["category"] == "dynamic"
+    assert first["native_fit"] is True
+    assert result["has_more"] is False
 
 
 # -- iledclock/gallery/search -----------------------------------------------------------------

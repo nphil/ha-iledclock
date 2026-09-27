@@ -15,12 +15,20 @@ parser -- there is exactly one producer of this markup and its shape is stable.
 
 from __future__ import annotations
 
+import asyncio
 import html
+import logging
 import re
+import time
 from datetime import datetime, timezone
 from typing import Any
 
-from .models import GalleryItem, SearchPage, SortOption, SourceInfo, SourceRequestError
+from .models import (
+    GalleryItem, SearchPage, SortOption, SourceInfo, SourceNotFound,
+    SourceRequestError, SourceTimeout,
+)
+
+_LOGGER = logging.getLogger(__name__)
 
 ID = "awtrix"
 NAME = "AWTRIX Hub"
@@ -40,14 +48,21 @@ SIZES = ("8x8", "32x8")
 SUPPORTS_SEARCH = True
 PAGE_SIZE = 24  # the live `perPage` value in the component's own snapshot
 REQUEST_TIMEOUT_S = 10
-#: "Be polite: cache, <=1 req/s" -- docs/GALLERY.md. The HA layer must not issue two
-#: requests to this source closer together than this; this constant is the single source
-#: of truth other modules read it from (see gallery/__init__.py's rate limiter).
+#: "Be polite: cache, <=1 req/s" -- docs/GALLERY.md. The module-level request lock spaces
+#: listing, detail, and media requests so concurrent callers share the same source limit.
 MIN_REQUEST_INTERVAL_S = 1.0
 #: Listing pages are user-generated content that changes with new uploads; cache briefly
 #: rather than "refresh daily" like LaMetric's whole-catalog snapshot.
 CACHE_TTL_LISTING_S = 60 * 60
 CACHE_TTL_MEDIA_S = 7 * 24 * 60 * 60
+
+_RETRY_DELAY_S = 0.2
+_WARNING_INTERVAL_S = 60.0
+_last_warning_at = 0.0
+_monotonic = time.monotonic
+_last_request_at = 0.0
+_request_lock = asyncio.Lock()
+_listing_cache: dict[tuple[str, int, str, str, bool], tuple[float, SearchPage]] = {}
 
 _ARTICLE_RE = re.compile(r'<article class="icon-card">(.*?)</article>', re.DOTALL)
 _HREF_RE = re.compile(r'<a href="https://awtrix\.de/icons/([^"]+)" class="icon-card__link"')
@@ -152,6 +167,67 @@ def _params(
     return params
 
 
+def _warn_failure(error: BaseException) -> None:
+    global _last_warning_at
+    now = _monotonic()
+    if now - _last_warning_at >= _WARNING_INTERVAL_S:
+        _LOGGER.warning("AWTRIX gallery request failed: %s", error)
+        _last_warning_at = now
+
+
+async def _request(
+    session: Any, url: str, *, params: dict[str, str] | None = None,
+    binary: bool = False, timeout_s: float = REQUEST_TIMEOUT_S,
+) -> tuple[str | bytes, str | None]:
+    import aiohttp
+
+    global _last_request_at
+    for attempt in range(2):
+        try:
+            async with _request_lock:
+                delay = _last_request_at + MIN_REQUEST_INTERVAL_S - _monotonic()
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                _last_request_at = _monotonic()
+                async with session.get(
+                    url, params=params, timeout=aiohttp.ClientTimeout(total=timeout_s)
+                ) as resp:
+                    if resp.status == 404:
+                        raise SourceNotFound("AWTRIX item was not found")
+                    if resp.status >= 400:
+                        if (resp.status == 429 or resp.status >= 500) and attempt == 0:
+                            await asyncio.sleep(_RETRY_DELAY_S)
+                            continue
+                        error = SourceRequestError(f"AWTRIX returned HTTP {resp.status}")
+                        _warn_failure(error)
+                        raise error
+                    data = await resp.read() if binary else await resp.text()
+                    content_type = resp.content_type
+            if not data:
+                raise ValueError("AWTRIX returned an empty response")
+            return data, content_type
+        except SourceNotFound:
+            raise
+        except SourceRequestError:
+            raise
+        except asyncio.TimeoutError as err:
+            if attempt == 0:
+                await asyncio.sleep(_RETRY_DELAY_S)
+                continue
+            _warn_failure(err)
+            raise SourceTimeout("AWTRIX request timed out") from err
+        except (aiohttp.ClientError, ValueError) as err:
+            if isinstance(err, aiohttp.ClientResponseError) and err.status < 500 and err.status != 429:
+                _warn_failure(err)
+                raise SourceRequestError(f"AWTRIX request failed: {err}") from err
+            if attempt == 0:
+                await asyncio.sleep(_RETRY_DELAY_S)
+                continue
+            _warn_failure(err)
+            raise SourceRequestError(f"AWTRIX request failed: {err}") from err
+    raise AssertionError("unreachable")
+
+
 async def search(
     session: Any,
     *,
@@ -162,64 +238,63 @@ async def search(
     animated_only: bool = False,
     timeout_s: float = REQUEST_TIMEOUT_S,
 ) -> SearchPage:
-    """Fetch and parse one results page. `session` is an `aiohttp.ClientSession`."""
-    import aiohttp
+    """Fetch and parse one page, caching each exact filter/page combination."""
+    cache_key = (sort, page, query or "", size or "", animated_only)
+    now = _monotonic()
+    cached = _listing_cache.get(cache_key)
+    if cached is not None and cached[0] > now:
+        return cached[1]
 
     params = _params(sort=sort, page=page, query=query, size=size, animated_only=animated_only)
-    try:
-        async with session.get(
-            BASE_URL, params=params, timeout=aiohttp.ClientTimeout(total=timeout_s)
-        ) as resp:
-            resp.raise_for_status()
-            page_html = await resp.text()
-    except aiohttp.ClientError as err:
-        raise SourceRequestError(f"AWTRIX request failed: {err}") from err
-
-    items, total_count = parse_listing_html(page_html)
-    if total_count is not None:
-        has_more = page * PAGE_SIZE < total_count
-    else:
-        has_more = len(items) >= PAGE_SIZE
-    return SearchPage(items=tuple(items), has_more=has_more)
+    for parse_attempt in range(2):
+        page_html, _ = await _request(session, BASE_URL, params=params, timeout_s=timeout_s)
+        items, total_count = parse_listing_html(page_html)
+        # The count is collection-wide, so empty filtered pages are valid; cards we failed to parse
+        # or an empty unfiltered first page indicate that the source markup changed.
+        if not items and (
+            total_count is None
+            or _ARTICLE_RE.search(page_html) is not None
+            or (page == 1 and not query and not size and not animated_only and total_count > 0)
+        ):
+            if parse_attempt == 0:
+                continue
+            error = SourceRequestError("AWTRIX listing response could not be parsed")
+            _warn_failure(error)
+            raise error
+        if total_count is not None:
+            offset = max(page - 1, 0) * PAGE_SIZE
+            has_more = bool(items) and offset + len(items) < total_count
+        else:
+            has_more = len(items) >= PAGE_SIZE
+        result = SearchPage(items=tuple(items), has_more=has_more)
+        _listing_cache[cache_key] = (_monotonic() + CACHE_TTL_LISTING_S, result)
+        return result
+    raise AssertionError("unreachable")
 
 
 async def fetch_detail(session: Any, item_id: str, *, timeout_s: float = REQUEST_TIMEOUT_S) -> dict[str, Any]:
-    """Fetch one item's detail page for its optional author/created metadata."""
-    import aiohttp
+    from urllib.parse import quote
 
-    url = f"{BASE_URL}/{item_id}"
-    try:
-        async with session.get(
-            url, timeout=aiohttp.ClientTimeout(total=timeout_s)
-        ) as resp:
-            resp.raise_for_status()
-            page_html = await resp.text()
-    except aiohttp.ClientError as err:
-        raise SourceRequestError(f"AWTRIX detail fetch failed for {item_id!r}: {err}") from err
-    return parse_detail_html(page_html)
+    url = f"{BASE_URL}/{quote(item_id, safe='-_')}"
+    page_html, _ = await _request(session, url, timeout_s=timeout_s)
+    details = parse_detail_html(page_html)
+    if details["title"] is None:
+        raise SourceRequestError("AWTRIX detail response could not be parsed")
+    return details
 
 
 def media_url(item_id: str) -> str:
-    # The original `<slug>.gif` download now needs a signed-in Hub account (401
-    # "authenticationRequired", observed 2026-09-26). The public listing preview is the same
-    # animation - every frame and its timing - upscaled 8x as animated WebP; the adaptation
-    # pipeline's native-scale recovery brings it back to 32x8/8x8 exactly.
-    return f"{BASE_URL}/{item_id}/preview.webp"
+    # Public listing preview is the source image, upscaled 8x as animated WebP; the
+    # adaptation pipeline's native-scale recovery brings it back to 32x8/8x8 exactly.
+    from urllib.parse import quote
+
+    return f"{BASE_URL}/{quote(item_id, safe='-_')}/preview.webp"
 
 
 async def fetch_media(session: Any, item_id: str, *, timeout_s: float = REQUEST_TIMEOUT_S):
-    import aiohttp
-
     from .models import SourceMedia
 
-    url = media_url(item_id)
-    try:
-        async with session.get(
-            url, timeout=aiohttp.ClientTimeout(total=timeout_s)
-        ) as resp:
-            resp.raise_for_status()
-            data = await resp.read()
-            content_type = resp.content_type or "image/gif"
-    except aiohttp.ClientError as err:
-        raise SourceRequestError(f"AWTRIX media fetch failed for {item_id!r}: {err}") from err
-    return SourceMedia(data=data, content_type=content_type)
+    data, content_type = await _request(
+        session, media_url(item_id), binary=True, timeout_s=timeout_s
+    )
+    return SourceMedia(data=data, content_type=content_type or "image/webp")

@@ -9,9 +9,11 @@ files for power users. Beginner-first, power-user-capable.
 
 | id | Source | Access | Sorts (source-native) | Sizes | Notes |
 |---|---|---|---|---|---|
-| `lametric` | LaMetric icon gallery | Official public API, no auth: `GET https://developer.lametric.com/api/v2/icons?page=&page_size=&order=popular\|newest\|title&fields=` (returns max 2000 total). Media: `item.url` (8×8 gif/png). | popular, newest, title | 8×8 | No server-side search: cache the full list (≤2000, refresh daily) and filter titles locally. |
-| `awtrix` | AWTRIX Hub `https://awtrix.de/icons` | Public website (Laravel Livewire, no documented JSON API). Server-rendered listing honours `?sort=` (`popular` verified to reorder; find the exact values for newest / most downloaded / hand-picked / A–Z) and `?size=32x8`. Media: `https://awtrix.de/icons/<slug>.gif`. | newest, most downloaded, hand-picked, A–Z | 8×8, 32×8 | Find a stable way to search (Livewire payload or query param). If parsing HTML, keep the parser tiny and fixture-tested. Be polite: cache, ≤1 req/s. |
-| `divoom` | Divoom Cloud gallery (700k+ designs, the biggest) | **Unofficial**, community-reverse-engineered (`app.divoom-gz.com`). Needs a free Divoom account (email + MD5 password). References: github.com/redphx/apixoo (MIT, login + category listing + PixelBean decoder), github.com/fabkury/servoom (Apache-2.0, FILE_FORMATS.md + FORUM_API.md, decoders for all formats incl. AES/LZO/zstd variants), divoom.2a03.party/api/app.html. | recommended, new, popular/most-liked (whatever categories the API exposes) | 16×16, 32×32, 64×64 | Enabled only when the account is set in the integration options. Isolate failures: if Divoom changes its API, only this source shows "Divoom is unavailable right now", nothing else breaks. Credit authors. Port decoders with attribution (NOTICE file). |
+| `lametric` | LaMetric icon gallery | Official public API, no auth: `GET https://developer.lametric.com/api/v2/icons?page=&page_size=&order=popular\|newest\|title&fields=` (max 2000). Media uses each catalog row’s URL (8×8 GIF/PNG). | popular, newest, title | 8×8 | The API honors all three requested orders; cache the catalog for 24 h per order, then filter and paginate locally. |
+| `awtrix` | AWTRIX Hub `https://awtrix.de/icons` | Public Laravel Livewire page (no documented JSON API); URL parameters drive `query`, `sort`, `size`, `animated`, and `page`. Media: `/<slug>/preview.webp` (animated/upscaled WebP). | newest, popular (Most downloaded), picked (Hand-picked), name (A–Z) | 8×8, 32×8 | 24 items/page; exact filter/page responses are cached for 1 h. Listing, detail and media requests share a ≤1 request/second limit. |
+| `divoom` | Divoom Cloud gallery (700k+ designs, the biggest) | **Unofficial**, community-reverse-engineered (`app.divoom-gz.com`). Needs a free Divoom account (email + MD5 password). Request shapes are based on apixoo (MIT) and servoom (Apache-2.0); see /NOTICE. | recommended, new, popular/most-liked | 16×16, 32×32, 64×64 | Enabled only when account details are set. Auth tokens stay in memory for up to 15 min and refresh on rejection; failed upstream requests have bounded retries. Media is decoded to GIF; decoder captures cover formats 3 and 4. |
+| `iledclock` | iLedClock originals | CoolLEDX config → localized categories for the hardware profile’s `16x32` panel → per-category `list_{lang}.json` (English fallback) → GIF media. Bytes 0–31 are XORed with `0xDA`. | featured | 32×16 | Item ids are `<category>/<filename>`; page locally at 48 items. Catalog refreshes every 12 h; original media is cached by the authenticated HA proxy. |
+| `iledclock_anim` | iLedClock animations | CoolLEDX static/dynamic `data1632` JSON feeds decode the vendor’s packed RGB planes into standard GIFs. | featured | 32×16 | Static and Dynamic categories; ids include the feed version so catalog refreshes do not change identity within a version. GIF frames and delays are decoded from the payload. |
 
 ## Backend (owner: GalleryEngine) — `custom_components/iledclock/gallery/**`, `custom_components/iledclock/adapt.py`, `custom_components/iledclock/importers/**`, `tests/gallery/**`
 
@@ -30,7 +32,8 @@ duration_out_ms, notes[]}`.
      art >16 px downscaled by an integer factor to ≤16 px using **majority (mode) pooling** (keeps 1-px lines and outlines), then
      centered; photos/non-pixel-art use area-average + optional ordered dither.
    - `center` (1:1, crop if larger), `fit` (contain), `fill` (cover, crop around a focus point — default centre of the
-     content's bounding box), `stretch`, `tile` (repeat small icons across the width), `mirror` (icon + mirrored icon).
+     content's bounding box), `stretch`, `tile` (repeat small icons across the width), `mirror` (icon + mirrored icon), and
+     `icon_with_clock` (art on the left, with a native clock region reserved to its right).
    - Power-user overrides: explicit `crop {x,y,w,h}` in source pixels, `scale` (integer), `offset {x,y}`, `background`.
 5. **Make it readable on LEDs**: the clock shows RGB444; near-black non-background pixels would vanish, so lift any content
    pixel whose max channel <`0x20` to the minimum visible level; optional saturation/contrast boost (`enhance: true` default for
@@ -50,17 +53,18 @@ duration_out_ms, notes[]}`.
   commands below and an authenticated HTTP view `/api/iledclock/gallery/media/{source}/{item_id}` that proxies + caches original
   media (and Divoom-decoded GIFs) so the browser never talks to third parties (works in the iOS app; no CORS). The frontend
   signs URLs with WS `auth/sign_path`. Disk cache under `<config>/.storage/iledclock_gallery/` with an LRU byte cap (64 MB) and
-  per-source TTLs. All network I/O via HA's shared aiohttp session, timeouts 10 s, never on the event loop for decoding
-  (executor).
+  per-source TTLs and stale-while-revalidate catalog refresh; CoolLEDX catalogs refresh every 12 h.
+  Successful media is cached in the 64 MB LRU; Divoom decode failures are cached for 5 min. Media requests are limited to four per source, return 404/502/504, and have a 12 s proxy deadline; image and animation decoding runs in an executor.
 - Divoom credentials: read `entry.options["divoom_email"]` and `entry.options["divoom_password_md5"]` (HaIntegration adds these
   optional fields to the options flow and stores only the MD5 of the password). Source is "not configured" otherwise.
 
 ### WebSocket API (GalleryUI consumes; any `entry_id` of the integration is accepted for account lookup)
 - `iledclock/gallery/sources {entry_id}` → `[{id, name, configured, requires_account, sorts:[{id,label}], default_sort,
-  sizes:[...], supports_search, homepage}]`
-- `iledclock/gallery/search {entry_id, source, sort, page, query?, size?, animated_only?}` →
-  `{items:[{source, id, title, author?, width, height, animated, likes?, downloads?, created?, media_path}], page, has_more}`
-  (`media_path` = unsigned path of the HTTP view)
+  sizes:[...], supports_search, homepage, categories:[{id,label}], kind:"native"|"adapted"}]`
+- `iledclock/gallery/search {entry_id, source, sort, page, query?, size?, category?, animated_only?}` →
+  `{items:[{source, id, title, author?, width, height, animated, category?, frames?, native_fit?, likes?, downloads?, created?, media_path}], page, has_more}`.
+  (`media_path` is unsigned; iLedClock material ids include `<category>/<filename>`.)
+- `iledclock/gallery/shelves {entry_id}` → `[{id, title, source, category?, sort?}]`; the client fills each shelf using `search`.
 - `iledclock/gallery/preview {entry_id, source, item_id, options?}` → `{frames:[b64 RGB888 1536 B], delays_ms:[...], layout,
   layouts_available:[...], report}`; `options` = `{layout?, crop?, scale?, offset?, background?, enhance?}`
 - `iledclock/gallery/import {entry_id, source, item_id, options?, name?}` (admin) → `{design_id}` — saves to the design library

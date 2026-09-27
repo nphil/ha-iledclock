@@ -1,25 +1,20 @@
-/** Frame-timeline operations for the studio's animation strip: add/duplicate/delete/reorder and
- * per-frame delay. Every op returns a new array (the list itself becomes one `historyPush`
- * snapshot) and every op that could empty the timeline refuses instead -- a design always has at
- * least one frame, the same invariant the wire format assumes (`StoredDesign.frames` is never
- * empty).
- */
+/** Frame-timeline operations for the studio's animation strip. A design always retains at least
+ * one frame and never grows beyond the upload-safe 64-frame editor limit. */
 
 import { cloneFrame, createFrame, type PixelFrame } from "./grid.ts";
 
 export const DEFAULT_FRAME_DELAY_MS = 100;
 export const MIN_FRAME_DELAY_MS = 10;
 export const MAX_FRAME_DELAY_MS = 60000;
+export const MAX_FRAME_COUNT = 64;
 
 export function clampFrameDelay(delayMs: number): number {
   return Math.max(MIN_FRAME_DELAY_MS, Math.min(MAX_FRAME_DELAY_MS, Math.round(delayMs)));
 }
 
-/** Inserts a new blank frame (or `source`, cloned) after `afterIndex` (`-1` inserts at the
- * front). `afterIndex` out of range clamps to the nearest valid position rather than throwing,
- * so a stale toolbar click (the frame it pointed at was just deleted by another handler in the
- * same tick) still lands somewhere sane. */
+/** Inserts a blank frame (or a clone of `source`) after `afterIndex`; `-1` inserts at the front. */
 export function insertFrame(frames: readonly PixelFrame[], afterIndex: number, source?: PixelFrame): PixelFrame[] {
+  if (frames.length >= MAX_FRAME_COUNT) return frames.slice();
   const frame = source ? cloneFrame(source) : createFrame(frames[0]?.width, frames[0]?.height, [0, 0, 0], DEFAULT_FRAME_DELAY_MS);
   const at = Math.max(-1, Math.min(frames.length - 1, afterIndex)) + 1;
   const next = frames.slice();
@@ -29,12 +24,11 @@ export function insertFrame(frames: readonly PixelFrame[], afterIndex: number, s
 
 export function duplicateFrame(frames: readonly PixelFrame[], index: number): PixelFrame[] {
   const source = frames[index];
-  if (!source) return frames.slice();
+  if (!source || frames.length >= MAX_FRAME_COUNT) return frames.slice();
   return insertFrame(frames, index, source);
 }
 
-/** Refuses to drop the timeline's last frame -- `frames` stays non-empty so every consumer
- * (the codec, the preview player) never has to special-case zero frames. */
+/** Refuses to drop the timeline's last frame. */
 export function deleteFrame(frames: readonly PixelFrame[], index: number): PixelFrame[] {
   if (frames.length <= 1 || index < 0 || index >= frames.length) return frames.slice();
   const next = frames.slice();
@@ -58,7 +52,6 @@ export function setFrameDelay(frames: readonly PixelFrame[], index: number, dela
   return next;
 }
 
-/** Total playback time for the loop preview / upload progress estimate. */
 export function totalDurationMs(frames: readonly PixelFrame[]): number {
   return frames.reduce((sum, frame) => sum + frame.durationMs, 0);
 }

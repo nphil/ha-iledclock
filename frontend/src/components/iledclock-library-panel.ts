@@ -1,207 +1,378 @@
-/** The studio's design library: a responsive thumbnail grid over saved `StoredDesign`s. Select
- * to load into the editor, rename inline, duplicate, or delete (gated behind a hold-to-confirm,
- * since deleting a design is irreversible).
- */
-
-import { LitElement, css, html, nothing } from "lit";
-import { TOKENS_CSS } from "../styles/tokens.ts";
+/** Searchable, filterable Library grid and its route-backed design sheet. */
+import { LitElement, css, html, nothing, type PropertyValues } from "lit";
 import type { StoredDesign } from "../types.ts";
+import type { StudioRoute } from "../lib/route.ts";
+import { navigateStudioRoute } from "../lib/route.ts";
+import type { PixelFrame } from "../lib/grid.ts";
 import { designToFrames } from "../lib/design-codec.ts";
+import { designHasClockRegion, filterAndSortDesigns, type LibraryFilter, type LibrarySort } from "../lib/library-state.ts";
 import { mdiIcon } from "../lib/mdi-icons.ts";
-import "./iledclock-matrix-canvas.ts";
+import { SURFACES_CSS, TOKENS_CSS } from "../styles/tokens.ts";
+import "./iledclock-art-tile.ts";
 import "./iledclock-hold-button.ts";
+import "./iledclock-led-preview.ts";
+import "./lu-chip.ts";
+import "./lu-empty.ts";
+import "./lu-error.ts";
+import "./lu-skeleton.ts";
+import "./lu-pill-button.ts";
+import "./lu-sheet.ts";
+
+const FILTERS: ReadonlyArray<{ value: LibraryFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "animated", label: "Animated" },
+  { value: "still", label: "Still" },
+  { value: "with-clock", label: "With clock" },
+  { value: "from-explore", label: "From Explore" },
+];
+
+const FRAME_CACHE = new WeakMap<StoredDesign, PixelFrame[]>();
+
+function framesFor(design: StoredDesign): PixelFrame[] {
+  let frames = FRAME_CACHE.get(design);
+  if (!frames) {
+    frames = designToFrames(design);
+    FRAME_CACHE.set(design, frames);
+  }
+  return frames;
+}
 
 export class IledclockLibraryPanel extends LitElement {
   static properties = {
     designs: { attribute: false },
     loading: { type: Boolean },
+    error: { type: String },
     disabled: { type: Boolean },
-    _renamingId: { state: true },
+    route: { attribute: false },
+    _query: { state: true },
+    _filter: { state: true },
+    _sort: { state: true },
+    _selectMode: { state: true },
+    _selectedIds: { state: true },
+    _renameValue: { state: true },
   };
 
   declare designs: StoredDesign[];
   declare loading: boolean;
+  declare error: string | null;
   declare disabled: boolean;
-  declare _renamingId: string | null;
+  declare route: StudioRoute;
+  declare _query: string;
+  declare _filter: LibraryFilter;
+  declare _sort: LibrarySort;
+  declare _selectMode: boolean;
+  declare _selectedIds: string[];
+  declare _renameValue: string;
+
+  private _routeSeen = false;
 
   constructor() {
     super();
     this.designs = [];
     this.loading = false;
+    this.error = null;
     this.disabled = false;
-    this._renamingId = null;
+    this.route = { destination: "library" };
+    this._query = "";
+    this._filter = "all";
+    this._sort = "recent";
+    this._selectMode = false;
+    this._selectedIds = [];
+    this._renameValue = "";
   }
 
-  private _select(id: string): void {
-    this.dispatchEvent(new CustomEvent("design-selected", { detail: { id }, bubbles: true, composed: true }));
+  protected willUpdate(changed: PropertyValues): void {
+    if (!changed.has("route")) return;
+    if (!this._routeSeen) {
+      this._routeSeen = true;
+      if (this.route.destination === "library" && this.route.design) {
+        // Put the plain Library route behind a direct deep link so Back closes its sheet first.
+        navigateStudioRoute({ destination: "library" }, true);
+        navigateStudioRoute(this.route, false);
+      }
+    }
+    this._renameValue = "";
   }
 
-  private _commitRename(design: StoredDesign, event: Event): void {
-    const name = (event.target as HTMLInputElement).value.trim();
-    this._renamingId = null;
-    if (!name || name === design.name) return;
-    this.dispatchEvent(new CustomEvent("design-rename-requested", { detail: { id: design.id, name }, bubbles: true, composed: true }));
+  private get _visibleDesigns(): StoredDesign[] {
+    return filterAndSortDesigns(this.designs, { query: this._query, filter: this._filter, sort: this._sort });
+  }
+
+  private get _selectedDesign(): StoredDesign | undefined {
+    return this.designs.find((design) => design.id === this.route.design);
+  }
+
+  private _dispatch(name: string, detail: Record<string, unknown> = {}): void {
+    this.dispatchEvent(new CustomEvent(name, { detail, bubbles: true, composed: true }));
+  }
+
+  private _onTileSelected = (event: CustomEvent<{ itemId: string }>): void => {
+    event.stopPropagation();
+    const id = event.detail.itemId;
+    if (this._selectMode) {
+      this._toggleSelected(id);
+      return;
+    }
+    navigateStudioRoute({ destination: "library", design: id });
+  };
+
+  private _toggleSelected(id: string): void {
+    this._selectedIds = this._selectedIds.includes(id)
+      ? this._selectedIds.filter((selected) => selected !== id)
+      : [...this._selectedIds, id];
+  }
+
+  private _toggleSelectMode(): void {
+    this._selectMode = !this._selectMode;
+    if (!this._selectMode) this._selectedIds = [];
+  }
+
+  private _setFilter(filter: LibraryFilter): void {
+    this._filter = filter;
+  }
+
+  private _setSort(sort: LibrarySort): void {
+    this._sort = sort;
+  }
+
+  private _requestImport(): void {
+    this._dispatch("import-requested");
+  }
+
+  private _navigate(destination: "create" | "explore"): void {
+    navigateStudioRoute({ destination });
+  }
+
+  private _closeDesignSheet = (): void => {
+    if (this.route.design) window.history.back();
+  };
+
+  private _saveRename(design: StoredDesign): void {
+    const name = this._renameValue.trim();
+    if (!name || name === design.name || this.disabled) return;
+    this._dispatch("design-rename-requested", { id: design.id, name });
+    this._renameValue = "";
   }
 
   private _duplicate(id: string): void {
-    this.dispatchEvent(new CustomEvent("design-duplicate-requested", { detail: { id }, bubbles: true, composed: true }));
+    this._dispatch("design-duplicate-requested", { id });
   }
 
   private _delete(id: string): void {
-    this.dispatchEvent(new CustomEvent("design-delete-requested", { detail: { id }, bubbles: true, composed: true }));
+    this._dispatch("design-delete-requested", { id });
+    this._closeDesignSheet();
+  }
+
+  private _show(design: StoredDesign): void {
+    this._dispatch("design-show-requested", { id: design.id, title: design.name });
+  }
+
+  private _edit(design: StoredDesign): void {
+    this._dispatch("iledclock-open-design", { design_id: design.id });
+  }
+
+  private _addToRotation(ids: string[]): void {
+    if (ids.length === 0) return;
+    this._dispatch("designs-add-to-rotation", { ids });
+    this._selectedIds = [];
+    this._selectMode = false;
+    this._closeDesignSheet();
+  }
+
+  private _deleteSelected(): void {
+    if (this._selectedIds.length === 0 || this.disabled) return;
+    this._dispatch("designs-delete-requested", { ids: [...this._selectedIds] });
+    this._selectedIds = [];
+    this._selectMode = false;
+  }
+
+  private _renameInput(event: Event): void {
+    this._renameValue = (event.currentTarget as HTMLInputElement).value;
+  }
+
+  private _onRenameKeydown(event: KeyboardEvent, design: StoredDesign): void {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      this._saveRename(design);
+    } else if (event.key === "Escape") {
+      this._renameValue = "";
+      (event.currentTarget as HTMLInputElement).value = design.name;
+      (event.currentTarget as HTMLInputElement).blur();
+    }
   }
 
   render() {
+    const visibleDesigns = this._visibleDesigns;
+    const selectedDesign = this._selectedDesign;
+    const sheetOpen = Boolean(this.route.destination === "library" && this.route.design);
     return html`
-      <div class="header">
-        <h2>Library</h2>
-        ${this.loading ? html`<span class="hint">Loading…</span>` : nothing}
-      </div>
-      ${!this.loading && this.designs.length === 0 ? html`<p class="hint">No saved designs yet. Draw something and save it.</p>` : nothing}
-      <div class="grid">
-        ${this.designs.map((design) => {
-          const frame = designToFrames(design)[0]!;
-          const renaming = this._renamingId === design.id;
-          return html`
-            <div class="tile">
-              <button type="button" class="thumb" ?disabled=${this.disabled} @click=${() => this._select(design.id)} aria-label="Open ${design.name}">
-                <iledclock-matrix-canvas .frame=${frame}></iledclock-matrix-canvas>
-                <span class="kind-badge">${mdiIcon(design.kind === "animation" ? "gif" : "image")}</span>
-              </button>
-              ${renaming
-                ? html`<input class="name-input" .value=${design.name} @blur=${(e: Event) => this._commitRename(design, e)} @keydown=${(e: KeyboardEvent) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} autofocus />`
-                : html`<button type="button" class="name" @click=${() => (this._renamingId = design.id)}>${design.name}</button>`}
-              <div class="tile-actions">
-                <button type="button" class="icon-btn" ?disabled=${this.disabled} @click=${() => this._duplicate(design.id)} aria-label="Duplicate">${mdiIcon("duplicate")}</button>
-                <iledclock-hold-button label="Hold to delete" complete-label="Deleted" danger ?disabled=${this.disabled} @confirmed=${() => this._delete(design.id)}></iledclock-hold-button>
-              </div>
+      <section class="library" aria-labelledby="library-title">
+        <header class="section-heading">
+          <div>
+            <h2 id="library-title">My designs</h2>
+            <p class="subtitle">Saved art for your clock</p>
+          </div>
+          <div class="heading-actions">
+            <lu-pill-button variant="secondary" label="Import file" icon="mdi:upload" @lu-press=${this._requestImport}></lu-pill-button>
+            ${this.designs.length > 0 ? html`<lu-pill-button variant=${this._selectMode ? "primary" : "quiet"} .label=${this._selectMode ? "Done selecting" : "Select"} @lu-press=${this._toggleSelectMode}></lu-pill-button>` : nothing}
+          </div>
+        </header>
+
+        <div class="toolbar">
+          <label class="search">
+            <span class="sr-only">Search designs</span>
+            ${mdiIcon("zoomIn")}
+            <input type="search" autocomplete="off" placeholder="Search designs" .value=${this._query} @input=${(event: Event) => (this._query = (event.currentTarget as HTMLInputElement).value)} />
+          </label>
+          <div class="sort" role="group" aria-label="Sort designs">
+            <span class="sort-label">Sort</span>
+            ${(["recent", "name"] as const).map((sort) => html`
+              <button type="button" class="choice ${this._sort === sort ? "active" : ""}" aria-pressed=${this._sort === sort} @click=${() => this._setSort(sort)}>${sort === "recent" ? "Recent" : "Name"}</button>
+            `)}
+          </div>
+        </div>
+        <div class="filters" role="group" aria-label="Filter designs">
+          ${FILTERS.map((filter) => html`
+            <button type="button" class="choice ${this._filter === filter.value ? "active" : ""}" aria-pressed=${this._filter === filter.value} @click=${() => this._setFilter(filter.value)}>${filter.label}</button>
+          `)}
+        </div>
+
+        ${this.error ? html`<lu-error .message=${this.error} @retry=${() => this._dispatch("retry-designs")}></lu-error>` : nothing}
+        ${this.loading ? html`<div class="loading-grid" role="status" aria-label="Loading designs"><lu-skeleton variant="card" label="Loading design"></lu-skeleton><lu-skeleton variant="card" label="Loading design"></lu-skeleton><lu-skeleton variant="card" label="Loading design"></lu-skeleton></div>` : nothing}
+        ${!this.loading && !this.error && this.designs.length === 0 ? html`
+          <div class="empty-state">
+            <lu-empty title="No designs yet" message="Create a design or bring artwork in from Explore." action-label="Create" icon="mdi:image-plus-outline" @empty-action=${() => this._navigate("create")}></lu-empty>
+            <lu-pill-button variant="secondary" label="Explore artwork" icon="mdi:compass-outline" @lu-press=${() => this._navigate("explore")}></lu-pill-button>
+          </div>
+        ` : nothing}
+        ${!this.loading && !this.error && this.designs.length > 0 && visibleDesigns.length === 0 ? html`<lu-empty title="No matching designs" message="Try a different search or filter." action-label="Clear filters" @empty-action=${() => { this._query = ""; this._filter = "all"; }}></lu-empty>` : nothing}
+        ${!this.loading && !this.error && visibleDesigns.length > 0 ? html`
+          <div class="grid" aria-label="Saved designs">
+            ${visibleDesigns.map((design) => this._renderDesignTile(design))}
+          </div>
+        ` : nothing}
+
+        ${this._selectMode && this._selectedIds.length > 0 ? html`
+          <div class="selection-bar" role="group" aria-label="Selected design actions">
+            <span class="selection-count" aria-live="polite">${this._selectedIds.length} selected</span>
+            <lu-pill-button variant="secondary" label="Add to rotation" icon="mdi:playlist-plus" ?disabled=${this.disabled} @lu-press=${() => this._addToRotation([...this._selectedIds])}></lu-pill-button>
+            <iledclock-hold-button label="Hold to delete selected" complete-label="Deleted" danger ?disabled=${this.disabled} @confirmed=${this._deleteSelected}></iledclock-hold-button>
+          </div>
+        ` : nothing}
+
+        <lu-sheet .open=${sheetOpen} .label=${selectedDesign?.name ?? "Design not found"} @closed=${this._closeDesignSheet}>
+          <div slot="header" class="sheet-title">
+            <div>
+              <h2>${selectedDesign?.name ?? "Design not found"}</h2>
+              <p>${selectedDesign ? (selectedDesign.kind === "animation" ? "Animated design" : "Still design") : "This design may have been deleted."}</p>
             </div>
-          `;
-        })}
+          </div>
+          ${selectedDesign ? this._renderDesignSheet(selectedDesign) : html`
+            <lu-empty title="Design not found" message="This saved design is no longer available." action-label="Back to Library" @empty-action=${this._closeDesignSheet}></lu-empty>
+          `}
+        </lu-sheet>
+      </section>
+    `;
+  }
+
+  private _renderDesignTile(design: StoredDesign) {
+    const frames = framesFor(design);
+    const selected = this._selectedIds.includes(design.id);
+    const metadata = design as StoredDesign & { origin?: unknown };
+    const fromExplore = metadata.origin !== undefined && metadata.origin !== null;
+    return html`
+      <article class="design-tile ${selected ? "selected" : ""}">
+        <iledclock-art-tile
+          item-id=${design.id}
+          aspect="design"
+          .frames=${frames}
+          .delays=${design.delays}
+          ?animated=${design.kind === "animation"}
+          .title=${design.name}
+          .subtitle=${design.kind === "animation" ? "Animated" : "Still"}
+          @tile-selected=${this._onTileSelected}
+        >
+          ${design.kind === "animation" ? html`<lu-chip slot="badges" label="Animated" kind="neutral"></lu-chip>` : nothing}
+          ${designHasClockRegion(design) ? html`<lu-chip slot="badges" label="With clock" kind="info"></lu-chip>` : nothing}
+          ${fromExplore ? html`<lu-chip slot="badges" label="Explore" kind="neutral"></lu-chip>` : nothing}
+        </iledclock-art-tile>
+        ${this._selectMode ? html`
+          <button type="button" class="select-toggle ${selected ? "selected" : ""}" aria-pressed=${selected} aria-label=${`${selected ? "Deselect" : "Select"} ${design.name}`} @click=${() => this._toggleSelected(design.id)}>
+            <span aria-hidden="true">${selected ? mdiIcon("check") : mdiIcon("plus")}</span>
+            ${selected ? "Selected" : "Select"}
+          </button>
+        ` : nothing}
+      </article>
+    `;
+  }
+
+  private _renderDesignSheet(design: StoredDesign) {
+    const frames = framesFor(design);
+    const canRename = this._renameValue.trim().length > 0 && this._renameValue.trim() !== design.name;
+    return html`
+      <div class="design-sheet-body">
+        <div class="hero"><iledclock-led-preview context="hero" .frames=${frames} .delays=${design.delays} ?playing=${design.kind === "animation"} .label=${design.name}></iledclock-led-preview></div>
+        <label class="rename-field">
+          <span>Design name</span>
+          <input type="text" maxlength="80" autocomplete="off" .value=${this._renameValue || design.name} ?disabled=${this.disabled} @input=${this._renameInput} @keydown=${(event: KeyboardEvent) => this._onRenameKeydown(event, design)} />
+        </label>
+        <div class="rename-action"><lu-pill-button variant="secondary" label="Save name" ?disabled=${this.disabled || !canRename} @lu-press=${() => this._saveRename(design)}></lu-pill-button></div>
+        <div class="design-actions">
+          <lu-pill-button variant="primary" label="Show on clock" icon="mdi:television-play" ?disabled=${this.disabled} @lu-press=${() => this._show(design)}></lu-pill-button>
+          <lu-pill-button variant="secondary" label="Edit" icon="mdi:draw" ?disabled=${this.disabled} @lu-press=${() => this._edit(design)}></lu-pill-button>
+          <lu-pill-button variant="secondary" label="Duplicate" icon="mdi:content-copy" ?disabled=${this.disabled} @lu-press=${() => this._duplicate(design.id)}></lu-pill-button>
+          <lu-pill-button variant="secondary" label="Add to rotation" icon="mdi:playlist-plus" ?disabled=${this.disabled} @lu-press=${() => this._addToRotation([design.id])}></lu-pill-button>
+        </div>
+        <div class="delete-action"><iledclock-hold-button label="Hold to delete design" complete-label="Deleted" danger ?disabled=${this.disabled} @confirmed=${() => this._delete(design.id)}></iledclock-hold-button></div>
       </div>
     `;
   }
 
-  static styles = [
-    TOKENS_CSS,
-    css`
-    :host {
-      display: block;
-      container-type: inline-size;
-      background: var(--lu-tile);
-      border-radius: var(--lu-radius-tile);
-      padding: 12px;
-    }
-    .header {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    h2 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--lu-ink);
-    }
-    .hint {
-      font-size: 13px;
-      color: var(--lu-ink-2);
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-    @container (min-width: 420px) {
-      .grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-    @container (min-width: 700px) {
-      .grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
-    }
-    .tile {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .thumb {
-      position: relative;
-      display: block;
-      width: 100%;
-      aspect-ratio: 2 / 1;
-      border-radius: var(--lu-radius-control);
-      overflow: hidden;
-      border: 1px solid var(--lu-edge);
-      padding: 0;
-      cursor: pointer;
-      background: none;
-    }
-    .kind-badge {
-      position: absolute;
-      right: 4px;
-      bottom: 4px;
-      display: inline-flex;
-      color: #fff;
-      background: rgba(0, 0, 0, 0.55);
-      border-radius: 50%;
-      width: 22px;
-      height: 22px;
-      align-items: center;
-      justify-content: center;
-    }
-    .name,
-    .name-input {
-      font-size: 13px;
-      color: var(--lu-ink);
-      background: none;
-      border: none;
-      text-align: left;
-      padding: 4px 0;
-      cursor: pointer;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .name-input {
-      border-bottom: 1px solid var(--lu-accent);
-    }
-    .tile-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .tile-actions iledclock-hold-button {
-      flex: 1;
-    }
-    .icon-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: none;
-      background: var(--lu-glass-raised);
-      color: var(--lu-ink);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex: none;
-    }
-    .icon-btn:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-  `,
-  ];
+  static styles = [TOKENS_CSS, SURFACES_CSS, css`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .library { display: grid; gap: var(--lu-space-4); min-width: 0; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--lu-space-3); }
+    h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); letter-spacing: -.01em; }
+    .subtitle { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .heading-actions { display: flex; flex-wrap: wrap; gap: var(--lu-space-2); }
+    .toolbar { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: var(--lu-space-3); }
+    .search { display: flex; align-items: center; gap: var(--lu-space-2); flex: 1 1 14rem; min-width: 0; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-card); color: var(--lu-ink-2); }
+    .search > svg { width: var(--lu-space-5); height: var(--lu-space-5); flex: none; }
+    .search input { width: 100%; min-width: 0; min-height: var(--lu-target); border: 0; outline: 0; color: var(--lu-ink); background: transparent; font: 400 var(--lu-type-body)/1.2 var(--lu-font); }
+    .search:focus-within { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .sort, .filters { display: flex; align-items: center; flex-wrap: wrap; gap: var(--lu-space-1); min-width: 0; }
+    .sort-label { padding-inline: var(--lu-space-2); color: var(--lu-ink-3); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .choice { display: inline-flex; justify-content: center; align-items: center; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: transparent; font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .choice.active { border-color: transparent; color: var(--lu-accent-ink); background: var(--lu-accent); }
+    .choice:focus-visible, .select-toggle:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 132px), 1fr)); gap: var(--lu-space-3); min-width: 0; }
+    .design-tile { position: relative; min-width: 0; padding: var(--lu-space-1); border-radius: var(--lu-radius-tile); border: 1px solid transparent; }
+    .design-tile.selected { border-color: var(--lu-accent); background: var(--lu-accent-soft); }
+    .select-toggle { display: flex; justify-content: center; align-items: center; gap: var(--lu-space-2); width: 100%; min-height: var(--lu-target); margin-top: var(--lu-space-2); padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: transparent; font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .select-toggle.selected { border-color: var(--lu-edge-raised); color: var(--lu-ink); background: var(--lu-glass-raised); }
+    .loading-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 132px), 1fr)); gap: var(--lu-space-3); }
+    .empty-state { display: grid; justify-items: center; gap: var(--lu-space-3); padding: var(--lu-space-4); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); }
+    .selection-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--lu-space-2); padding: var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); }
+    .selection-count { margin-inline-end: auto; color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.3 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .sheet-title { min-width: 0; }
+    .sheet-title h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sheet-title p { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.35 var(--lu-font); }
+    .design-sheet-body { display: grid; gap: var(--lu-space-3); padding-bottom: var(--lu-space-2); }
+    .hero { display: grid; place-items: center; min-width: 0; overflow: hidden; border-radius: var(--lu-radius-tile); }
+    .hero iledclock-led-preview { width: 100%; }
+    .rename-field { display: grid; gap: var(--lu-space-2); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.25 var(--lu-font); }
+    .rename-field input { box-sizing: border-box; width: 100%; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 400 var(--lu-type-body)/1.2 var(--lu-font); }
+    .rename-field input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .rename-action { display: flex; justify-content: flex-end; }
+    .design-actions { display: flex; flex-wrap: wrap; gap: var(--lu-space-2); }
+    .delete-action { display: flex; justify-content: flex-end; }
+    .delete-action iledclock-hold-button { width: min(100%, 20rem); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @container (min-width: 720px) { .grid, .loading-grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); } }
+    @container (max-width: 420px) { .heading-actions { width: 100%; } .heading-actions > * { flex: 1 1 auto; } .selection-bar { justify-content: stretch; } .selection-bar > * { flex: 1 1 10rem; } .selection-count { flex-basis: 100%; } .delete-action iledclock-hold-button { width: 100%; } }
+  `];
 }
 
 customElements.define("iledclock-library-panel", IledclockLibraryPanel);
 
-declare global {
-  interface HTMLElementTagNameMap {
-    "iledclock-library-panel": IledclockLibraryPanel;
-  }
-}
+declare global { interface HTMLElementTagNameMap { "iledclock-library-panel": IledclockLibraryPanel; } }

@@ -8,13 +8,22 @@ session, the cache, and Divoom account credentials from a config entry.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
 class SortOption:
     id: str
     label: str
+
+
+@dataclass(frozen=True, slots=True)
+class CategoryInfo:
+    id: str
+    label: str
+
+    def to_json(self) -> dict[str, str]:
+        return {"id": self.id, "label": self.label}
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +39,8 @@ class SourceInfo:
     sizes: tuple[str, ...]
     supports_search: bool
     homepage: str
+    categories: tuple[CategoryInfo, ...] = ()
+    kind: str = "adapted"
 
     def to_json(self) -> dict:
         return {
@@ -42,6 +53,8 @@ class SourceInfo:
             "sizes": list(self.sizes),
             "supports_search": self.supports_search,
             "homepage": self.homepage,
+            "categories": [category.to_json() for category in self.categories],
+            "kind": self.kind,
         }
 
 
@@ -65,6 +78,9 @@ class GalleryItem:
     created: int | None = None
     url: str | None = None
     media_path: str = ""
+    category: str | None = None
+    frames: int | None = None
+    native_fit: bool = False
 
     def to_json(self) -> dict:
         return {
@@ -80,6 +96,9 @@ class GalleryItem:
             "created": self.created,
             "url": self.url,
             "media_path": self.media_path,
+            "category": self.category,
+            "frames": self.frames,
+            "native_fit": self.native_fit,
         }
 
     def with_media_path(self, media_path: str) -> "GalleryItem":
@@ -87,7 +106,8 @@ class GalleryItem:
             source=self.source, id=self.id, title=self.title, width=self.width,
             height=self.height, animated=self.animated, author=self.author,
             likes=self.likes, downloads=self.downloads, created=self.created,
-            url=self.url, media_path=media_path,
+            url=self.url, media_path=media_path, category=self.category,
+            frames=self.frames, native_fit=self.native_fit,
         )
 
 
@@ -119,3 +139,15 @@ class SourceUnavailable(SourceError):
 
 class SourceRequestError(SourceError):
     """A network/HTTP/parse failure talking to the source's live service."""
+
+
+class SourceNotFound(SourceRequestError):
+    """The upstream source returned HTTP 404 for the requested catalog or media."""
+
+
+class SourceTimeout(SourceRequestError):
+    """The upstream source did not reply before its request deadline."""
+
+
+class SourceDecodeError(SourceRequestError):
+    """A vendor image or packed animation record failed content decoding."""

@@ -25,6 +25,7 @@
 import { LitElement, css, html, type PropertyValues } from "lit";
 import { createRef, ref } from "lit/directives/ref.js";
 import { GRID_HEIGHT, GRID_WIDTH, type PixelFrame } from "../lib/grid.ts";
+import { TOKENS_CSS } from "../styles/tokens.ts";
 import { cellCenter, computeMatrixLayout, pointToCell, type MatrixLayout } from "../lib/matrix-layout.ts";
 
 export interface MatrixPointerDetail {
@@ -35,7 +36,7 @@ export interface MatrixPointerDetail {
   pointerId: number;
 }
 
-const OFF_DOT_ALPHA = 0.05;
+const OFF_DOT_ALPHA = 0.08;
 
 export class IledclockMatrixCanvas extends LitElement {
   static properties = {
@@ -226,12 +227,14 @@ export class IledclockMatrixCanvas extends LitElement {
     ></canvas>`;
   }
 
-  static styles = css`
+  static styles = [TOKENS_CSS, css`
     :host {
       display: block;
       width: 100%;
       height: 100%;
       contain: layout size;
+      border-radius: var(--lu-radius-tile);
+      overflow: hidden;
     }
     canvas {
       display: block;
@@ -243,7 +246,7 @@ export class IledclockMatrixCanvas extends LitElement {
     canvas.interactive {
       cursor: crosshair;
     }
-  `;
+  `];
 }
 
 customElements.define("iledclock-matrix-canvas", IledclockMatrixCanvas);

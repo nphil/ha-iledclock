@@ -13,12 +13,15 @@ results for the WS/HTTP wire.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
+import time
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 import voluptuous as vol
 from aiohttp import web
@@ -28,15 +31,18 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import aiohttp_client
 
 from .. import adapt
-from ..const import DOMAIN
+from ..const import DISPLAY_HEIGHT, DISPLAY_WIDTH, DOMAIN
 from ..designs import DesignValidationError
 from ..importers import DecodeError as ImportDecodeError
 from ..importers import gif as gif_importer
 from ..importers import load_by_filename
 from ..store import async_get_design_library
-from . import awtrix, divoom, lametric
+from . import awtrix, coolledx, coolledx_anim, divoom, lametric
 from .cache import DiskLRUCache
-from .models import GalleryItem, SourceError, SourceInfo, SourceRequestError, SourceUnavailable
+from .models import (
+    GalleryItem, SourceDecodeError, SourceError, SourceInfo, SourceNotFound,
+    SourceRequestError, SourceTimeout, SourceUnavailable,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,7 +56,14 @@ MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 #: browsing session, well inside any TTL that would matter here.
 CACHE_TTL_MEDIA_S = 7 * 24 * 60 * 60
 
-_SOURCE_MODULES: dict[str, Any] = {"lametric": lametric, "awtrix": awtrix, "divoom": divoom}
+MEDIA_CONCURRENCY_PER_SOURCE = 4
+NEGATIVE_DECODE_CACHE_TTL_S = 5 * 60
+MEDIA_REQUEST_TIMEOUT_S = 12
+
+_SOURCE_MODULES: dict[str, Any] = {
+    "iledclock": coolledx, "iledclock_anim": coolledx_anim,
+    "lametric": lametric, "awtrix": awtrix, "divoom": divoom,
+}
 
 #: Only Divoom's pixel-bean decoder needs these (AES, LZO, zstd formats). They are NOT manifest
 #: requirements: a package that fails to install on the host would stop the whole integration -
@@ -111,34 +124,186 @@ def _divoom_account(hass: HomeAssistant, entry_id: str) -> "divoom.DivoomAccount
     return None
 
 
-def _source_infos(hass: HomeAssistant, entry_id: str) -> list[SourceInfo]:
+async def _cached_vendor_catalog(
+    hass: HomeAssistant,
+    key: str,
+    ttl_s: float,
+    *,
+    decode: Callable[[bytes], Any],
+    encode: Callable[[Any], Any],
+    fetch: Callable[[], Any],
+) -> Any:
+    """Serve stale catalogs immediately and refresh them once in the background."""
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    cache = _cache(hass)
+
+    async def read_cached() -> tuple[Any | None, float | None]:
+        entry = await hass.async_add_executor_job(partial(cache.get, key, ttl_s=None))
+        if entry is None:
+            return None, None
+        try:
+            return decode(entry.data), time.time() - entry.stored_at
+        except Exception:
+            _LOGGER.debug("Ignoring invalid cached gallery catalog %s", key, exc_info=True)
+            return None, None
+
+    async def refresh() -> Any:
+        locks = domain_data.setdefault("gallery_catalog_locks", {})
+        lock = locks.setdefault(key, asyncio.Lock())
+        async with lock:
+            current, age = await read_cached()
+            if current is not None and age is not None and age <= ttl_s:
+                return current
+            result = await fetch()
+            payload = json.dumps(encode(result), ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            await hass.async_add_executor_job(
+                partial(cache.put, key, payload, content_type="application/json")
+            )
+            return result
+
+    cached, age = await read_cached()
+    if cached is not None:
+        if age is not None and age > ttl_s:
+            tasks = domain_data.setdefault("gallery_catalog_refresh_tasks", {})
+            task = tasks.get(key)
+            if task is None or task.done():
+                async def revalidate() -> None:
+                    try:
+                        await refresh()
+                    except Exception:
+                        _LOGGER.debug("Could not refresh gallery catalog %s", key, exc_info=True)
+
+                task = hass.async_create_task(revalidate())
+                tasks[key] = task
+                task.add_done_callback(
+                    lambda done: tasks.pop(key, None) if tasks.get(key) is done else None
+                )
+        return cached
+    return await refresh()
+
+
+def _encode_coolledx_categories(categories: Any) -> list[dict[str, str]]:
+    return [{"id": item.id, "label": item.label, "url": item.url} for item in categories]
+
+
+def _decode_coolledx_categories(payload: bytes) -> tuple[coolledx.Category, ...]:
+    value = json.loads(payload)
+    if not isinstance(value, list):
+        raise ValueError("cached category list is not an array")
+    return tuple(
+        coolledx.Category(id=item["id"], label=item["label"], url=item["url"])
+        for item in value if isinstance(item, dict)
+    )
+
+
+async def _coolledx_categories(
+    hass: HomeAssistant, *, language: str | None = None
+) -> tuple[coolledx.Category, ...]:
+    resolved_language = coolledx.normalize_language(language or getattr(hass.config, "language", "en"))
+    rows, cols = DISPLAY_HEIGHT, DISPLAY_WIDTH
+    key = f"iledclock:categories:{rows}x{cols}:{resolved_language}"
+    session = aiohttp_client.async_get_clientsession(hass)
+    return await _cached_vendor_catalog(
+        hass, key, coolledx.CACHE_TTL_CATALOG_S,
+        decode=_decode_coolledx_categories, encode=_encode_coolledx_categories,
+        fetch=lambda: coolledx.fetch_categories(
+            session, language=resolved_language, rows=rows, cols=cols
+        ),
+    )
+
+
+async def _coolledx_catalog(hass: HomeAssistant) -> coolledx.Catalog:
+    language = coolledx.normalize_language(getattr(hass.config, "language", "en"))
+    rows, cols = DISPLAY_HEIGHT, DISPLAY_WIDTH
+    categories = await _coolledx_categories(hass, language=language)
+    session = aiohttp_client.async_get_clientsession(hass)
+    key = f"iledclock:catalog:{rows}x{cols}:{language}"
+    return await _cached_vendor_catalog(
+        hass, key, coolledx.CACHE_TTL_CATALOG_S,
+        decode=coolledx.catalog_from_json, encode=coolledx.catalog_to_json,
+        fetch=lambda: coolledx.fetch_catalog(
+            session, language=language, rows=rows, cols=cols, categories=categories
+        ),
+    )
+
+
+async def _cached_coolledx_frames(
+    hass: HomeAssistant, items: tuple[GalleryItem, ...]
+) -> dict[str, int]:
+    """Return frame counts already learned by successful CoolLEDX media decodes."""
+    if not items:
+        return {}
+    cache = _cache(hass)
+
+    def read_counts() -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for item in items:
+            entry = cache.get(f"frames:iledclock:{item.id}", ttl_s=None)
+            if entry is None:
+                continue
+            try:
+                count = int(entry.data)
+            except (TypeError, ValueError):
+                continue
+            if count > 0:
+                counts[item.id] = count
+        return counts
+
+    return await hass.async_add_executor_job(read_counts)
+
+
+def _with_coolledx_frame_counts(
+    items: tuple[GalleryItem, ...], counts: Mapping[str, int]
+) -> tuple[GalleryItem, ...]:
+    return tuple(
+        replace(item, frames=frames, animated=frames > 1)
+        if (frames := counts.get(item.id)) is not None else item
+        for item in items
+    )
+
+
+async def _coolledx_anim_catalog(hass: HomeAssistant) -> coolledx_anim.Catalog:
+    session = aiohttp_client.async_get_clientsession(hass)
+    return await _cached_vendor_catalog(
+        hass, "iledclock_anim:catalog", coolledx_anim.CACHE_TTL_CATALOG_S,
+        decode=coolledx_anim.catalog_from_json, encode=coolledx_anim.catalog_to_json,
+        fetch=lambda: coolledx_anim.fetch_catalog(session),
+    )
+
+
+async def _source_infos(hass: HomeAssistant, entry_id: str) -> list[SourceInfo]:
     _require_entry(hass, entry_id)
+    try:
+        categories = await _coolledx_categories(hass)
+    except SourceError:
+        _LOGGER.debug("Could not load iLedClock material categories", exc_info=True)
+        categories = ()
     return [
+        coolledx.source_info(categories=categories),
+        coolledx_anim.source_info(),
         lametric.source_info(),
         awtrix.source_info(),
         divoom.source_info(configured=_divoom_account(hass, entry_id) is not None),
     ]
 
 
-async def _lametric_catalog(hass: HomeAssistant) -> list[GalleryItem]:
-    cache = _cache(hass)
-    entry = await hass.async_add_executor_job(partial(cache.get, "lametric:catalog", ttl_s=lametric.CACHE_TTL_CATALOG_S))
-    if entry is not None:
-        try:
-            rows = json.loads(entry.data.decode("utf-8"))
-            return [GalleryItem(**row) for row in rows]
-        except (ValueError, TypeError, KeyError) as err:
-            _LOGGER.debug("Discarding corrupt LaMetric catalog cache entry: %s", err)
+async def _lametric_catalog(
+    hass: HomeAssistant, *, order: str = lametric.DEFAULT_SORT
+) -> list[GalleryItem]:
     session = aiohttp_client.async_get_clientsession(hass)
-    catalog = await lametric.fetch_catalog(session)
-    payload = json.dumps([item.to_json() for item in catalog]).encode("utf-8")
-    await hass.async_add_executor_job(partial(cache.put, "lametric:catalog", payload, content_type="application/json"))
-    return catalog
+    return await _cached_vendor_catalog(
+        hass,
+        f"lametric:catalog:{order}",
+        lametric.CACHE_TTL_CATALOG_S,
+        decode=lambda payload: [GalleryItem(**row) for row in json.loads(payload)],
+        encode=lambda items: [item.to_json() for item in items],
+        fetch=lambda: lametric.fetch_catalog(session, order=order),
+    )
 
 
 async def async_search(
     hass: HomeAssistant, entry_id: str, *, source: str, sort: str | None, page: int,
-    query: str | None, size: str | None, animated_only: bool,
+    query: str | None, size: str | None, animated_only: bool, category: str | None = None,
 ) -> tuple[list[GalleryItem], bool]:
     module = _SOURCE_MODULES.get(source)
     if module is None:
@@ -146,8 +311,24 @@ async def async_search(
     resolved_sort = sort or module.DEFAULT_SORT
     session = aiohttp_client.async_get_clientsession(hass)
 
-    if source == "lametric":
-        catalog = await _lametric_catalog(hass)
+    if source == "iledclock":
+        catalog = await _coolledx_catalog(hass)
+        if animated_only:
+            counts = await _cached_coolledx_frames(hass, catalog.items)
+            catalog = replace(catalog, items=_with_coolledx_frame_counts(catalog.items, counts))
+        page_result = coolledx.search(
+            catalog, sort=resolved_sort, page=page, query=query, size=size,
+            animated_only=animated_only, category=category,
+        )
+    elif source == "iledclock_anim":
+        catalog = await _coolledx_anim_catalog(hass)
+        page_result = coolledx_anim.search(
+            catalog, sort=resolved_sort, page=page, query=query, size=size,
+            animated_only=animated_only, category=category,
+            language=hass.config.language,
+        )
+    elif source == "lametric":
+        catalog = await _lametric_catalog(hass, order=resolved_sort)
         page_result = lametric.search(
             catalog, sort=resolved_sort, page=page, query=query, size=size, animated_only=animated_only
         )
@@ -163,9 +344,13 @@ async def async_search(
             session, account, sort=resolved_sort, page=page, query=query, size=size, animated_only=animated_only
         )
 
+    result_items = page_result.items
+    if source == "iledclock" and not animated_only:
+        counts = await _cached_coolledx_frames(hass, result_items)
+        result_items = _with_coolledx_frame_counts(result_items, counts)
     items = [
         item.with_media_path(f"/api/iledclock/gallery/media/{source}/{item.id}?entry_id={entry_id}")
-        for item in page_result.items
+        for item in result_items
     ]
     return items, page_result.has_more
 
@@ -173,33 +358,88 @@ async def async_search(
 async def async_fetch_media(
     hass: HomeAssistant, entry_id: str, *, source: str, item_id: str
 ) -> tuple[bytes, str]:
-    """Fetch (or serve from cache) one item's *displayable* media bytes: the source's own
-    original bytes for LaMetric/AWTRIX, or the already-decoded GIF for Divoom (docs/
-    GALLERY.md: "proxies + caches original media (and Divoom-decoded GIFs)")."""
-    if source not in _SOURCE_MODULES:
+    """Fetch displayable media once per source/item, caching only successful payloads."""
+
+    _require_entry(hass, entry_id)
+    module = _SOURCE_MODULES.get(source)
+    if module is None:
         raise GalleryCommandError("unknown_source", f"unknown gallery source {source!r}")
 
     cache = _cache(hass)
     cache_key = f"media:{source}:{item_id}"
-    cached = await hass.async_add_executor_job(partial(cache.get, cache_key, ttl_s=CACHE_TTL_MEDIA_S))
+    negative_key = f"decode-failed:{cache_key}"
+    ttl_s = getattr(module, "CACHE_TTL_MEDIA_S", CACHE_TTL_MEDIA_S)
+
+    async def cached_media():
+        return await hass.async_add_executor_job(partial(cache.get, cache_key, ttl_s=ttl_s))
+
+    async def raise_if_recently_invalid() -> None:
+        failed = await hass.async_add_executor_job(
+            partial(cache.get, negative_key, ttl_s=NEGATIVE_DECODE_CACHE_TTL_S)
+        )
+        if failed is not None:
+            raise SourceDecodeError("This gallery item failed media decoding recently")
+
+    cached = await cached_media()
     if cached is not None:
         return cached.data, cached.content_type
+    await raise_if_recently_invalid()
 
-    session = aiohttp_client.async_get_clientsession(hass)
-    if source == "lametric":
-        catalog = await _lametric_catalog(hass)
-        media = await lametric.fetch_media(session, catalog, item_id)
-    elif source == "awtrix":
-        media = await awtrix.fetch_media(session, item_id)
-    else:  # divoom
-        account = _divoom_account(hass, entry_id)
-        if account is None:
-            raise SourceUnavailable("Divoom is not configured for this integration (add an account in options)")
-        await _ensure_divoom_requirements(hass)
-        media = await divoom.fetch_media(session, account, item_id)
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    semaphores = domain_data.setdefault("gallery_media_semaphores", {})
+    semaphore = semaphores.setdefault(
+        source, asyncio.Semaphore(MEDIA_CONCURRENCY_PER_SOURCE)
+    )
+    async with semaphore:
+        cached = await cached_media()
+        if cached is not None:
+            return cached.data, cached.content_type
+        await raise_if_recently_invalid()
 
-    await hass.async_add_executor_job(partial(cache.put, cache_key, media.data, content_type=media.content_type))
-    return media.data, media.content_type
+        session = aiohttp_client.async_get_clientsession(hass)
+        try:
+            if source == "iledclock":
+                catalog = await _coolledx_catalog(hass)
+                media = await coolledx.fetch_media(session, catalog, item_id)
+                frames = await hass.async_add_executor_job(coolledx.frame_count, media.data)
+                await hass.async_add_executor_job(
+                    partial(
+                        cache.put,
+                        f"frames:iledclock:{item_id}",
+                        str(frames).encode("utf-8"),
+                        content_type="text/plain",
+                    )
+                )
+            elif source == "iledclock_anim":
+                catalog = await _coolledx_anim_catalog(hass)
+                media = await hass.async_add_executor_job(
+                    coolledx_anim.render_media, catalog, item_id
+                )
+            elif source == "lametric":
+                catalog = await _lametric_catalog(hass)
+                media = await lametric.fetch_media(session, catalog, item_id)
+            elif source == "awtrix":
+                media = await awtrix.fetch_media(session, item_id)
+            else:  # divoom
+                account = _divoom_account(hass, entry_id)
+                if account is None:
+                    raise SourceUnavailable(
+                        "Divoom is not configured for this integration (add an account in options)"
+                    )
+                await _ensure_divoom_requirements(hass)
+                media = await divoom.fetch_media(
+                    session, account, item_id, decode_executor=hass.async_add_executor_job
+                )
+        except SourceDecodeError:
+            await hass.async_add_executor_job(
+                partial(cache.put, negative_key, b"1", content_type="text/plain")
+            )
+            raise
+
+        await hass.async_add_executor_job(
+            partial(cache.put, cache_key, media.data, content_type=media.content_type)
+        )
+        return media.data, media.content_type
 
 
 async def async_item_credit(hass: HomeAssistant, entry_id: str, *, source: str, item_id: str) -> dict[str, Any]:
@@ -207,6 +447,18 @@ async def async_item_credit(hass: HomeAssistant, entry_id: str, *, source: str, 
     `origin` (docs/GALLERY.md `gallery/import`) both need. One extra request per item --
     acceptable here (a single item, not a listing page), unlike `search()`'s politeness
     budget."""
+    if source == "iledclock":
+        catalog = await _coolledx_catalog(hass)
+        item = coolledx.find_item(catalog, item_id)
+        if item is None:
+            raise SourceRequestError(f"iLedClock material {item_id!r} not found in cached catalog")
+        return {"title": item.title, "author": None, "url": None}
+    if source == "iledclock_anim":
+        catalog = await _coolledx_anim_catalog(hass)
+        record = next((entry for entry in catalog.entries if entry.item.id == item_id), None)
+        if record is None:
+            raise SourceRequestError(f"iLedClock animation {item_id!r} not found in cached catalog")
+        return {"title": record.item.title, "author": None, "url": None}
     if source == "lametric":
         catalog = await _lametric_catalog(hass)
         item = lametric.find_item(catalog, item_id)
@@ -304,11 +556,62 @@ def _send_command_error(connection: websocket_api.ActiveConnection, msg_id: int,
 @websocket_api.async_response
 async def ws_gallery_sources(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
     try:
-        infos = _source_infos(hass, msg["entry_id"])
+        infos = await _source_infos(hass, msg["entry_id"])
     except GalleryCommandError as err:
         _send_command_error(connection, msg["id"], err)
         return
     connection.send_result(msg["id"], [info.to_json() for info in infos])
+
+
+async def async_shelves(hass: HomeAssistant, entry_id: str) -> list[dict[str, str]]:
+    """Return the independent shelf plan used by Pixel Studio’s For-you view."""
+    _require_entry(hass, entry_id)
+    try:
+        categories = await _coolledx_categories(hass)
+    except SourceError:
+        _LOGGER.debug("Could not load iLedClock shelf category labels", exc_info=True)
+        categories = ()
+    labels = {category.id: category.label for category in categories}
+    featured_categories = (
+        ("trending", "Trending"),
+        ("creative", "Creative"),
+        ("emoji", "Emoji"),
+        ("festival", "Festival"),
+    )
+    shelves = [
+        {
+            "id": f"iledclock-{category}",
+            "title": f"iLedClock originals · {labels.get(category, fallback)}",
+            "source": "iledclock",
+            "category": category,
+            "sort": coolledx.DEFAULT_SORT,
+        }
+        for category, fallback in featured_categories
+    ]
+    shelves.extend((
+        {"id": "iledclock-animations", "title": "Animations", "source": "iledclock_anim"},
+        {"id": "lametric-popular", "title": "LaMetric popular", "source": "lametric", "sort": "popular"},
+        {"id": "awtrix-new", "title": "AWTRIX new", "source": "awtrix", "sort": "newest"},
+    ))
+    if _divoom_account(hass, entry_id) is not None:
+        shelves.append({
+            "id": "divoom-trending", "title": "Divoom trending",
+            "source": "divoom", "sort": divoom.DEFAULT_SORT,
+        })
+    return shelves
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "iledclock/gallery/shelves", vol.Required("entry_id"): str}
+)
+@websocket_api.async_response
+async def ws_gallery_shelves(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    try:
+        shelves = await async_shelves(hass, msg["entry_id"])
+    except (GalleryCommandError, SourceError) as err:
+        _send_command_error(connection, msg["id"], err)
+        return
+    connection.send_result(msg["id"], shelves)
 
 
 @websocket_api.websocket_command(
@@ -320,6 +623,7 @@ async def ws_gallery_sources(hass: HomeAssistant, connection: websocket_api.Acti
         vol.Optional("page", default=1): vol.All(int, vol.Range(min=1)),
         vol.Optional("query"): str,
         vol.Optional("size"): str,
+        vol.Optional("category"): str,
         vol.Optional("animated_only", default=False): bool,
     }
 )
@@ -328,7 +632,8 @@ async def ws_gallery_search(hass: HomeAssistant, connection: websocket_api.Activ
     try:
         items, has_more = await async_search(
             hass, msg["entry_id"], source=msg["source"], sort=msg.get("sort"), page=msg["page"],
-            query=msg.get("query"), size=msg.get("size"), animated_only=msg["animated_only"],
+            query=msg.get("query"), size=msg.get("size"),
+            animated_only=msg["animated_only"], category=msg.get("category"),
         )
     except (GalleryCommandError, SourceError) as err:
         _send_command_error(connection, msg["id"], err)
@@ -455,7 +760,7 @@ class GalleryMediaView(HomeAssistantView):
     The frontend signs URLs via WS `auth/sign_path` (standard HA mechanism -- this view
     needs no special support for that beyond the default `requires_auth = True`)."""
 
-    url = "/api/iledclock/gallery/media/{source}/{item_id}"
+    url = "/api/iledclock/gallery/media/{source}/{item_id:.+}"
     name = "api:iledclock:gallery:media"
 
     def __init__(self, hass: HomeAssistant) -> None:
@@ -466,12 +771,21 @@ class GalleryMediaView(HomeAssistantView):
         if not entry_id:
             return web.Response(status=400, text="entry_id query parameter is required")
         try:
-            data, content_type = await async_fetch_media(self._hass, entry_id, source=source, item_id=item_id)
+            async with asyncio.timeout(MEDIA_REQUEST_TIMEOUT_S):
+                data, content_type = await async_fetch_media(
+                    self._hass, entry_id, source=source, item_id=item_id
+                )
         except GalleryCommandError as err:
             status = 404 if err.code == "unknown_entry" else 400
             return web.Response(status=status, text=str(err))
         except SourceUnavailable as err:
             return web.Response(status=409, text=str(err))
+        except SourceNotFound as err:
+            return web.Response(status=404, text=str(err))
+        except SourceTimeout as err:
+            return web.Response(status=504, text=str(err))
+        except TimeoutError:
+            return web.Response(status=504, text="gallery media request timed out")
         except SourceError as err:
             return web.Response(status=502, text=str(err))
         return web.Response(
@@ -492,6 +806,7 @@ async def async_setup_gallery(hass: HomeAssistant) -> None:
         return
     domain_data["gallery_registered"] = True
 
+    websocket_api.async_register_command(hass, ws_gallery_shelves)
     websocket_api.async_register_command(hass, ws_gallery_sources)
     websocket_api.async_register_command(hass, ws_gallery_search)
     websocket_api.async_register_command(hass, ws_gallery_preview)

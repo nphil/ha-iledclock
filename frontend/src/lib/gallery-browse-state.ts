@@ -1,10 +1,6 @@
-/** Pure sort/filter state and pagination-merge logic for the gallery browser's grid, kept
- * separate from `iledclock-gallery-browser.ts` so switching sources/sorts/filters, merging a page
- * of `iledclock/gallery/search` results, and discarding a stale out-of-order response are all
- * unit-testable without a WebSocket or a DOM. The stale-response guard mirrors `ws-query.ts`'s own
- * request-id pattern: a response only applies if it still answers the filters/page currently in
- * flight, so a slow response for a source/sort the user has since navigated away from can never
- * land on top of the grid they're actually looking at.
+/** Pure pagination and filter state for Explore’s source grid. Kept separate from the Lit browser
+ * so paging, deduplication, filter changes and stale-response rejection can be verified without
+ * a WebSocket or DOM. A response only applies to the exact filters and page currently in flight.
  */
 
 import type { GalleryItem } from "./gallery-api.ts";
@@ -15,6 +11,7 @@ export interface BrowseFilters {
   readonly query: string;
   readonly size: string | undefined;
   readonly animatedOnly: boolean;
+  readonly category?: string;
 }
 
 export interface BrowseState {
@@ -25,9 +22,8 @@ export interface BrowseState {
   readonly loading: boolean;
   readonly error: string | null;
 }
-
 export function browseFiltersEqual(a: BrowseFilters, b: BrowseFilters): boolean {
-  return a.source === b.source && a.sort === b.sort && a.query === b.query && a.size === b.size && a.animatedOnly === b.animatedOnly;
+  return a.source === b.source && a.sort === b.sort && a.query === b.query && a.size === b.size && a.animatedOnly === b.animatedOnly && a.category === b.category;
 }
 
 export function initialBrowseState(filters: BrowseFilters): BrowseState {
@@ -88,7 +84,7 @@ export function failLoadMore(state: BrowseState, forFilters: BrowseFilters, forP
 /** Client-side title filter for a source with no server-side search (the sources table's LaMetric
  * note: cache the full list and filter titles locally). A source with `supports_search: true`
  * should send `query` in the WS request instead and never call this against its own results --
- * `iledclock-gallery-browser.ts` picks between the two per the active source's own flag. */
+ * `iledclock-explore-browser.ts` picks between the two per the active source’s own flag. */
 export function filterItemsByTitle(items: readonly GalleryItem[], query: string): readonly GalleryItem[] {
   const needle = query.trim().toLowerCase();
   return needle ? items.filter((item) => item.title.toLowerCase().includes(needle)) : items;

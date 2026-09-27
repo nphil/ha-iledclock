@@ -72,7 +72,16 @@ export interface GallerySearchParams {
 
 // ---- adaptation (adapt.py, docs/GALLERY.md section "Adaptation pipeline") ----
 
-export const GALLERY_LAYOUTS = ["auto", "center", "fit", "fill", "stretch", "tile", "mirror"] as const;
+export const GALLERY_LAYOUTS = [
+  "auto",
+  "center",
+  "fit",
+  "fill",
+  "stretch",
+  "tile",
+  "mirror",
+  "icon_with_clock",
+] as const;
 export type GalleryLayout = (typeof GALLERY_LAYOUTS)[number];
 
 const GALLERY_LAYOUT_LABELS: Readonly<Record<GalleryLayout, string>> = {
@@ -83,13 +92,12 @@ const GALLERY_LAYOUT_LABELS: Readonly<Record<GalleryLayout, string>> = {
   stretch: "Stretch",
   tile: "Tile",
   mirror: "Mirror",
+  icon_with_clock: "With clock",
 };
 
 /** A layout id's display label. Falls back to turning an unrecognised snake_case/kebab-case id
- * (e.g. a future `NATIVE_LAYERS`-based composition like `icon_with_clock`) into title-cased
- * words instead of crashing or showing a raw identifier, so the layout pills stay readable the
- * moment GalleryEngine adds a new composed layout to `layouts_available`, with no change needed
- * here first. */
+ * (e.g. a future `icon_with_weather` composition) into readable title-cased words instead of raw identifiers.
+ * That keeps layout pills clear as GalleryEngine adds new compositions without changing this map first. */
 export function galleryLayoutLabel(layout: string): string {
   const known = GALLERY_LAYOUT_LABELS[layout as GalleryLayout];
   if (known) return known;
@@ -245,7 +253,7 @@ export function importFileExtension(filename: string): string {
 }
 
 /** Whether the browser can decode and display this file itself (so the import sheet can offer a
- * draggable crop box over the real source image) as opposed to an opaque `.aseprite`/`.piskel`
+ * draggable crop box over the real source image) as opposed to an opaque `.ase`/`.aseprite`/`.piskel`
  * file, which only the server can decode -- those skip straight to the adapted preview with
  * numeric-only crop/scale/offset, same as a gallery item. */
 export function isRasterImportFile(filename: string): boolean {
@@ -259,7 +267,7 @@ export function isAcceptedImportFile(filename: string): boolean {
 /** `null` when the file is acceptable; otherwise a user-facing reason, checked before ever
  * reading the file into memory or making a WS call. */
 export function validateImportFile(filename: string, sizeBytes: number): string | null {
-  if (!isAcceptedImportFile(filename)) return `${filename || "That file"} isn't a supported type (GIF, PNG, JPEG, WebP, .aseprite, or .piskel).`;
+  if (!isAcceptedImportFile(filename)) return `${filename || "That file"} isn't a supported type (GIF, PNG, JPEG, WebP, .aseprite, .ase, or .piskel).`;
   if (sizeBytes > MAX_IMPORT_FILE_BYTES) return `${filename} is too large (max 8 MB).`;
   return null;
 }
@@ -299,27 +307,34 @@ export interface SignedPathEntry {
 /** Requested validity (seconds) for a signed media path -- long enough that a grid's worth of
  * tiles, or a slow connection re-fetching a GIF, doesn't need re-signing mid-scroll. */
 export const SIGNED_PATH_TTL_S = 600;
-/** Refresh once less than this much validity remains rather than waiting for outright expiry, so
- * a request started just before expiry can never resolve to an already-dead URL. */
-const SIGNED_PATH_REFRESH_MARGIN_MS = 15_000;
+/** Re-sign with a full minute remaining so a stale tab never starts an image request on an
+ * signature that is about to expire. */
+const SIGNED_PATH_REFRESH_MARGIN_MS = 60_000;
 
 export function isSignedPathFresh(entry: SignedPathEntry | undefined, nowMs: number): boolean {
-  return entry !== undefined && entry.expiresAtMs - nowMs > SIGNED_PATH_REFRESH_MARGIN_MS;
+  return entry !== undefined && entry.expiresAtMs - nowMs >= SIGNED_PATH_REFRESH_MARGIN_MS;
 }
 
-/** Signs `iledclock/gallery/media/...` proxy paths with HA's own `auth/sign_path`, so this
- * bundle's `<img>` elements can load the integration's authenticated HTTP view without embedding
- * a bearer token in markup. One instance per component; a `hass` that can't sign (no `callWS`, or
- * a `callWS` that rejects -- an older `hass`, or a dev harness without this specific command)
- * degrades to handing back the unsigned path rather than throwing, since a caller with nothing to
- * check for a signature has nothing to lose by trying the plain path. */
+/** Signs media paths with HA's auth/sign_path, so image elements can load the authenticated
+ * proxy without embedding a bearer token in markup. signFresh() bypasses the cache for a single
+ * item when its image retry needs a new URL; it updates the same cache used by sign(). */
 export class SignedMediaCache {
   private readonly _entries = new Map<string, SignedPathEntry>();
 
   async sign(hass: HomeAssistant, path: string): Promise<string> {
+    return this._sign(hass, path, false);
+  }
+
+  /** Always ask HA for a new signature; use after a failed image request, then retry that image
+   * once with the returned URL. */
+  async signFresh(hass: HomeAssistant, path: string): Promise<string> {
+    return this._sign(hass, path, true);
+  }
+
+  private async _sign(hass: HomeAssistant, path: string, force: boolean): Promise<string> {
     const now = Date.now();
     const cached = this._entries.get(path);
-    if (isSignedPathFresh(cached, now)) return cached!.signedPath;
+    if (!force && isSignedPathFresh(cached, now)) return cached!.signedPath;
     if (!hass.callWS) return path;
     try {
       const result = await hass.callWS<{ path: string }>({ type: "auth/sign_path", path, expires: SIGNED_PATH_TTL_S });

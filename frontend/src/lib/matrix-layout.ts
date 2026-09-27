@@ -4,6 +4,8 @@
  * (cursor, grid lines) differ between the two call sites.
  */
 
+export const MATRIX_DOT_SCALE = 0.78;
+
 export interface MatrixLayout {
   /** Centre-to-centre spacing between adjacent LEDs, in canvas px. */
   cellSize: number;
@@ -19,7 +21,7 @@ export interface MatrixLayout {
  * device's own square-ish LED pitch): the limiting axis sets `cellSize`, and the other axis
  * centres the unused margin. `dotScale` (0..1) is the LED's diameter as a fraction of its cell,
  * `< 1` so neighbouring LEDs never touch (the physical matrix's own dark gap between pixels). */
-export function computeMatrixLayout(canvasWidth: number, canvasHeight: number, gridWidth: number, gridHeight: number, dotScale = 0.78): MatrixLayout {
+export function computeMatrixLayout(canvasWidth: number, canvasHeight: number, gridWidth: number, gridHeight: number, dotScale = MATRIX_DOT_SCALE): MatrixLayout {
   const cellSize = Math.min(canvasWidth / gridWidth, canvasHeight / gridHeight);
   const usedWidth = cellSize * gridWidth;
   const usedHeight = cellSize * gridHeight;

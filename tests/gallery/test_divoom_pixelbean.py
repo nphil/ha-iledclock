@@ -1,23 +1,20 @@
-"""`gallery.divoom_pixelbean` decoder tests.
+"""Tests for Divoom pixel-bean decoding.
 
-No live Divoom account was available for this port (see the assignment report), so every
-test here builds its own synthetic container byte-for-byte from the *documented* format
-(AES-CBC with the known fixed key/IV, LZO, zstd, embedded JPEG/GIF) using a from-scratch
-encoder helper below -- never by calling the decoder and re-feeding its own output. That
-is a real correctness check: it proves the decode direction agrees with the documented
-byte layout, because the "encoder" here is nothing but that same documented layout
-written out independently. The one exception is the hierarchical quadtree sub-decoder
-used by some format-26 frames (marker bytes 0x11/0x13/0x15): there is no independent way
-to construct a valid file for it without re-deriving Divoom's own private encoder, so it
-is untested here -- see its docstring in `divoom_pixelbean.py`.
+Formats 3/4 use captured real gallery files 33678 and 33674 in fixtures/. The remaining
+round-trip tests build independent samples from the published layouts so they check the
+decode direction without reusing decoder output. The format-26 hierarchical quadtree
+sub-decoder remains untested because an independent fixture encoder is unavailable.
 """
 
 from __future__ import annotations
 
 import struct
 import unittest
+from pathlib import Path
 
 from custom_components.iledclock.gallery import divoom_pixelbean as dpb
+
+_FIXTURES = Path(__file__).parent / "fixtures"
 
 _AES_KEY = b"78hrey23y28ogs89"
 _AES_IV = b"1234567890123456"
@@ -309,6 +306,43 @@ class Format43EmbeddedGifTests(unittest.TestCase):
         self.assertEqual(len(result.frames_rgb), 2)
         self.assertEqual(_pixel_at(result.frames_rgb[0], 0, 0, 16), (255, 0, 0))
         self.assertEqual(_pixel_at(result.frames_rgb[1], 0, 0, 16), (0, 255, 0))
+
+
+class CapturedLegacyFormatTests(unittest.TestCase):
+    def test_format_3_decodes_real_gallery_still(self) -> None:
+        data = (_FIXTURES / "divoom_33678.dat").read_bytes()
+        self.assertEqual(data[0], 3)
+
+        result = dpb.decode(data)
+
+        self.assertEqual((result.width, result.height), (16, 16))
+        self.assertEqual(result.delay_ms, 40)
+        self.assertEqual(len(result.frames_rgb), 1)
+        self.assertEqual(len(result.frames_rgb[0]), 16 * 16 * 3)
+        self.assertEqual(_pixel_at(result.frames_rgb[0], 0, 0, 16), (255, 255, 0))
+        self.assertEqual(_pixel_at(result.frames_rgb[0], 8, 8, 16), (255, 255, 255))
+
+    def test_format_4_decodes_real_gallery_frames_and_speed(self) -> None:
+        data = (_FIXTURES / "divoom_33674.dat").read_bytes()
+        self.assertEqual(data[:4], b"\x04\x04\x00\xb0")
+
+        result = dpb.decode(data)
+
+        self.assertEqual((result.width, result.height), (16, 16))
+        self.assertEqual(result.delay_ms, 176)
+        self.assertEqual(len(result.frames_rgb), 4)
+        self.assertTrue(all(len(frame) == 16 * 16 * 3 for frame in result.frames_rgb))
+        self.assertEqual(
+            [_pixel_at(frame, 8, 8, 16) for frame in result.frames_rgb],
+            [(0, 0, 0), (255, 255, 255), (255, 255, 255), (255, 255, 255)],
+        )
+        self.assertNotEqual(result.frames_rgb[0], result.frames_rgb[1])
+
+    def test_legacy_formats_reject_truncated_frame_data(self) -> None:
+        with self.assertRaises(dpb.PixelBeanDecodeError):
+            dpb.decode(b"\x03" + bytes(16 * 16 * 3 - 1))
+        with self.assertRaises(dpb.PixelBeanDecodeError):
+            dpb.decode(b"\x04\x02\x00\x10" + bytes(16 * 16 * 3))
 
 
 class UnsupportedAndErrorTests(unittest.TestCase):

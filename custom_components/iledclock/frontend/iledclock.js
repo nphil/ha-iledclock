@@ -1,19 +1,151 @@
-var Pe=globalThis,He=Pe.ShadowRoot&&(Pe.ShadyCSS===void 0||Pe.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,dt=Symbol(),Gt=new WeakMap,se=class{constructor(i,e,t){if(this._$cssResult$=!0,t!==dt)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=i,this.t=e}get styleSheet(){let i=this.o,e=this.t;if(He&&i===void 0){let t=e!==void 0&&e.length===1;t&&(i=Gt.get(e)),i===void 0&&((this.o=i=new CSSStyleSheet).replaceSync(this.cssText),t&&Gt.set(e,i))}return i}toString(){return this.cssText}},jt=r=>new se(typeof r=="string"?r:r+"",void 0,dt),_=(r,...i)=>{let e=r.length===1?r[0]:i.reduce((t,s,n)=>t+(o=>{if(o._$cssResult$===!0)return o.cssText;if(typeof o=="number")return o;throw Error("Value passed to 'css' function must be a 'css' function result: "+o+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(s)+r[n+1],r[0]);return new se(e,r,dt)},Ut=(r,i)=>{if(He)r.adoptedStyleSheets=i.map(e=>e instanceof CSSStyleSheet?e:e.styleSheet);else for(let e of i){let t=document.createElement("style"),s=Pe.litNonce;s!==void 0&&t.setAttribute("nonce",s),t.textContent=e.cssText,r.appendChild(t)}},ct=He?r=>r:r=>r instanceof CSSStyleSheet?(i=>{let e="";for(let t of i.cssRules)e+=t.cssText;return jt(e)})(r):r;var{is:kr,defineProperty:Sr,getOwnPropertyDescriptor:Cr,getOwnPropertyNames:Er,getOwnPropertySymbols:Lr,getPrototypeOf:Mr}=Object,Re=globalThis,qt=Re.trustedTypes,Ar=qt?qt.emptyScript:"",Ir=Re.reactiveElementPolyfillSupport,ne=(r,i)=>r,ut={toAttribute(r,i){switch(i){case Boolean:r=r?Ar:null;break;case Object:case Array:r=r==null?r:JSON.stringify(r)}return r},fromAttribute(r,i){let e=r;switch(i){case Boolean:e=r!==null;break;case Number:e=r===null?null:Number(r);break;case Object:case Array:try{e=JSON.parse(r)}catch{e=null}}return e}},Kt=(r,i)=>!kr(r,i),Wt={attribute:!0,type:String,converter:ut,reflect:!1,useDefault:!1,hasChanged:Kt};Symbol.metadata??=Symbol("metadata"),Re.litPropertyMetadata??=new WeakMap;var R=class extends HTMLElement{static addInitializer(i){this._$Ei(),(this.l??=[]).push(i)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(i,e=Wt){if(e.state&&(e.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(i)&&((e=Object.create(e)).wrapped=!0),this.elementProperties.set(i,e),!e.noAccessor){let t=Symbol(),s=this.getPropertyDescriptor(i,t,e);s!==void 0&&Sr(this.prototype,i,s)}}static getPropertyDescriptor(i,e,t){let{get:s,set:n}=Cr(this.prototype,i)??{get(){return this[e]},set(o){this[e]=o}};return{get:s,set(o){let a=s?.call(this);n?.call(this,o),this.requestUpdate(i,a,t)},configurable:!0,enumerable:!0}}static getPropertyOptions(i){return this.elementProperties.get(i)??Wt}static _$Ei(){if(this.hasOwnProperty(ne("elementProperties")))return;let i=Mr(this);i.finalize(),i.l!==void 0&&(this.l=[...i.l]),this.elementProperties=new Map(i.elementProperties)}static finalize(){if(this.hasOwnProperty(ne("finalized")))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(ne("properties"))){let e=this.properties,t=[...Er(e),...Lr(e)];for(let s of t)this.createProperty(s,e[s])}let i=this[Symbol.metadata];if(i!==null){let e=litPropertyMetadata.get(i);if(e!==void 0)for(let[t,s]of e)this.elementProperties.set(t,s)}this._$Eh=new Map;for(let[e,t]of this.elementProperties){let s=this._$Eu(e,t);s!==void 0&&this._$Eh.set(s,e)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(i){let e=[];if(Array.isArray(i)){let t=new Set(i.flat(1/0).reverse());for(let s of t)e.unshift(ct(s))}else i!==void 0&&e.push(ct(i));return e}static _$Eu(i,e){let t=e.attribute;return t===!1?void 0:typeof t=="string"?t:typeof i=="string"?i.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){this._$ES=new Promise(i=>this.enableUpdating=i),this._$AL=new Map,this._$E_(),this.requestUpdate(),this.constructor.l?.forEach(i=>i(this))}addController(i){(this._$EO??=new Set).add(i),this.renderRoot!==void 0&&this.isConnected&&i.hostConnected?.()}removeController(i){this._$EO?.delete(i)}_$E_(){let i=new Map,e=this.constructor.elementProperties;for(let t of e.keys())this.hasOwnProperty(t)&&(i.set(t,this[t]),delete this[t]);i.size>0&&(this._$Ep=i)}createRenderRoot(){let i=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return Ut(i,this.constructor.elementStyles),i}connectedCallback(){this.renderRoot??=this.createRenderRoot(),this.enableUpdating(!0),this._$EO?.forEach(i=>i.hostConnected?.())}enableUpdating(i){}disconnectedCallback(){this._$EO?.forEach(i=>i.hostDisconnected?.())}attributeChangedCallback(i,e,t){this._$AK(i,t)}_$ET(i,e){let t=this.constructor.elementProperties.get(i),s=this.constructor._$Eu(i,t);if(s!==void 0&&t.reflect===!0){let n=(t.converter?.toAttribute!==void 0?t.converter:ut).toAttribute(e,t.type);this._$Em=i,n==null?this.removeAttribute(s):this.setAttribute(s,n),this._$Em=null}}_$AK(i,e){let t=this.constructor,s=t._$Eh.get(i);if(s!==void 0&&this._$Em!==s){let n=t.getPropertyOptions(s),o=typeof n.converter=="function"?{fromAttribute:n.converter}:n.converter?.fromAttribute!==void 0?n.converter:ut;this._$Em=s;let a=o.fromAttribute(e,n.type);this[s]=a??this._$Ej?.get(s)??a,this._$Em=null}}requestUpdate(i,e,t,s=!1,n){if(i!==void 0){let o=this.constructor;if(s===!1&&(n=this[i]),t??=o.getPropertyOptions(i),!((t.hasChanged??Kt)(n,e)||t.useDefault&&t.reflect&&n===this._$Ej?.get(i)&&!this.hasAttribute(o._$Eu(i,t))))return;this.C(i,e,t)}this.isUpdatePending===!1&&(this._$ES=this._$EP())}C(i,e,{useDefault:t,reflect:s,wrapped:n},o){t&&!(this._$Ej??=new Map).has(i)&&(this._$Ej.set(i,o??e??this[i]),n!==!0||o!==void 0)||(this._$AL.has(i)||(this.hasUpdated||t||(e=void 0),this._$AL.set(i,e)),s===!0&&this._$Em!==i&&(this._$Eq??=new Set).add(i))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(e){Promise.reject(e)}let i=this.scheduleUpdate();return i!=null&&await i,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??=this.createRenderRoot(),this._$Ep){for(let[s,n]of this._$Ep)this[s]=n;this._$Ep=void 0}let t=this.constructor.elementProperties;if(t.size>0)for(let[s,n]of t){let{wrapped:o}=n,a=this[s];o!==!0||this._$AL.has(s)||a===void 0||this.C(s,void 0,n,a)}}let i=!1,e=this._$AL;try{i=this.shouldUpdate(e),i?(this.willUpdate(e),this._$EO?.forEach(t=>t.hostUpdate?.()),this.update(e)):this._$EM()}catch(t){throw i=!1,this._$EM(),t}i&&this._$AE(e)}willUpdate(i){}_$AE(i){this._$EO?.forEach(e=>e.hostUpdated?.()),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(i)),this.updated(i)}_$EM(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(i){return!0}update(i){this._$Eq&&=this._$Eq.forEach(e=>this._$ET(e,this[e])),this._$EM()}updated(i){}firstUpdated(i){}};R.elementStyles=[],R.shadowRootOptions={mode:"open"},R[ne("elementProperties")]=new Map,R[ne("finalized")]=new Map,Ir?.({ReactiveElement:R}),(Re.reactiveElementVersions??=[]).push("2.1.2");var ht=globalThis,Zt=r=>r,De=ht.trustedTypes,Yt=De?De.createPolicy("lit-html",{createHTML:r=>r}):void 0,mt="$lit$",D=`lit$${Math.random().toFixed(9).slice(2)}$`,gt="?"+D,Tr=`<${gt}>`,j=document,ae=()=>j.createComment(""),le=r=>r===null||typeof r!="object"&&typeof r!="function",ft=Array.isArray,ii=r=>ft(r)||typeof r?.[Symbol.iterator]=="function",pt=`[ 	
-\f\r]`,oe=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,Xt=/-->/g,Qt=/>/g,B=RegExp(`>|${pt}(?:([^\\s"'>=/]+)(${pt}*=${pt}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`,"g"),Jt=/'/g,ei=/"/g,ri=/^(?:script|style|textarea|title)$/i,_t=r=>(i,...e)=>({_$litType$:r,strings:i,values:e}),l=_t(1),Be=_t(2),Gs=_t(3),U=Symbol.for("lit-noChange"),c=Symbol.for("lit-nothing"),ti=new WeakMap,G=j.createTreeWalker(j,129);function si(r,i){if(!ft(r)||!r.hasOwnProperty("raw"))throw Error("invalid template strings array");return Yt!==void 0?Yt.createHTML(i):i}var ni=(r,i)=>{let e=r.length-1,t=[],s,n=i===2?"<svg>":i===3?"<math>":"",o=oe;for(let a=0;a<e;a++){let d=r[a],p,u,h=-1,b=0;for(;b<d.length&&(o.lastIndex=b,u=o.exec(d),u!==null);)b=o.lastIndex,o===oe?u[1]==="!--"?o=Xt:u[1]!==void 0?o=Qt:u[2]!==void 0?(ri.test(u[2])&&(s=RegExp("</"+u[2],"g")),o=B):u[3]!==void 0&&(o=B):o===B?u[0]===">"?(o=s??oe,h=-1):u[1]===void 0?h=-2:(h=o.lastIndex-u[2].length,p=u[1],o=u[3]===void 0?B:u[3]==='"'?ei:Jt):o===ei||o===Jt?o=B:o===Xt||o===Qt?o=oe:(o=B,s=void 0);let f=o===B&&r[a+1].startsWith("/>")?" ":"";n+=o===oe?d+Tr:h>=0?(t.push(p),d.slice(0,h)+mt+d.slice(h)+D+f):d+D+(h===-2?a:f)}return[si(r,n+(r[e]||"<?>")+(i===2?"</svg>":i===3?"</math>":"")),t]},de=class r{constructor({strings:i,_$litType$:e},t){let s;this.parts=[];let n=0,o=0,a=i.length-1,d=this.parts,[p,u]=ni(i,e);if(this.el=r.createElement(p,t),G.currentNode=this.el.content,e===2||e===3){let h=this.el.content.firstChild;h.replaceWith(...h.childNodes)}for(;(s=G.nextNode())!==null&&d.length<a;){if(s.nodeType===1){if(s.hasAttributes())for(let h of s.getAttributeNames())if(h.endsWith(mt)){let b=u[o++],f=s.getAttribute(h).split(D),v=/([.?@])?(.*)/.exec(b);d.push({type:1,index:n,name:v[2],strings:f,ctor:v[1]==="."?Fe:v[1]==="?"?Ve:v[1]==="@"?ze:W}),s.removeAttribute(h)}else h.startsWith(D)&&(d.push({type:6,index:n}),s.removeAttribute(h));if(ri.test(s.tagName)){let h=s.textContent.split(D),b=h.length-1;if(b>0){s.textContent=De?De.emptyScript:"";for(let f=0;f<b;f++)s.append(h[f],ae()),G.nextNode(),d.push({type:2,index:++n});s.append(h[b],ae())}}}else if(s.nodeType===8)if(s.data===gt)d.push({type:2,index:n});else{let h=-1;for(;(h=s.data.indexOf(D,h+1))!==-1;)d.push({type:7,index:n}),h+=D.length-1}n++}}static createElement(i,e){let t=j.createElement("template");return t.innerHTML=i,t}};function q(r,i,e=r,t){if(i===U)return i;let s=t!==void 0?e._$Co?.[t]:e._$Cl,n=le(i)?void 0:i._$litDirective$;return s?.constructor!==n&&(s?._$AO?.(!1),n===void 0?s=void 0:(s=new n(r),s._$AT(r,e,t)),t!==void 0?(e._$Co??=[])[t]=s:e._$Cl=s),s!==void 0&&(i=q(r,s._$AS(r,i.values),s,t)),i}var Oe=class{constructor(i,e){this._$AV=[],this._$AN=void 0,this._$AD=i,this._$AM=e}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(i){let{el:{content:e},parts:t}=this._$AD,s=(i?.creationScope??j).importNode(e,!0);G.currentNode=s;let n=G.nextNode(),o=0,a=0,d=t[0];for(;d!==void 0;){if(o===d.index){let p;d.type===2?p=new Y(n,n.nextSibling,this,i):d.type===1?p=new d.ctor(n,d.name,d.strings,this,i):d.type===6&&(p=new Ne(n,this,i)),this._$AV.push(p),d=t[++a]}o!==d?.index&&(n=G.nextNode(),o++)}return G.currentNode=j,s}p(i){let e=0;for(let t of this._$AV)t!==void 0&&(t.strings!==void 0?(t._$AI(i,t,e),e+=t.strings.length-2):t._$AI(i[e])),e++}},Y=class r{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(i,e,t,s){this.type=2,this._$AH=c,this._$AN=void 0,this._$AA=i,this._$AB=e,this._$AM=t,this.options=s,this._$Cv=s?.isConnected??!0}get parentNode(){let i=this._$AA.parentNode,e=this._$AM;return e!==void 0&&i?.nodeType===11&&(i=e.parentNode),i}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(i,e=this){i=q(this,i,e),le(i)?i===c||i==null||i===""?(this._$AH!==c&&this._$AR(),this._$AH=c):i!==this._$AH&&i!==U&&this._(i):i._$litType$!==void 0?this.$(i):i.nodeType!==void 0?this.T(i):ii(i)?this.k(i):this._(i)}O(i){return this._$AA.parentNode.insertBefore(i,this._$AB)}T(i){this._$AH!==i&&(this._$AR(),this._$AH=this.O(i))}_(i){this._$AH!==c&&le(this._$AH)?this._$AA.nextSibling.data=i:this.T(j.createTextNode(i)),this._$AH=i}$(i){let{values:e,_$litType$:t}=i,s=typeof t=="number"?this._$AC(i):(t.el===void 0&&(t.el=de.createElement(si(t.h,t.h[0]),this.options)),t);if(this._$AH?._$AD===s)this._$AH.p(e);else{let n=new Oe(s,this),o=n.u(this.options);n.p(e),this.T(o),this._$AH=n}}_$AC(i){let e=ti.get(i.strings);return e===void 0&&ti.set(i.strings,e=new de(i)),e}k(i){ft(this._$AH)||(this._$AH=[],this._$AR());let e=this._$AH,t,s=0;for(let n of i)s===e.length?e.push(t=new r(this.O(ae()),this.O(ae()),this,this.options)):t=e[s],t._$AI(n),s++;s<e.length&&(this._$AR(t&&t._$AB.nextSibling,s),e.length=s)}_$AR(i=this._$AA.nextSibling,e){for(this._$AP?.(!1,!0,e);i!==this._$AB;){let t=Zt(i).nextSibling;Zt(i).remove(),i=t}}setConnected(i){this._$AM===void 0&&(this._$Cv=i,this._$AP?.(i))}},W=class{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(i,e,t,s,n){this.type=1,this._$AH=c,this._$AN=void 0,this.element=i,this.name=e,this._$AM=s,this.options=n,t.length>2||t[0]!==""||t[1]!==""?(this._$AH=Array(t.length-1).fill(new String),this.strings=t):this._$AH=c}_$AI(i,e=this,t,s){let n=this.strings,o=!1;if(n===void 0)i=q(this,i,e,0),o=!le(i)||i!==this._$AH&&i!==U,o&&(this._$AH=i);else{let a=i,d,p;for(i=n[0],d=0;d<n.length-1;d++)p=q(this,a[t+d],e,d),p===U&&(p=this._$AH[d]),o||=!le(p)||p!==this._$AH[d],p===c?i=c:i!==c&&(i+=(p??"")+n[d+1]),this._$AH[d]=p}o&&!s&&this.j(i)}j(i){i===c?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,i??"")}},Fe=class extends W{constructor(){super(...arguments),this.type=3}j(i){this.element[this.name]=i===c?void 0:i}},Ve=class extends W{constructor(){super(...arguments),this.type=4}j(i){this.element.toggleAttribute(this.name,!!i&&i!==c)}},ze=class extends W{constructor(i,e,t,s,n){super(i,e,t,s,n),this.type=5}_$AI(i,e=this){if((i=q(this,i,e,0)??c)===U)return;let t=this._$AH,s=i===c&&t!==c||i.capture!==t.capture||i.once!==t.once||i.passive!==t.passive,n=i!==c&&(t===c||s);s&&this.element.removeEventListener(this.name,this,t),n&&this.element.addEventListener(this.name,this,i),this._$AH=i}handleEvent(i){typeof this._$AH=="function"?this._$AH.call(this.options?.host??this.element,i):this._$AH.handleEvent(i)}},Ne=class{constructor(i,e,t){this.element=i,this.type=6,this._$AN=void 0,this._$AM=e,this.options=t}get _$AU(){return this._$AM._$AU}_$AI(i){q(this,i)}},oi={M:mt,P:D,A:gt,C:1,L:ni,R:Oe,D:ii,V:q,I:Y,H:W,N:Ve,U:ze,B:Fe,F:Ne},Pr=ht.litHtmlPolyfillSupport;Pr?.(de,Y),(ht.litHtmlVersions??=[]).push("3.3.3");var ai=(r,i,e)=>{let t=e?.renderBefore??i,s=t._$litPart$;if(s===void 0){let n=e?.renderBefore??null;t._$litPart$=s=new Y(i.insertBefore(ae(),n),n,void 0,e??{})}return s._$AI(r),s};var bt=globalThis,g=class extends R{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){let i=super.createRenderRoot();return this.renderOptions.renderBefore??=i.firstChild,i}update(i){let e=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(i),this._$Do=ai(e,this.renderRoot,this.renderOptions)}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(!0)}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(!1)}render(){return U}};g._$litElement$=!0,g.finalized=!0,bt.litElementHydrateSupport?.({LitElement:g});var Hr=bt.litElementPolyfillSupport;Hr?.({LitElement:g});(bt.litElementVersions??=[]).push("4.2.2");var{I:sn}=oi;var li=r=>r.strings===void 0;var di={ATTRIBUTE:1,CHILD:2,PROPERTY:3,BOOLEAN_ATTRIBUTE:4,EVENT:5,ELEMENT:6},vt=r=>(...i)=>({_$litDirective$:r,values:i}),Ge=class{constructor(i){}get _$AU(){return this._$AM._$AU}_$AT(i,e,t){this._$Ct=i,this._$AM=e,this._$Ci=t}_$AS(i,e){return this.update(i,e)}update(i,e){return this.render(...e)}};var ce=(r,i)=>{let e=r._$AN;if(e===void 0)return!1;for(let t of e)t._$AO?.(i,!1),ce(t,i);return!0},je=r=>{let i,e;do{if((i=r._$AM)===void 0)break;e=i._$AN,e.delete(r),r=i}while(e?.size===0)},ci=r=>{for(let i;i=r._$AM;r=i){let e=i._$AN;if(e===void 0)i._$AN=e=new Set;else if(e.has(r))break;e.add(r),Or(i)}};function Rr(r){this._$AN!==void 0?(je(this),this._$AM=r,ci(this)):this._$AM=r}function Dr(r,i=!1,e=0){let t=this._$AH,s=this._$AN;if(s!==void 0&&s.size!==0)if(i)if(Array.isArray(t))for(let n=e;n<t.length;n++)ce(t[n],!1),je(t[n]);else t!=null&&(ce(t,!1),je(t));else ce(this,r)}var Or=r=>{r.type==di.CHILD&&(r._$AP??=Dr,r._$AQ??=Rr)},Ue=class extends Ge{constructor(){super(...arguments),this._$AN=void 0}_$AT(i,e,t){super._$AT(i,e,t),ci(this),this.isConnected=i._$AU}_$AO(i,e=!0){i!==this.isConnected&&(this.isConnected=i,i?this.reconnected?.():this.disconnected?.()),e&&(ce(this,i),je(this))}setValue(i){if(li(this._$Ct))this._$Ct._$AI(i,this);else{let e=[...this._$Ct._$AH];e[this._$Ci]=i,this._$Ct._$AI(e,this,0)}}disconnected(){}reconnected(){}};var X=()=>new xt,xt=class{},yt=new WeakMap,I=vt(class extends Ue{render(r){return c}update(r,[i]){let e=i!==this.G;return e&&this.rt(void 0),(e||this.lt!==this.ct)&&(this.G=i,this.ht=r.options?.host,this.rt(this.ct=r.element)),c}rt(r){if(this.G!==void 0)if(this.isConnected||(r=void 0),typeof this.G=="function"){let i=this.ht??globalThis,e=yt.get(i);e===void 0&&(e=new WeakMap,yt.set(i,e)),e.get(this.G)!==void 0&&this.G.call(this.ht,void 0),e.set(this.G,r),r!==void 0&&this.G.call(this.ht,r)}else this.G.value=r}get lt(){return typeof this.G=="function"?yt.get(this.ht??globalThis)?.get(this.G):this.G?.value}disconnected(){this.lt===this.ct&&this.rt(void 0)}reconnected(){this.rt(this.ct)}});function P(r=32,i=16,e=[0,0,0],t=100){let s=new Uint8Array(r*i*3);for(let n=0;n<s.length;n+=3)s[n]=e[0],s[n+1]=e[1],s[n+2]=e[2];return{width:r,height:i,pixels:s,durationMs:t}}function C(r,i=r.durationMs){return{width:r.width,height:r.height,pixels:r.pixels.slice(),durationMs:i}}function Q(r,i,e){return i>=0&&e>=0&&i<r.width&&e<r.height}function V(r,i,e){if(!Q(r,i,e))return[0,0,0];let t=(e*r.width+i)*3;return[r.pixels[t],r.pixels[t+1],r.pixels[t+2]]}function qe(r,i,e,t){let s=C(r);return k(s,i,e,t),s}function k(r,i,e,t){if(!Q(r,i,e))return;let s=(e*r.width+i)*3;r.pixels[s]=t[0],r.pixels[s+1]=t[1],r.pixels[s+2]=t[2]}function ui(r,i,e,t,s=[0,0,0]){let n=P(r.width,r.height,s,r.durationMs);for(let o=0;o<r.height;o++)for(let a=0;a<r.width;a++){let d=a-i,p=o-e;if(t)d=(d%r.width+r.width)%r.width,p=(p%r.height+r.height)%r.height;else if(!Q(r,d,p))continue;k(n,a,o,V(r,d,p))}return n}function pi(r,i){let e=C(r);for(let t=0;t<r.height;t++)for(let s=0;s<r.width;s++){let n=i==="horizontal"?V(r,r.width-1-s,t):V(r,s,r.height-1-t);k(e,s,t,n)}return e}function hi(r,i,e,t,s=.78){let n=Math.min(r/e,i/t),o=n*e,a=n*t;return{cellSize:n,dotRadius:n*s/2,offsetX:(r-o)/2+n/2,offsetY:(i-a)/2+n/2}}function mi(r,i,e){return[r.offsetX+i*r.cellSize,r.offsetY+e*r.cellSize]}function gi(r,i,e,t,s){let n=Math.round((i-r.offsetX)/r.cellSize),o=Math.round((e-r.offsetY)/r.cellSize);return n<0||o<0||n>=t||o>=s?null:[n,o]}var Fr=.05,ue=class extends g{constructor(){super();this._canvasRef=X();this._resizeObserver=null;this._layout=null;this._dpr=1;this._onPointerDown=e=>{this.interactive&&(e.currentTarget.setPointerCapture(e.pointerId),e.preventDefault(),this._emitPointer(e,"down"))};this._onPointerMove=e=>{!this.interactive||e.buttons===0||this._emitPointer(e,"move")};this._onPointerUp=e=>{this.interactive&&this._emitPointer(e,"up")};this._onPointerLeave=e=>{!this.interactive||e.buttons!==0||this._emitPointer(e,"leave")};this.frame=null,this.interactive=!1,this.showGrid=!1,this.bloom=!0}connectedCallback(){super.connectedCallback(),this._resizeObserver=new ResizeObserver(()=>this._resize())}disconnectedCallback(){super.disconnectedCallback(),this._resizeObserver?.disconnect(),this._resizeObserver=null}firstUpdated(){this._canvasRef.value&&this._resizeObserver?.observe(this._canvasRef.value),this._resize()}updated(e){(e.has("frame")||e.has("showGrid")||e.has("bloom"))&&this._draw()}_resize(){let e=this._canvasRef.value;if(!e)return;let t=e.getBoundingClientRect();if(t.width===0||t.height===0)return;this._dpr=window.devicePixelRatio||1,e.width=Math.max(1,Math.round(t.width*this._dpr)),e.height=Math.max(1,Math.round(t.height*this._dpr));let s=this.frame?.width??32,n=this.frame?.height??16;this._layout=hi(e.width,e.height,s,n),this._draw()}_draw(){let e=this._canvasRef.value,t=e?.getContext("2d");if(!e||!t||!this._layout)return;let s=this._layout,n=this.frame?.width??32,o=this.frame?.height??16;t.clearRect(0,0,e.width,e.height),t.fillStyle="#050607",t.fillRect(0,0,e.width,e.height);for(let a=0;a<o;a++)for(let d=0;d<n;d++){let p=A=>Math.max(0,Math.min(255,Math.round(A))),[u,h,b]=this.frame?[p(this.frame.pixels[(a*n+d)*3]),p(this.frame.pixels[(a*n+d)*3+1]),p(this.frame.pixels[(a*n+d)*3+2])]:[0,0,0],[f,v]=mi(s,d,a);if(!(u>0||h>0||b>0)){t.beginPath(),t.fillStyle=`rgba(255, 255, 255, ${Fr})`,t.arc(f,v,s.dotRadius*.72,0,Math.PI*2),t.fill();continue}this.bloom&&(t.save(),t.shadowColor=`rgb(${u}, ${h}, ${b})`,t.shadowBlur=s.dotRadius*1.6,t.beginPath(),t.fillStyle=`rgb(${u}, ${h}, ${b})`,t.arc(f,v,s.dotRadius,0,Math.PI*2),t.fill(),t.restore());let $=t.createRadialGradient(f,v,0,f,v,s.dotRadius);$.addColorStop(0,`rgb(${Math.min(255,u+40)}, ${Math.min(255,h+40)}, ${Math.min(255,b+40)})`),$.addColorStop(1,`rgb(${u}, ${h}, ${b})`),t.beginPath(),t.fillStyle=$,t.arc(f,v,s.dotRadius,0,Math.PI*2),t.fill()}if(this.showGrid){t.strokeStyle="rgba(255, 255, 255, 0.05)",t.lineWidth=1;for(let a=0;a<=n;a++){let d=s.offsetX-s.cellSize/2+a*s.cellSize;t.beginPath(),t.moveTo(d,s.offsetY-s.cellSize/2),t.lineTo(d,s.offsetY-s.cellSize/2+o*s.cellSize),t.stroke()}for(let a=0;a<=o;a++){let d=s.offsetY-s.cellSize/2+a*s.cellSize;t.beginPath(),t.moveTo(s.offsetX-s.cellSize/2,d),t.lineTo(s.offsetX-s.cellSize/2+n*s.cellSize,d),t.stroke()}}}_emitPointer(e,t){let s=this._canvasRef.value;if(!s||!this._layout)return;let n=s.getBoundingClientRect(),o=(e.clientX-n.left)/n.width*s.width,a=(e.clientY-n.top)/n.height*s.height,d=this.frame?.width??32,p=this.frame?.height??16,u=t==="leave"?null:gi(this._layout,o,a,d,p);!u&&t!=="leave"||this.dispatchEvent(new CustomEvent("matrix-pointer",{detail:{x:u?.[0]??-1,y:u?.[1]??-1,phase:t,buttons:e.buttons,pointerId:e.pointerId},bubbles:!0,composed:!0}))}render(){return l`<canvas
-      ${I(this._canvasRef)}
+var At=globalThis,Pt=At.ShadowRoot&&(At.ShadyCSS===void 0||At.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,$i=Symbol(),yr=new WeakMap,Se=class{constructor(i,e,t){if(this._$cssResult$=!0,t!==$i)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=i,this.t=e}get styleSheet(){let i=this.o,e=this.t;if(Pt&&i===void 0){let t=e!==void 0&&e.length===1;t&&(i=yr.get(e)),i===void 0&&((this.o=i=new CSSStyleSheet).replaceSync(this.cssText),t&&yr.set(e,i))}return i}toString(){return this.cssText}},wr=r=>new Se(typeof r=="string"?r:r+"",void 0,$i),v=(r,...i)=>{let e=r.length===1?r[0]:i.reduce((t,s,a)=>t+(n=>{if(n._$cssResult$===!0)return n.cssText;if(typeof n=="number")return n;throw Error("Value passed to 'css' function must be a 'css' function result: "+n+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(s)+r[a+1],r[0]);return new Se(e,r,$i)},xr=(r,i)=>{if(Pt)r.adoptedStyleSheets=i.map(e=>e instanceof CSSStyleSheet?e:e.styleSheet);else for(let e of i){let t=document.createElement("style"),s=At.litNonce;s!==void 0&&t.setAttribute("nonce",s),t.textContent=e.cssText,r.appendChild(t)}},Si=Pt?r=>r:r=>r instanceof CSSStyleSheet?(i=>{let e="";for(let t of i.cssRules)e+=t.cssText;return wr(e)})(r):r;var{is:Ia,defineProperty:Ra,getOwnPropertyDescriptor:La,getOwnPropertyNames:Ma,getOwnPropertySymbols:Ta,getPrototypeOf:Aa}=Object,Dt=globalThis,kr=Dt.trustedTypes,Pa=kr?kr.emptyScript:"",Da=Dt.reactiveElementPolyfillSupport,Ee=(r,i)=>r,Ei={toAttribute(r,i){switch(i){case Boolean:r=r?Pa:null;break;case Object:case Array:r=r==null?r:JSON.stringify(r)}return r},fromAttribute(r,i){let e=r;switch(i){case Boolean:e=r!==null;break;case Number:e=r===null?null:Number(r);break;case Object:case Array:try{e=JSON.parse(r)}catch{e=null}}return e}},Sr=(r,i)=>!Ia(r,i),$r={attribute:!0,type:String,converter:Ei,reflect:!1,useDefault:!1,hasChanged:Sr};Symbol.metadata??=Symbol("metadata"),Dt.litPropertyMetadata??=new WeakMap;var Y=class extends HTMLElement{static addInitializer(i){this._$Ei(),(this.l??=[]).push(i)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(i,e=$r){if(e.state&&(e.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(i)&&((e=Object.create(e)).wrapped=!0),this.elementProperties.set(i,e),!e.noAccessor){let t=Symbol(),s=this.getPropertyDescriptor(i,t,e);s!==void 0&&Ra(this.prototype,i,s)}}static getPropertyDescriptor(i,e,t){let{get:s,set:a}=La(this.prototype,i)??{get(){return this[e]},set(n){this[e]=n}};return{get:s,set(n){let l=s?.call(this);a?.call(this,n),this.requestUpdate(i,l,t)},configurable:!0,enumerable:!0}}static getPropertyOptions(i){return this.elementProperties.get(i)??$r}static _$Ei(){if(this.hasOwnProperty(Ee("elementProperties")))return;let i=Aa(this);i.finalize(),i.l!==void 0&&(this.l=[...i.l]),this.elementProperties=new Map(i.elementProperties)}static finalize(){if(this.hasOwnProperty(Ee("finalized")))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(Ee("properties"))){let e=this.properties,t=[...Ma(e),...Ta(e)];for(let s of t)this.createProperty(s,e[s])}let i=this[Symbol.metadata];if(i!==null){let e=litPropertyMetadata.get(i);if(e!==void 0)for(let[t,s]of e)this.elementProperties.set(t,s)}this._$Eh=new Map;for(let[e,t]of this.elementProperties){let s=this._$Eu(e,t);s!==void 0&&this._$Eh.set(s,e)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(i){let e=[];if(Array.isArray(i)){let t=new Set(i.flat(1/0).reverse());for(let s of t)e.unshift(Si(s))}else i!==void 0&&e.push(Si(i));return e}static _$Eu(i,e){let t=e.attribute;return t===!1?void 0:typeof t=="string"?t:typeof i=="string"?i.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){this._$ES=new Promise(i=>this.enableUpdating=i),this._$AL=new Map,this._$E_(),this.requestUpdate(),this.constructor.l?.forEach(i=>i(this))}addController(i){(this._$EO??=new Set).add(i),this.renderRoot!==void 0&&this.isConnected&&i.hostConnected?.()}removeController(i){this._$EO?.delete(i)}_$E_(){let i=new Map,e=this.constructor.elementProperties;for(let t of e.keys())this.hasOwnProperty(t)&&(i.set(t,this[t]),delete this[t]);i.size>0&&(this._$Ep=i)}createRenderRoot(){let i=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return xr(i,this.constructor.elementStyles),i}connectedCallback(){this.renderRoot??=this.createRenderRoot(),this.enableUpdating(!0),this._$EO?.forEach(i=>i.hostConnected?.())}enableUpdating(i){}disconnectedCallback(){this._$EO?.forEach(i=>i.hostDisconnected?.())}attributeChangedCallback(i,e,t){this._$AK(i,t)}_$ET(i,e){let t=this.constructor.elementProperties.get(i),s=this.constructor._$Eu(i,t);if(s!==void 0&&t.reflect===!0){let a=(t.converter?.toAttribute!==void 0?t.converter:Ei).toAttribute(e,t.type);this._$Em=i,a==null?this.removeAttribute(s):this.setAttribute(s,a),this._$Em=null}}_$AK(i,e){let t=this.constructor,s=t._$Eh.get(i);if(s!==void 0&&this._$Em!==s){let a=t.getPropertyOptions(s),n=typeof a.converter=="function"?{fromAttribute:a.converter}:a.converter?.fromAttribute!==void 0?a.converter:Ei;this._$Em=s;let l=n.fromAttribute(e,a.type);this[s]=l??this._$Ej?.get(s)??l,this._$Em=null}}requestUpdate(i,e,t,s=!1,a){if(i!==void 0){let n=this.constructor;if(s===!1&&(a=this[i]),t??=n.getPropertyOptions(i),!((t.hasChanged??Sr)(a,e)||t.useDefault&&t.reflect&&a===this._$Ej?.get(i)&&!this.hasAttribute(n._$Eu(i,t))))return;this.C(i,e,t)}this.isUpdatePending===!1&&(this._$ES=this._$EP())}C(i,e,{useDefault:t,reflect:s,wrapped:a},n){t&&!(this._$Ej??=new Map).has(i)&&(this._$Ej.set(i,n??e??this[i]),a!==!0||n!==void 0)||(this._$AL.has(i)||(this.hasUpdated||t||(e=void 0),this._$AL.set(i,e)),s===!0&&this._$Em!==i&&(this._$Eq??=new Set).add(i))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(e){Promise.reject(e)}let i=this.scheduleUpdate();return i!=null&&await i,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??=this.createRenderRoot(),this._$Ep){for(let[s,a]of this._$Ep)this[s]=a;this._$Ep=void 0}let t=this.constructor.elementProperties;if(t.size>0)for(let[s,a]of t){let{wrapped:n}=a,l=this[s];n!==!0||this._$AL.has(s)||l===void 0||this.C(s,void 0,a,l)}}let i=!1,e=this._$AL;try{i=this.shouldUpdate(e),i?(this.willUpdate(e),this._$EO?.forEach(t=>t.hostUpdate?.()),this.update(e)):this._$EM()}catch(t){throw i=!1,this._$EM(),t}i&&this._$AE(e)}willUpdate(i){}_$AE(i){this._$EO?.forEach(e=>e.hostUpdated?.()),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(i)),this.updated(i)}_$EM(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(i){return!0}update(i){this._$Eq&&=this._$Eq.forEach(e=>this._$ET(e,this[e])),this._$EM()}updated(i){}firstUpdated(i){}};Y.elementStyles=[],Y.shadowRootOptions={mode:"open"},Y[Ee("elementProperties")]=new Map,Y[Ee("finalized")]=new Map,Da?.({ReactiveElement:Y}),(Dt.reactiveElementVersions??=[]).push("2.1.2");var Ii=globalThis,Er=r=>r,Ht=Ii.trustedTypes,Cr=Ht?Ht.createPolicy("lit-html",{createHTML:r=>r}):void 0,Ri="$lit$",X=`lit$${Math.random().toFixed(9).slice(2)}$`,Li="?"+X,Ha=`<${Li}>`,re=document,Ie=()=>re.createComment(""),Re=r=>r===null||typeof r!="object"&&typeof r!="function",Mi=Array.isArray,Ar=r=>Mi(r)||typeof r?.[Symbol.iterator]=="function",Ci=`[ 	
+\f\r]`,Ce=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,Ir=/-->/g,Rr=/>/g,te=RegExp(`>|${Ci}(?:([^\\s"'>=/]+)(${Ci}*=${Ci}*(?:[^ 	
+\f\r"'\`<>=]|("|')|))|$)`,"g"),Lr=/'/g,Mr=/"/g,Pr=/^(?:script|style|textarea|title)$/i,Ti=r=>(i,...e)=>({_$litType$:r,strings:i,values:e}),o=Ti(1),Gt=Ti(2),_o=Ti(3),se=Symbol.for("lit-noChange"),u=Symbol.for("lit-nothing"),Tr=new WeakMap,ie=re.createTreeWalker(re,129);function Dr(r,i){if(!Mi(r)||!r.hasOwnProperty("raw"))throw Error("invalid template strings array");return Cr!==void 0?Cr.createHTML(i):i}var Hr=(r,i)=>{let e=r.length-1,t=[],s,a=i===2?"<svg>":i===3?"<math>":"",n=Ce;for(let l=0;l<e;l++){let d=r[l],c,p,h=-1,f=0;for(;f<d.length&&(n.lastIndex=f,p=n.exec(d),p!==null);)f=n.lastIndex,n===Ce?p[1]==="!--"?n=Ir:p[1]!==void 0?n=Rr:p[2]!==void 0?(Pr.test(p[2])&&(s=RegExp("</"+p[2],"g")),n=te):p[3]!==void 0&&(n=te):n===te?p[0]===">"?(n=s??Ce,h=-1):p[1]===void 0?h=-2:(h=n.lastIndex-p[2].length,c=p[1],n=p[3]===void 0?te:p[3]==='"'?Mr:Lr):n===Mr||n===Lr?n=te:n===Ir||n===Rr?n=Ce:(n=te,s=void 0);let b=n===te&&r[l+1].startsWith("/>")?" ":"";a+=n===Ce?d+Ha:h>=0?(t.push(c),d.slice(0,h)+Ri+d.slice(h)+X+b):d+X+(h===-2?l:b)}return[Dr(r,a+(r[e]||"<?>")+(i===2?"</svg>":i===3?"</math>":"")),t]},Le=class r{constructor({strings:i,_$litType$:e},t){let s;this.parts=[];let a=0,n=0,l=i.length-1,d=this.parts,[c,p]=Hr(i,e);if(this.el=r.createElement(c,t),ie.currentNode=this.el.content,e===2||e===3){let h=this.el.content.firstChild;h.replaceWith(...h.childNodes)}for(;(s=ie.nextNode())!==null&&d.length<l;){if(s.nodeType===1){if(s.hasAttributes())for(let h of s.getAttributeNames())if(h.endsWith(Ri)){let f=p[n++],b=s.getAttribute(h).split(X),k=/([.?@])?(.*)/.exec(f);d.push({type:1,index:a,name:k[2],strings:b,ctor:k[1]==="."?Ft:k[1]==="?"?Nt:k[1]==="@"?Bt:ne}),s.removeAttribute(h)}else h.startsWith(X)&&(d.push({type:6,index:a}),s.removeAttribute(h));if(Pr.test(s.tagName)){let h=s.textContent.split(X),f=h.length-1;if(f>0){s.textContent=Ht?Ht.emptyScript:"";for(let b=0;b<f;b++)s.append(h[b],Ie()),ie.nextNode(),d.push({type:2,index:++a});s.append(h[f],Ie())}}}else if(s.nodeType===8)if(s.data===Li)d.push({type:2,index:a});else{let h=-1;for(;(h=s.data.indexOf(X,h+1))!==-1;)d.push({type:7,index:a}),h+=X.length-1}a++}}static createElement(i,e){let t=re.createElement("template");return t.innerHTML=i,t}};function ae(r,i,e=r,t){if(i===se)return i;let s=t!==void 0?e._$Co?.[t]:e._$Cl,a=Re(i)?void 0:i._$litDirective$;return s?.constructor!==a&&(s?._$AO?.(!1),a===void 0?s=void 0:(s=new a(r),s._$AT(r,e,t)),t!==void 0?(e._$Co??=[])[t]=s:e._$Cl=s),s!==void 0&&(i=ae(r,s._$AS(r,i.values),s,t)),i}var Ot=class{constructor(i,e){this._$AV=[],this._$AN=void 0,this._$AD=i,this._$AM=e}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(i){let{el:{content:e},parts:t}=this._$AD,s=(i?.creationScope??re).importNode(e,!0);ie.currentNode=s;let a=ie.nextNode(),n=0,l=0,d=t[0];for(;d!==void 0;){if(n===d.index){let c;d.type===2?c=new me(a,a.nextSibling,this,i):d.type===1?c=new d.ctor(a,d.name,d.strings,this,i):d.type===6&&(c=new Vt(a,this,i)),this._$AV.push(c),d=t[++l]}n!==d?.index&&(a=ie.nextNode(),n++)}return ie.currentNode=re,s}p(i){let e=0;for(let t of this._$AV)t!==void 0&&(t.strings!==void 0?(t._$AI(i,t,e),e+=t.strings.length-2):t._$AI(i[e])),e++}},me=class r{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(i,e,t,s){this.type=2,this._$AH=u,this._$AN=void 0,this._$AA=i,this._$AB=e,this._$AM=t,this.options=s,this._$Cv=s?.isConnected??!0}get parentNode(){let i=this._$AA.parentNode,e=this._$AM;return e!==void 0&&i?.nodeType===11&&(i=e.parentNode),i}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(i,e=this){i=ae(this,i,e),Re(i)?i===u||i==null||i===""?(this._$AH!==u&&this._$AR(),this._$AH=u):i!==this._$AH&&i!==se&&this._(i):i._$litType$!==void 0?this.$(i):i.nodeType!==void 0?this.T(i):Ar(i)?this.k(i):this._(i)}O(i){return this._$AA.parentNode.insertBefore(i,this._$AB)}T(i){this._$AH!==i&&(this._$AR(),this._$AH=this.O(i))}_(i){this._$AH!==u&&Re(this._$AH)?this._$AA.nextSibling.data=i:this.T(re.createTextNode(i)),this._$AH=i}$(i){let{values:e,_$litType$:t}=i,s=typeof t=="number"?this._$AC(i):(t.el===void 0&&(t.el=Le.createElement(Dr(t.h,t.h[0]),this.options)),t);if(this._$AH?._$AD===s)this._$AH.p(e);else{let a=new Ot(s,this),n=a.u(this.options);a.p(e),this.T(n),this._$AH=a}}_$AC(i){let e=Tr.get(i.strings);return e===void 0&&Tr.set(i.strings,e=new Le(i)),e}k(i){Mi(this._$AH)||(this._$AH=[],this._$AR());let e=this._$AH,t,s=0;for(let a of i)s===e.length?e.push(t=new r(this.O(Ie()),this.O(Ie()),this,this.options)):t=e[s],t._$AI(a),s++;s<e.length&&(this._$AR(t&&t._$AB.nextSibling,s),e.length=s)}_$AR(i=this._$AA.nextSibling,e){for(this._$AP?.(!1,!0,e);i!==this._$AB;){let t=Er(i).nextSibling;Er(i).remove(),i=t}}setConnected(i){this._$AM===void 0&&(this._$Cv=i,this._$AP?.(i))}},ne=class{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(i,e,t,s,a){this.type=1,this._$AH=u,this._$AN=void 0,this.element=i,this.name=e,this._$AM=s,this.options=a,t.length>2||t[0]!==""||t[1]!==""?(this._$AH=Array(t.length-1).fill(new String),this.strings=t):this._$AH=u}_$AI(i,e=this,t,s){let a=this.strings,n=!1;if(a===void 0)i=ae(this,i,e,0),n=!Re(i)||i!==this._$AH&&i!==se,n&&(this._$AH=i);else{let l=i,d,c;for(i=a[0],d=0;d<a.length-1;d++)c=ae(this,l[t+d],e,d),c===se&&(c=this._$AH[d]),n||=!Re(c)||c!==this._$AH[d],c===u?i=u:i!==u&&(i+=(c??"")+a[d+1]),this._$AH[d]=c}n&&!s&&this.j(i)}j(i){i===u?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,i??"")}},Ft=class extends ne{constructor(){super(...arguments),this.type=3}j(i){this.element[this.name]=i===u?void 0:i}},Nt=class extends ne{constructor(){super(...arguments),this.type=4}j(i){this.element.toggleAttribute(this.name,!!i&&i!==u)}},Bt=class extends ne{constructor(i,e,t,s,a){super(i,e,t,s,a),this.type=5}_$AI(i,e=this){if((i=ae(this,i,e,0)??u)===se)return;let t=this._$AH,s=i===u&&t!==u||i.capture!==t.capture||i.once!==t.once||i.passive!==t.passive,a=i!==u&&(t===u||s);s&&this.element.removeEventListener(this.name,this,t),a&&this.element.addEventListener(this.name,this,i),this._$AH=i}handleEvent(i){typeof this._$AH=="function"?this._$AH.call(this.options?.host??this.element,i):this._$AH.handleEvent(i)}},Vt=class{constructor(i,e,t){this.element=i,this.type=6,this._$AN=void 0,this._$AM=e,this.options=t}get _$AU(){return this._$AM._$AU}_$AI(i){ae(this,i)}},Or={M:Ri,P:X,A:Li,C:1,L:Hr,R:Ot,D:Ar,V:ae,I:me,H:ne,N:Nt,U:Bt,B:Ft,F:Vt},Oa=Ii.litHtmlPolyfillSupport;Oa?.(Le,me),(Ii.litHtmlVersions??=[]).push("3.3.3");var Fr=(r,i,e)=>{let t=e?.renderBefore??i,s=t._$litPart$;if(s===void 0){let a=e?.renderBefore??null;t._$litPart$=s=new me(i.insertBefore(Ie(),a),a,void 0,e??{})}return s._$AI(r),s};var Ai=globalThis,m=class extends Y{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){let i=super.createRenderRoot();return this.renderOptions.renderBefore??=i.firstChild,i}update(i){let e=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(i),this._$Do=Fr(e,this.renderRoot,this.renderOptions)}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(!0)}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(!1)}render(){return se}};m._$litElement$=!0,m.finalized=!0,Ai.litElementHydrateSupport?.({LitElement:m});var Fa=Ai.litElementPolyfillSupport;Fa?.({LitElement:m});(Ai.litElementVersions??=[]).push("4.2.2");var{I:To}=Or;var Nr=r=>r.strings===void 0;var Br={ATTRIBUTE:1,CHILD:2,PROPERTY:3,BOOLEAN_ATTRIBUTE:4,EVENT:5,ELEMENT:6},Pi=r=>(...i)=>({_$litDirective$:r,values:i}),Ut=class{constructor(i){}get _$AU(){return this._$AM._$AU}_$AT(i,e,t){this._$Ct=i,this._$AM=e,this._$Ci=t}_$AS(i,e){return this.update(i,e)}update(i,e){return this.render(...e)}};var Me=(r,i)=>{let e=r._$AN;if(e===void 0)return!1;for(let t of e)t._$AO?.(i,!1),Me(t,i);return!0},qt=r=>{let i,e;do{if((i=r._$AM)===void 0)break;e=i._$AN,e.delete(r),r=i}while(e?.size===0)},Vr=r=>{for(let i;i=r._$AM;r=i){let e=i._$AN;if(e===void 0)i._$AN=e=new Set;else if(e.has(r))break;e.add(r),Va(i)}};function Na(r){this._$AN!==void 0?(qt(this),this._$AM=r,Vr(this)):this._$AM=r}function Ba(r,i=!1,e=0){let t=this._$AH,s=this._$AN;if(s!==void 0&&s.size!==0)if(i)if(Array.isArray(t))for(let a=e;a<t.length;a++)Me(t[a],!1),qt(t[a]);else t!=null&&(Me(t,!1),qt(t));else Me(this,r)}var Va=r=>{r.type==Br.CHILD&&(r._$AP??=Ba,r._$AQ??=Na)},zt=class extends Ut{constructor(){super(...arguments),this._$AN=void 0}_$AT(i,e,t){super._$AT(i,e,t),Vr(this),this.isConnected=i._$AU}_$AO(i,e=!0){i!==this.isConnected&&(this.isConnected=i,i?this.reconnected?.():this.disconnected?.()),e&&(Me(this,i),qt(this))}setValue(i){if(Nr(this._$Ct))this._$Ct._$AI(i,this);else{let e=[...this._$Ct._$AH];e[this._$Ci]=i,this._$Ct._$AI(e,this,0)}}disconnected(){}reconnected(){}};var B=()=>new Hi,Hi=class{},Di=new WeakMap,A=Pi(class extends zt{render(r){return u}update(r,[i]){let e=i!==this.G;return e&&this.rt(void 0),(e||this.lt!==this.ct)&&(this.G=i,this.ht=r.options?.host,this.rt(this.ct=r.element)),u}rt(r){if(this.G!==void 0)if(this.isConnected||(r=void 0),typeof this.G=="function"){let i=this.ht??globalThis,e=Di.get(i);e===void 0&&(e=new WeakMap,Di.set(i,e)),e.get(this.G)!==void 0&&this.G.call(this.ht,void 0),e.set(this.G,r),r!==void 0&&this.G.call(this.ht,r)}else this.G.value=r}get lt(){return typeof this.G=="function"?Di.get(this.ht??globalThis)?.get(this.G):this.G?.value}disconnected(){this.lt===this.ct&&this.rt(void 0)}reconnected(){this.rt(this.ct)}});function $(r=32,i=16,e=[0,0,0],t=100){let s=new Uint8Array(r*i*3);for(let a=0;a<s.length;a+=3)s[a]=e[0],s[a+1]=e[1],s[a+2]=e[2];return{width:r,height:i,pixels:s,durationMs:t}}function H(r,i=r.durationMs){return{width:r.width,height:r.height,pixels:r.pixels.slice(),durationMs:i}}function ve(r,i,e){return i>=0&&e>=0&&i<r.width&&e<r.height}function U(r,i,e){if(!ve(r,i,e))return[0,0,0];let t=(e*r.width+i)*3;return[r.pixels[t],r.pixels[t+1],r.pixels[t+2]]}function C(r,i,e,t){if(!ve(r,i,e))return;let s=(e*r.width+i)*3;r.pixels[s]=t[0],r.pixels[s+1]=t[1],r.pixels[s+2]=t[2]}function Gr(r,i){if(r.width!==i.width||r.height!==i.height||r.durationMs!==i.durationMs||r.pixels.length!==i.pixels.length)return!1;for(let e=0;e<r.pixels.length;e++)if(r.pixels[e]!==i.pixels[e])return!1;return!0}function Oi(r,i,e,t,s=[0,0,0]){let a=$(r.width,r.height,s,r.durationMs);for(let n=0;n<r.height;n++)for(let l=0;l<r.width;l++){let d=l-i,c=n-e;if(t)d=(d%r.width+r.width)%r.width,c=(c%r.height+r.height)%r.height;else if(!ve(r,d,c))continue;C(a,l,n,U(r,d,c))}return a}function Ur(r,i){let e=H(r);for(let t=0;t<r.height;t++)for(let s=0;s<r.width;s++){let a=i==="horizontal"?U(r,r.width-1-s,t):U(r,s,r.height-1-t);C(e,s,t,a)}return e}var g=v`
+  :host {
+    /* Home Assistant theme roles */
+    --lu-accent: var(--primary-color);
+    --lu-accent-ink: var(--text-primary-color, var(--primary-background-color));
+    --lu-ink: var(--primary-text-color);
+    --lu-ink-2: var(--secondary-text-color);
+    --lu-ink-3: var(--disabled-text-color, var(--secondary-text-color));
+    --lu-positive: var(--success-color, var(--state-active-color, var(--primary-color)));
+    --lu-warning: var(--warning-color, var(--primary-color));
+    --lu-danger: var(--error-color, var(--primary-color));
+    --lu-info: var(--info-color, var(--primary-color));
+    --lu-live: var(--error-color, var(--primary-color));
+
+    /* Theme-derived glass and edges */
+    --lu-card: var(--ha-card-background, var(--card-background-color));
+    --lu-edge: var(--ha-card-border-color, var(--divider-color));
+    --lu-tile: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
+    --lu-glass-raised: color-mix(in srgb, var(--primary-text-color) 12%, transparent);
+    --lu-edge-raised: color-mix(in srgb, var(--primary-text-color) 22%, transparent);
+    --lu-track-off: color-mix(in srgb, var(--primary-text-color) 16%, transparent);
+    --lu-accent-soft: color-mix(in srgb, var(--primary-color) 18%, transparent);
+    --lu-scrim: color-mix(in srgb, var(--primary-background-color) 55%, transparent);
+    --lu-scrim-top: color-mix(in srgb, var(--primary-background-color) 24%, transparent);
+    --lu-scrim-bottom: color-mix(in srgb, var(--primary-background-color) 72%, transparent);
+    --lu-blur: 18px;
+
+    /* Eight steps on Lucent's four-pixel spacing grid */
+    --lu-space-1: 4px;
+    --lu-space-2: 8px;
+    --lu-space-3: 12px;
+    --lu-space-4: 16px;
+    --lu-space-5: 20px;
+    --lu-space-6: 24px;
+    --lu-space-7: 32px;
+    --lu-space-8: 40px;
+
+    /* Radii stay concentric with the user's HA card theme */
+    --lu-radius-card: var(--ha-card-border-radius, 24px);
+    --lu-radius-sheet: max(var(--lu-radius-card), 28px);
+    --lu-radius-tile: max(calc(var(--lu-radius-card) - 4px), 8px);
+    --lu-radius-row: max(calc(var(--lu-radius-card) - 6px), 8px);
+    --lu-radius-control: max(calc(var(--lu-radius-card) - 10px), 6px);
+    --lu-radius-pill: 999px;
+    --lu-target: 48px;
+
+    /* Theme-relative lift */
+    --lu-highlight-rest: inset 0 1px 0 color-mix(in srgb, var(--primary-text-color) 7%, transparent);
+    --lu-highlight-raised: inset 0 1px 0 color-mix(in srgb, var(--primary-text-color) 18%, transparent);
+    --lu-shadow-rest: var(--ha-card-box-shadow, 0 24px 60px color-mix(in srgb, var(--primary-text-color) 14%, transparent));
+    --lu-shadow-raised: 0 10px 24px color-mix(in srgb, var(--primary-text-color) 22%, transparent);
+    --lu-shadow-pressed: 0 4px 10px color-mix(in srgb, var(--primary-text-color) 18%, transparent);
+
+    /* Type roles */
+    --lu-type-display: 2.5rem;
+    --lu-type-title: 1.125rem;
+    --lu-type-body: 0.9375rem;
+    --lu-type-label: 0.875rem;
+    --lu-type-caption: 0.75rem;
+    --lu-type-numeral: 1.25rem;
+
+    /* Feedback and layering motion */
+    --lu-ease: cubic-bezier(0.33, 1, 0.68, 1);
+    --lu-motion-press: 90ms;
+    --lu-motion-label: 120ms;
+    --lu-motion-focus: 150ms;
+    --lu-motion-card: 180ms;
+    --lu-motion-layer: 220ms;
+    --lu-motion-scroll: 300ms;
+    --lu-hold: 1500ms;
+    --lu-font: var(--ha-font-family-body, var(--paper-font-body1_-_font-family, inherit));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host {
+      --lu-motion-focus: 0ms;
+      --lu-motion-card: 0ms;
+      --lu-motion-layer: 120ms;
+      --lu-motion-scroll: 120ms;
+    }
+  }
+`,_=v`
+  .lu-sheet,
+  .lu-sheet-surface {
+    background: var(--lu-card);
+    border: 1px solid var(--lu-edge);
+    border-radius: var(--lu-radius-sheet);
+    box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest);
+  }
+  .lu-section,
+  .lu-section-surface {
+    background: var(--lu-card);
+    border: 1px solid var(--lu-edge);
+    border-radius: var(--lu-radius-card);
+    box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest);
+  }
+  .lu-tile,
+  .lu-tile-surface {
+    background: transparent;
+    border: 1px solid var(--lu-edge);
+    border-radius: var(--lu-radius-tile);
+  }
+  .lu-raised,
+  .lu-raised-surface {
+    background: var(--lu-glass-raised);
+    border: 1px solid var(--lu-edge-raised);
+    border-radius: var(--lu-radius-tile);
+    box-shadow: var(--lu-highlight-raised), var(--lu-shadow-raised);
+  }
+  .lu-row,
+  .lu-row-surface {
+    background: transparent;
+    border-radius: var(--lu-radius-row);
+    border-bottom: 1px solid var(--lu-edge);
+  }
+  .lu-pill,
+  .lu-pill-surface {
+    border-radius: var(--lu-radius-pill);
+  }
+  .lu-chip,
+  .lu-chip-surface {
+    color: var(--lu-ink-2);
+    background: var(--lu-tile);
+    border: 1px solid var(--lu-edge);
+    border-radius: var(--lu-radius-pill);
+  }
+  .lu-focus-ring:focus-visible {
+    outline: 2px solid var(--lu-accent);
+    outline-offset: 2px;
+  }
+`;function qr(){return typeof window<"u"&&window.matchMedia?.("(prefers-reduced-motion: reduce)").matches===!0}function zr(r,i,e,t,s=.78){let a=Math.min(r/e,i/t),n=a*e,l=a*t;return{cellSize:a,dotRadius:a*s/2,offsetX:(r-n)/2+a/2,offsetY:(i-l)/2+a/2}}function jr(r,i,e){return[r.offsetX+i*r.cellSize,r.offsetY+e*r.cellSize]}function Wr(r,i,e,t,s){let a=Math.round((i-r.offsetX)/r.cellSize),n=Math.round((e-r.offsetY)/r.cellSize);return a<0||n<0||a>=t||n>=s?null:[a,n]}var Ga=.08,Te=class extends m{constructor(){super();this._canvasRef=B();this._resizeObserver=null;this._layout=null;this._dpr=1;this._onPointerDown=e=>{this.interactive&&(e.currentTarget.setPointerCapture(e.pointerId),e.preventDefault(),this._emitPointer(e,"down"))};this._onPointerMove=e=>{!this.interactive||e.buttons===0||this._emitPointer(e,"move")};this._onPointerUp=e=>{this.interactive&&this._emitPointer(e,"up")};this._onPointerLeave=e=>{!this.interactive||e.buttons!==0||this._emitPointer(e,"leave")};this.frame=null,this.interactive=!1,this.showGrid=!1,this.bloom=!0}connectedCallback(){super.connectedCallback(),this._resizeObserver=new ResizeObserver(()=>this._resize())}disconnectedCallback(){super.disconnectedCallback(),this._resizeObserver?.disconnect(),this._resizeObserver=null}firstUpdated(){this._canvasRef.value&&this._resizeObserver?.observe(this._canvasRef.value),this._resize()}updated(e){(e.has("frame")||e.has("showGrid")||e.has("bloom"))&&this._draw()}_resize(){let e=this._canvasRef.value;if(!e)return;let t=e.getBoundingClientRect();if(t.width===0||t.height===0)return;this._dpr=window.devicePixelRatio||1,e.width=Math.max(1,Math.round(t.width*this._dpr)),e.height=Math.max(1,Math.round(t.height*this._dpr));let s=this.frame?.width??32,a=this.frame?.height??16;this._layout=zr(e.width,e.height,s,a),this._draw()}_draw(){let e=this._canvasRef.value,t=e?.getContext("2d");if(!e||!t||!this._layout)return;let s=this._layout,a=this.frame?.width??32,n=this.frame?.height??16;t.clearRect(0,0,e.width,e.height),t.fillStyle="#050607",t.fillRect(0,0,e.width,e.height);for(let l=0;l<n;l++)for(let d=0;d<a;d++){let c=Q=>Math.max(0,Math.min(255,Math.round(Q))),[p,h,f]=this.frame?[c(this.frame.pixels[(l*a+d)*3]),c(this.frame.pixels[(l*a+d)*3+1]),c(this.frame.pixels[(l*a+d)*3+2])]:[0,0,0],[b,k]=jr(s,d,l);if(!(p>0||h>0||f>0)){t.beginPath(),t.fillStyle=`rgba(255, 255, 255, ${Ga})`,t.arc(b,k,s.dotRadius*.72,0,Math.PI*2),t.fill();continue}this.bloom&&(t.save(),t.shadowColor=`rgb(${p}, ${h}, ${f})`,t.shadowBlur=s.dotRadius*1.6,t.beginPath(),t.fillStyle=`rgb(${p}, ${h}, ${f})`,t.arc(b,k,s.dotRadius,0,Math.PI*2),t.fill(),t.restore());let R=t.createRadialGradient(b,k,0,b,k,s.dotRadius);R.addColorStop(0,`rgb(${Math.min(255,p+40)}, ${Math.min(255,h+40)}, ${Math.min(255,f+40)})`),R.addColorStop(1,`rgb(${p}, ${h}, ${f})`),t.beginPath(),t.fillStyle=R,t.arc(b,k,s.dotRadius,0,Math.PI*2),t.fill()}if(this.showGrid){t.strokeStyle="rgba(255, 255, 255, 0.05)",t.lineWidth=1;for(let l=0;l<=a;l++){let d=s.offsetX-s.cellSize/2+l*s.cellSize;t.beginPath(),t.moveTo(d,s.offsetY-s.cellSize/2),t.lineTo(d,s.offsetY-s.cellSize/2+n*s.cellSize),t.stroke()}for(let l=0;l<=n;l++){let d=s.offsetY-s.cellSize/2+l*s.cellSize;t.beginPath(),t.moveTo(s.offsetX-s.cellSize/2,d),t.lineTo(s.offsetX-s.cellSize/2+a*s.cellSize,d),t.stroke()}}}_emitPointer(e,t){let s=this._canvasRef.value;if(!s||!this._layout)return;let a=s.getBoundingClientRect(),n=(e.clientX-a.left)/a.width*s.width,l=(e.clientY-a.top)/a.height*s.height,d=this.frame?.width??32,c=this.frame?.height??16,p=t==="leave"?null:Wr(this._layout,n,l,d,c);!p&&t!=="leave"||this.dispatchEvent(new CustomEvent("matrix-pointer",{detail:{x:p?.[0]??-1,y:p?.[1]??-1,phase:t,buttons:e.buttons,pointerId:e.pointerId},bubbles:!0,composed:!0}))}render(){return o`<canvas
+      ${A(this._canvasRef)}
       class=${this.interactive?"interactive":""}
       @pointerdown=${this._onPointerDown}
       @pointermove=${this._onPointerMove}
       @pointerup=${this._onPointerUp}
       @pointercancel=${this._onPointerUp}
       @pointerleave=${this._onPointerLeave}
-    ></canvas>`}};ue.properties={frame:{attribute:!1},interactive:{type:Boolean},showGrid:{type:Boolean,attribute:"show-grid"},bloom:{type:Boolean}},ue.styles=_`
+    ></canvas>`}};Te.properties={frame:{attribute:!1},interactive:{type:Boolean},showGrid:{type:Boolean,attribute:"show-grid"},bloom:{type:Boolean}},Te.styles=[g,v`
     :host {
       display: block;
       width: 100%;
       height: 100%;
       contain: layout size;
+      border-radius: var(--lu-radius-tile);
+      overflow: hidden;
     }
     canvas {
       display: block;
@@ -25,207 +157,48 @@ var Pe=globalThis,He=Pe.ShadowRoot&&(Pe.ShadyCSS===void 0||Pe.ShadyCSS.nativeSha
     canvas.interactive {
       cursor: crosshair;
     }
-  `;customElements.define("iledclock-matrix-canvas",ue);var y=_`
-  :host {
-    /* host-theme colour roles */
-    --lu-accent: var(--primary-color);
-    --lu-accent-ink: var(--text-primary-color, #fff);
-    --lu-ink: var(--primary-text-color);
-    --lu-ink-2: var(--secondary-text-color);
-    --lu-ink-3: var(--disabled-text-color, var(--secondary-text-color));
-    --lu-positive: var(--success-color, #43a047);
-    --lu-warning: var(--warning-color, #ffa600);
-    --lu-danger: var(--error-color, #db4437);
-    --lu-info: var(--info-color, #039be5);
-    --lu-live: var(--error-color, #db4437);
-
-    /* glass levels derived from the theme's own card colour and text colour */
-    --lu-card: var(--ha-card-background, var(--card-background-color));
-    --lu-edge: var(--ha-card-border-color, var(--divider-color));
-    --lu-tile: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
-    --lu-glass-raised: color-mix(in srgb, var(--primary-text-color) 12%, transparent);
-    --lu-edge-raised: color-mix(in srgb, var(--primary-text-color) 22%, transparent);
-    --lu-track-off: color-mix(in srgb, var(--primary-text-color) 16%, transparent);
-    --lu-accent-soft: color-mix(in srgb, var(--primary-color) 18%, transparent);
-    --lu-scrim: color-mix(in srgb, var(--primary-background-color) 55%, transparent);
-
-    /* shape: concentric with whatever radius the theme gives cards */
-    --lu-radius-card: var(--ha-card-border-radius, 24px);
-    --lu-radius-tile: max(calc(var(--lu-radius-card) - 4px), 8px);
-    --lu-radius-row: max(calc(var(--lu-radius-card) - 6px), 8px);
-    --lu-radius-control: max(calc(var(--lu-radius-card) - 10px), 6px);
-    --lu-radius-pill: 999px;
-    --lu-target: 48px;
-
-    /* material: soft and theme-relative; heavy lift only on raised elements */
-    --lu-highlight-raised: inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent);
-    --lu-shadow-raised: 0 10px 24px color-mix(in srgb, #000 22%, transparent);
-    --lu-shadow-pressed: 0 4px 10px color-mix(in srgb, #000 18%, transparent);
-
-    /* motion and type */
-    --lu-ease: cubic-bezier(0.33, 1, 0.68, 1);
-    --lu-motion-press: 90ms;
-    --lu-motion-focus: 150ms;
-    --lu-motion-card: 180ms;
-    --lu-motion-layer: 220ms;
-    --lu-hold: 1500ms;
-    --lu-font: var(--ha-font-family-body, var(--paper-font-body1_-_font-family, inherit));
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    :host {
-      --lu-motion-focus: 0ms;
-      --lu-motion-card: 0ms;
-      --lu-motion-layer: 120ms;
-    }
-  }
-`;function We(){return typeof window<"u"&&window.matchMedia?.("(prefers-reduced-motion: reduce)").matches===!0}var pe=class extends g{constructor(){super(),this.value="",this.options=[],this.groupLabel="",this.disabled=!1,this.contentFit=!1}render(){return l`
+  `];customElements.define("iledclock-matrix-canvas",Te);var Ae=class extends m{constructor(){super(),this.value="",this.options=[],this.groupLabel="Options",this.disabled=!1,this.contentFit=!1}render(){return o`<div class="picker">
       <div class="segments" role="radiogroup" aria-label=${this.groupLabel}>
-        ${this.options.map(i=>l`
-            <button
-              type="button"
-              role="radio"
-              aria-checked=${i.value===this.value}
-              class="segment ${i.value===this.value?"selected":""}"
-              ?disabled=${this.disabled}
-              @click=${()=>this._select(i.value)}
-            >
-              <span class="segment-label">${i.label}</span>
-            </button>
-          `)}
+        ${this.options.map(i=>o`<button type="button" role="radio" aria-checked=${i.value===this.value?"true":"false"} class="segment ${i.value===this.value?"selected":""}" ?disabled=${this.disabled} @click=${()=>this._select(i.value)}><span class="segment-label">${i.label}</span></button>`)}
       </div>
-    `}_select(i){this.disabled||this.dispatchEvent(new CustomEvent("option-selected",{detail:{value:i},bubbles:!0,composed:!0}))}};pe.properties={value:{type:String},options:{attribute:!1},groupLabel:{type:String,attribute:"group-label"},disabled:{type:Boolean},contentFit:{type:Boolean,attribute:"content-fit"}},pe.styles=[y,_`
-    :host {
-      display: block;
-      container-type: inline-size;
-    }
-    .segments {
-      display: flex;
-      gap: 6px;
-    }
-    .segment {
-      flex: 1 1 0;
-      min-width: var(--lu-target, 48px);
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-pill);
-      border: none;
-      background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
-      color: var(--primary-text-color);
-      font-size: var(--iledclock-segment-size, 15px);
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1.1;
-      overflow: hidden;
-      padding: 0 4px;
-      box-sizing: border-box;
-      transition: background-color 0.15s ease, color 0.15s ease, transform 0.08s ease;
-    }
-    /* content-fit pills size to their labels: no size containment (a size container has no
-       intrinsic width, so inside a flex row the whole picker collapsed to 0 px and its pills
-       rendered empty), and they wrap onto a second row instead of truncating to "A...". */
-    :host([content-fit]) {
-      container-type: normal;
-    }
-    :host([content-fit]) .segments {
-      flex-wrap: wrap;
-    }
-    :host([content-fit]) .segment {
-      flex: 1 0 auto;
-      min-width: 0;
-      padding: 0 14px;
-    }
-    :host([content-fit]) .segment-label {
-      overflow: visible;
-    }
-    @container (max-width: 300px) {
-      :host([content-fit]) .segment-label {
-        font-size: 13px;
-      }
-    }
-    .segment-label {
-      max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .segment:active:not(:disabled) {
-      transform: scale(0.97);
-    }
-    .segment.selected {
-      background: var(--lu-accent);
-      color: var(--lu-accent-ink);
-      box-shadow: var(--lu-highlight-raised), var(--lu-shadow-raised);
-    }
-    .segment:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
-    .segment:focus-visible {
-      outline: 2px solid var(--lu-accent);
-      outline-offset: 2px;
-    }
-    `];customElements.define("iledclock-segmented-picker",pe);var he=class extends g{constructor(){super(),this.value=0,this.min=0,this.max=100,this.step=1,this.disabled=!1,this.label="value"}render(){return l`
-      <div class="stepper">
-        <button type="button" class="step-btn" ?disabled=${this.disabled||this.value<=this.min} @click=${this._decrement} aria-label="Decrease ${this.label}">
-          &minus;
-        </button>
-        <span class="value">${this.value}</span>
-        <button type="button" class="step-btn" ?disabled=${this.disabled||this.value>=this.max} @click=${this._increment} aria-label="Increase ${this.label}">
-          &plus;
-        </button>
-      </div>
-    `}_decrement(){this._emit(Math.max(this.min,this.value-this.step))}_increment(){this._emit(Math.min(this.max,this.value+this.step))}_emit(i){i!==this.value&&this.dispatchEvent(new CustomEvent("value-selected",{detail:{value:i},bubbles:!0,composed:!0}))}};he.properties={value:{type:Number},min:{type:Number},max:{type:Number},step:{type:Number},disabled:{type:Boolean},label:{type:String}},he.styles=[y,_`
-    :host {
-      display: block;
-    }
-    .stepper {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-    .step-btn {
-      width: var(--lu-target, 48px);
-      height: var(--lu-target, 48px);
-      border-radius: 50%;
-      border: 2px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      font-size: 22px;
-      line-height: 1;
-      cursor: pointer;
-      flex: none;
-    }
-    .step-btn:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-    .step-btn:active:not(:disabled) {
-      transform: scale(0.97);
-    }
-    .step-btn:focus-visible {
-      outline: 2px solid var(--lu-accent);
-      outline-offset: 2px;
-    }
-    .value {
-      min-width: 2.2em;
-      text-align: center;
-      font-size: 20px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      color: var(--primary-text-color);
-    }
-    `];customElements.define("iledclock-stepper",he);var me={phase:"idle",elapsedMs:0},fi={durationMs:1500,drainMs:400};function _i(){return{phase:"charging",elapsedMs:0}}function bi(r,i,e){if(r.phase==="charging"){let t=r.elapsedMs+i;return t>=e.durationMs?{phase:"completed",elapsedMs:e.durationMs}:{phase:"charging",elapsedMs:t}}if(r.phase==="draining"){let t=r.elapsedMs-i;return t<=0?me:{phase:"draining",elapsedMs:t}}return r}function vi(r){return r.phase!=="charging"?r:{phase:"draining",elapsedMs:r.elapsedMs}}function yi(r,i){return r.phase==="completed"?1:r.phase==="idle"?0:Math.max(0,Math.min(1,r.elapsedMs/i.durationMs))}function wt(r){typeof window>"u"||window.dispatchEvent(new CustomEvent("haptic",{detail:r}))}var Vr={menu:"M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z",cog:"M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z",power:"M16.56,5.44L15.11,6.89C16.84,7.94 18,9.83 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12C6,9.83 7.16,7.94 8.88,6.88L7.44,5.44C5.36,6.88 4,9.28 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12C20,9.28 18.64,6.88 16.56,5.44M13,3H11V13H13",brightness:"M12,18V6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,15.31L23.31,12L20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31Z",pen:"M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z",eraser:"M16.24,3.56L21.19,8.5C21.97,9.29 21.97,10.55 21.19,11.34L12,20.53C10.44,22.09 7.91,22.09 6.34,20.53L2.81,17C2.03,16.21 2.03,14.95 2.81,14.16L13.41,3.56C14.2,2.78 15.46,2.78 16.24,3.56M4.22,15.58L7.76,19.11C8.54,19.9 9.8,19.9 10.59,19.11L14.12,15.58L9.17,10.63L4.22,15.58Z",fill:"M19,11.5C19,11.5 17,13.67 17,15A2,2 0 0,0 19,17A2,2 0 0,0 21,15C21,13.67 19,11.5 19,11.5M5.21,10L10,5.21L14.79,10M16.56,8.94L7.62,0L6.21,1.41L8.59,3.79L3.44,8.94C2.85,9.5 2.85,10.47 3.44,11.06L8.94,16.56C9.23,16.85 9.62,17 10,17C10.38,17 10.77,16.85 11.06,16.56L16.56,11.06C17.15,10.47 17.15,9.5 16.56,8.94Z",line:"M15,3V7.59L7.59,15H3V21H9V16.42L16.42,9H21V3M17,5H19V7H17M5,17H7V19H5",rectangle:"M4,6V19H20V6H4M18,17H6V8H18V17Z",ellipse:"M12,6C16.41,6 20,8.69 20,12C20,15.31 16.41,18 12,18C7.59,18 4,15.31 4,12C4,8.69 7.59,6 12,6M12,4C6.5,4 2,7.58 2,12C2,16.42 6.5,20 12,20C17.5,20 22,16.42 22,12C22,7.58 17.5,4 12,4Z",eyedropper:"M19.35,11.72L17.22,13.85L15.81,12.43L8.1,20.14L3.5,22L2,20.5L3.86,15.9L11.57,8.19L10.15,6.78L12.28,4.65L19.35,11.72M16.76,3C17.93,1.83 19.83,1.83 21,3C22.17,4.17 22.17,6.07 21,7.24L19.08,9.16L14.84,4.92L16.76,3M5.56,17.03L4.5,19.5L6.97,18.44L14.4,11L13,9.6L5.56,17.03Z",textStamp:"M18.5,4L19.66,8.35L18.7,8.61C18.25,7.74 17.79,6.87 17.26,6.43C16.73,6 16.11,6 15.5,6H13V16.5C13,17 13,17.5 13.33,17.75C13.67,18 14.33,18 15,18V19H9V18C9.67,18 10.33,18 10.67,17.75C11,17.5 11,17 11,16.5V6H8.5C7.89,6 7.27,6 6.74,6.43C6.21,6.87 5.75,7.74 5.3,8.61L4.34,8.35L5.5,4H18.5Z",flipH:"M15 21H17V19H15M19 9H21V7H19M3 5V19C3 20.1 3.9 21 5 21H9V19H5V5H9V3H5C3.9 3 3 3.9 3 5M19 3V5H21C21 3.9 20.1 3 19 3M11 23H13V1H11M19 17H21V15H19M15 5H17V3H15M19 13H21V11H19M19 21C20.1 21 21 20.1 21 19H19Z",flipV:"M3 15V17H5V15M15 19V21H17V19M19 3H5C3.9 3 3 3.9 3 5V9H5V5H19V9H21V5C21 3.9 20.1 3 19 3M21 19H19V21C20.1 21 21 20.1 21 19M1 11V13H23V11M7 19V21H9V19M19 15V17H21V15M11 19V21H13V19M3 19C3 20.1 3.9 21 5 21V19Z",shift:"M13,11H18L16.5,9.5L17.92,8.08L21.84,12L17.92,15.92L16.5,14.5L18,13H13V18L14.5,16.5L15.92,17.92L12,21.84L8.08,17.92L9.5,16.5L11,18V13H6L7.5,14.5L6.08,15.92L2.16,12L6.08,8.08L7.5,9.5L6,11H11V6L9.5,7.5L8.08,6.08L12,2.16L15.92,6.08L14.5,7.5L13,6V11Z",undo:"M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z",redo:"M18.4,10.6C16.55,9 14.15,8 11.5,8C6.85,8 2.92,11.03 1.54,15.22L3.9,16C4.95,12.81 7.95,10.5 11.5,10.5C13.45,10.5 15.23,11.22 16.62,12.38L13,16H22V7L18.4,10.6Z",save:"M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z",duplicate:"M11,17H4A2,2 0 0,1 2,15V3A2,2 0 0,1 4,1H16V3H4V15H11V13L15,16L11,19V17M19,21V7H8V13H6V7A2,2 0 0,1 8,5H19A2,2 0 0,1 21,7V21A2,2 0 0,1 19,23H8A2,2 0 0,1 6,21V19H8V21H19Z",delete:"M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19M8,9H16V19H8V9M15.5,4L14.5,3H9.5L8.5,4H5V6H19V4H15.5Z",plus:"M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z",minus:"M19,13H5V11H19V13Z",play:"M8,5.14V19.14L19,12.14L8,5.14Z",pause:"M14,19H18V5H14M6,19H10V5H6V19Z",chevronLeft:"M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z",chevronRight:"M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z",chevronUp:"M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z",chevronDown:"M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z",check:"M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z",close:"M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",upload:"M6.5 20Q4.22 20 2.61 18.43 1 16.85 1 14.58 1 12.63 2.17 11.1 3.35 9.57 5.25 9.15 5.88 6.85 7.75 5.43 9.63 4 12 4 14.93 4 16.96 6.04 19 8.07 19 11 20.73 11.2 21.86 12.5 23 13.78 23 15.5 23 17.38 21.69 18.69 20.38 20 18.5 20H13Q12.18 20 11.59 19.41 11 18.83 11 18V12.85L9.4 14.4L8 13L12 9L16 13L14.6 14.4L13 12.85V18H18.5Q19.55 18 20.27 17.27 21 16.55 21 15.5 21 14.45 20.27 13.73 19.55 13 18.5 13H17V11Q17 8.93 15.54 7.46 14.08 6 12 6 9.93 6 8.46 7.46 7 8.93 7 11H6.5Q5.05 11 4.03 12.03 3 13.05 3 14.5 3 15.95 4.03 17 5.05 18 6.5 18H9V20M12 13Z",image:"M19,19H5V5H19M19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M13.96,12.29L11.21,15.83L9.25,13.47L6.5,17H17.5L13.96,12.29Z",gif:"M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3M10 10.5H7.5V13.5H8.5V12H10V13.7C10 14.4 9.5 15 8.7 15H7.3C6.5 15 6 14.3 6 13.7V10.4C6 9.7 6.5 9 7.3 9H8.6C9.5 9 10 9.7 10 10.3V10.5M13 15H11.5V9H13V15M17.5 10.5H16V11.5H17.5V13H16V15H14.5V9H17.5V10.5Z",generative:"M19,1L17.74,3.75L15,5L17.74,6.26L19,9L20.25,6.26L23,5L20.25,3.75M9,4L6.5,9.5L1,12L6.5,14.5L9,20L11.5,14.5L17,12L11.5,9.5M19,15L17.74,17.74L15,19L17.74,20.25L19,23L20.25,20.25L23,19L20.25,17.74",palette:"M17.5,12A1.5,1.5 0 0,1 16,10.5A1.5,1.5 0 0,1 17.5,9A1.5,1.5 0 0,1 19,10.5A1.5,1.5 0 0,1 17.5,12M14.5,8A1.5,1.5 0 0,1 13,6.5A1.5,1.5 0 0,1 14.5,5A1.5,1.5 0 0,1 16,6.5A1.5,1.5 0 0,1 14.5,8M9.5,8A1.5,1.5 0 0,1 8,6.5A1.5,1.5 0 0,1 9.5,5A1.5,1.5 0 0,1 11,6.5A1.5,1.5 0 0,1 9.5,8M6.5,12A1.5,1.5 0 0,1 5,10.5A1.5,1.5 0 0,1 6.5,9A1.5,1.5 0 0,1 8,10.5A1.5,1.5 0 0,1 6.5,12M12,3A9,9 0 0,0 3,12A9,9 0 0,0 12,21A1.5,1.5 0 0,0 13.5,19.5C13.5,19.11 13.35,18.76 13.11,18.5C12.88,18.23 12.73,17.88 12.73,17.5A1.5,1.5 0 0,1 14.23,16H16A5,5 0 0,0 21,11C21,6.58 16.97,3 12,3Z",stopwatch:"M12,20A7,7 0 0,1 5,13A7,7 0 0,1 12,6A7,7 0 0,1 19,13A7,7 0 0,1 12,20M19.03,7.39L20.45,5.97C20,5.46 19.55,5 19.04,4.56L17.62,6C16.07,4.74 14.12,4 12,4A9,9 0 0,0 3,13A9,9 0 0,0 12,22C17,22 21,17.97 21,13C21,10.88 20.26,8.93 19.03,7.39M11,14H13V8H11M15,1H9V3H15V1Z",countdown:"M6,2H18V8H18V8L14,12L18,16V16H18V22H6V16H6V16L10,12L6,8V8H6V2M16,16.5L12,12.5L8,16.5V20H16V16.5M12,11.5L16,7.5V4H8V7.5L12,11.5M10,6H14V6.75L12,8.75L10,6.75V6Z",scoreboard:"M21 3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3M21 19H3V5H21M5 7H9C9.6 7 10 7.4 10 8V16C10 16.6 9.6 17 9 17H5C4.4 17 4 16.6 4 16V8C4 7.4 4.4 7 5 7M6 9V15H8V9M15 7H19C19.6 7 20 7.4 20 8V16C20 16.6 19.6 17 19 17H15C14.4 17 14 16.6 14 16V8C14 7.4 14.4 7 15 7M16 9V15H18V9M12 11C12.6 11 13 10.6 13 10C13 9.4 12.6 9 12 9C11.4 9 11 9.4 11 10C11 10.6 11.4 11 12 11M12 15C12.6 15 13 14.6 13 14C13 13.4 12.6 13 12 13C11.4 13 11 13.4 11 14C11 14.6 11.4 15 12 15Z",thermometer:"M15 13V5A3 3 0 0 0 9 5V13A5 5 0 1 0 15 13M12 4A1 1 0 0 1 13 5V8H11V5A1 1 0 0 1 12 4Z",humidity:"M12,3.25C12,3.25 6,10 6,14C6,17.32 8.69,20 12,20A6,6 0 0,0 18,14C18,10 12,3.25 12,3.25M14.47,9.97L15.53,11.03L9.53,17.03L8.47,15.97M9.75,10A1.25,1.25 0 0,1 11,11.25A1.25,1.25 0 0,1 9.75,12.5A1.25,1.25 0 0,1 8.5,11.25A1.25,1.25 0 0,1 9.75,10M14.25,14.5A1.25,1.25 0 0,1 15.5,15.75A1.25,1.25 0 0,1 14.25,17A1.25,1.25 0 0,1 13,15.75A1.25,1.25 0 0,1 14.25,14.5Z",link:"M19,10L17,12L19,14L21,12M14.88,16.29L13,18.17V14.41M13,5.83L14.88,7.71L13,9.58M17.71,7.71L12,2H11V9.58L6.41,5L5,6.41L10.59,12L5,17.58L6.41,19L11,14.41V22H12L17.71,16.29L13.41,12M7,12L5,10L3,12L5,14L7,12Z",linkOff:"M13,5.83L14.88,7.71L13.28,9.31L14.69,10.72L17.71,7.7L12,2H11V7.03L13,9.03M5.41,4L4,5.41L10.59,12L5,17.59L6.41,19L11,14.41V22H12L16.29,17.71L18.59,20L20,18.59M13,18.17V14.41L14.88,16.29",nightMode:"M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95M17.33,17.97C14.5,17.81 11.7,16.64 9.53,14.5C7.36,12.31 6.2,9.5 6.04,6.68C3.23,9.82 3.34,14.64 6.35,17.66C9.37,20.67 14.19,20.78 17.33,17.97Z",volumeHigh:"M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z",volumeOff:"M12,4L9.91,6.09L12,8.18M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.46 14,18.7V20.77C15.38,20.45 16.63,19.82 17.68,18.96L19.73,21L21,19.73L12,10.73M19,12C19,12.94 18.8,13.82 18.46,14.64L19.97,16.15C20.62,14.91 21,13.5 21,12C21,7.72 18,4.14 14,3.23V5.29C16.89,6.15 19,8.83 19,12M16.5,12C16.5,10.23 15.5,8.71 14,7.97V10.18L16.45,12.63C16.5,12.43 16.5,12.21 16.5,12Z",lock:"M12,17C10.89,17 10,16.1 10,15C10,13.89 10.89,13 12,13A2,2 0 0,1 14,15A2,2 0 0,1 12,17M18,20V10H6V20H18M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V10C4,8.89 4.89,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z",reminder:"M10 21H14C14 22.1 13.1 23 12 23S10 22.1 10 21M21 19V20H3V19L5 17V11C5 7.9 7 5.2 10 4.3V4C10 2.9 10.9 2 12 2S14 2.9 14 4V4.3C17 5.2 19 7.9 19 11V17L21 19M17 11C17 8.2 14.8 6 12 6S7 8.2 7 11V18H17V11Z",alarm:"M12,20A7,7 0 0,1 5,13A7,7 0 0,1 12,6A7,7 0 0,1 19,13A7,7 0 0,1 12,20M12,4A9,9 0 0,0 3,13A9,9 0 0,0 12,22A9,9 0 0,0 21,13A9,9 0 0,0 12,4M12.5,8H11V14L15.75,16.85L16.5,15.62L12.5,13.25V8M7.88,3.39L6.6,1.86L2,5.71L3.29,7.24L7.88,3.39M22,5.72L17.4,1.86L16.11,3.39L20.71,7.25L22,5.72Z",clock:"M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z",playlist:"M3 10H14V12H3V10M3 6H14V8H3V6M3 14H10V16H3V14M16 13V21L22 17L16 13Z",dotsGrid:"M12 16C13.1 16 14 16.9 14 18S13.1 20 12 20 10 19.1 10 18 10.9 16 12 16M12 10C13.1 10 14 10.9 14 12S13.1 14 12 14 10 13.1 10 12 10.9 10 12 10M12 4C13.1 4 14 4.9 14 6S13.1 8 12 8 10 7.1 10 6 10.9 4 12 4M6 16C7.1 16 8 16.9 8 18S7.1 20 6 20 4 19.1 4 18 4.9 16 6 16M6 10C7.1 10 8 10.9 8 12S7.1 14 6 14 4 13.1 4 12 4.9 10 6 10M6 4C7.1 4 8 4.9 8 6S7.1 8 6 8 4 7.1 4 6 4.9 4 6 4M18 16C19.1 16 20 16.9 20 18S19.1 20 18 20 16 19.1 16 18 16.9 16 18 16M18 10C19.1 10 20 10.9 20 12S19.1 14 18 14 16 13.1 16 12 16.9 10 18 10M18 4C19.1 4 20 4.9 20 6S19.1 8 18 8 16 7.1 16 6 16.9 4 18 4Z",drag:"M9,3H11V5H9V3M13,3H15V5H13V3M9,7H11V9H9V7M13,7H15V9H13V7M9,11H11V13H9V11M13,11H15V13H13V11M9,15H11V17H9V15M13,15H15V17H13V15M9,19H11V21H9V19M13,19H15V21H13V19Z",zoomIn:"M9,2A7,7 0 0,1 16,9C16,10.57 15.5,12 14.61,13.19L15.41,14H16L22,20L20,22L14,16V15.41L13.19,14.61C12,15.5 10.57,16 9,16A7,7 0 0,1 2,9A7,7 0 0,1 9,2M8,5V8H5V10H8V13H10V10H13V8H10V5H8Z",zoomOut:"M9,2A7,7 0 0,1 16,9C16,10.57 15.5,12 14.61,13.19L15.41,14H16L22,20L20,22L14,16V15.41L13.19,14.61C12,15.5 10.57,16 9,16A7,7 0 0,1 2,9A7,7 0 0,1 9,2M5,8V10H13V8H5Z",grid:"M10,4V8H14V4H10M16,4V8H20V4H16M16,10V14H20V10H16M16,16V20H20V16H16M14,20V16H10V20H14M8,20V16H4V20H8M8,14V10H4V14H8M8,8V4H4V8H8M10,14H14V10H10V14M4,2H20A2,2 0 0,1 22,4V20A2,2 0 0,1 20,22H4C2.92,22 2,21.1 2,20V4A2,2 0 0,1 4,2Z",restore:"M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z",refresh:"M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z",library:"M21,17H7V3H21M21,1H7A2,2 0 0,0 5,3V17A2,2 0 0,0 7,19H21A2,2 0 0,0 23,17V3A2,2 0 0,0 21,1M3,5H1V21A2,2 0 0,0 3,23H19V21H3M15.96,10.29L13.21,13.83L11.25,11.47L8.5,15H19.5L15.96,10.29Z",text:"M9.62,12L12,5.67L14.37,12M11,3L5.5,17H7.75L8.87,14H15.12L16.25,17H18.5L13,3H11Z"};function m(r){return Be`<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d=${Vr[r]}></path></svg>`}var zr=900,ge=class extends g{constructor(){super();this._hold=me;this._settled=!1;this._rafId=null;this._lastTs=0;this._settleTimer=void 0;this._onPointerDown=e=>{this.disabled||this._settled||(e.currentTarget.setPointerCapture(e.pointerId),e.preventDefault(),this._hold=_i(),wt("light"),this._startLoop())};this._onPointerUp=()=>this._release();this._onPointerLeave=()=>this._release();this.label="Hold to confirm",this.completeLabel="Done",this.disabled=!1,this.danger=!1,this.config=fi}disconnectedCallback(){super.disconnectedCallback(),this._stopLoop(),clearTimeout(this._settleTimer)}updated(e){e.has("disabled")&&this.disabled&&this._reset()}_reset(){this._stopLoop(),this._hold=me,this._settled=!1,this.requestUpdate()}_stopLoop(){this._rafId!==null&&cancelAnimationFrame(this._rafId),this._rafId=null}_startLoop(){if(this._rafId!==null)return;this._lastTs=performance.now();let e=t=>{let s=t-this._lastTs;this._lastTs=t;let n=this._hold.phase;if(this._hold=bi(this._hold,s,this.config),this.requestUpdate(),n==="charging"&&this._hold.phase==="completed"&&this._onCompleted(),this._hold.phase==="idle"||this._hold.phase==="completed"){this._rafId=null;return}this._rafId=requestAnimationFrame(e)};this._rafId=requestAnimationFrame(e)}_onCompleted(){this._settled=!0,wt("success"),this.dispatchEvent(new CustomEvent("confirmed",{bubbles:!0,composed:!0})),this._settleTimer=setTimeout(()=>{this._hold=me,this._settled=!1,this.requestUpdate()},zr)}_release(){this._hold.phase==="charging"&&(this._hold=vi(this._hold),this._startLoop())}render(){let e=yi(this._hold,this.config),t=We(),s=this._settled;return l`
+      <select class="compact" aria-label=${this.groupLabel} .value=${this.value} ?disabled=${this.disabled} @change=${i=>this._select(i.target.value)}>
+        ${this.options.map(i=>o`<option value=${i.value} ?selected=${i.value===this.value}>${i.label}</option>`)}
+      </select>
+    </div>`}_select(i){this.disabled||i===this.value||this.dispatchEvent(new CustomEvent("option-selected",{detail:{value:i},bubbles:!0,composed:!0}))}};Ae.properties={value:{type:String},options:{attribute:!1},groupLabel:{type:String,attribute:"group-label"},disabled:{type:Boolean},contentFit:{type:Boolean,attribute:"content-fit"}},Ae.styles=[g,_,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .segments { display: flex; gap: var(--lu-space-2); min-width: 0; }
+    .segment { display: flex; align-items: center; justify-content: center; flex: 1 1 0; min-width: var(--lu-target); min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: var(--lu-glass-raised); font: 500 var(--iledclock-segment-size, var(--lu-type-label))/1.2 var(--lu-font); cursor: pointer; }
+    .segment-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .segment.selected { color: var(--lu-accent-ink); background: var(--lu-accent); border-color: transparent; box-shadow: var(--lu-highlight-raised); }
+    .segment:active:not(:disabled) { transform: scale(0.97); }
+    .segment:disabled, .compact:disabled { opacity: 0.5; cursor: default; }
+    .segment:focus-visible, .compact:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .compact { display: none; width: 100%; min-height: var(--lu-target); padding: 0 var(--lu-space-4); color: var(--lu-ink); background: var(--lu-card); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); font: 500 var(--lu-type-label)/1.2 var(--lu-font); }
+    :host([content-fit]) .segments { flex-wrap: wrap; }
+    :host([content-fit]) .segment { flex: 1 0 auto; min-width: 0; }
+    @container (max-width: 359px) { .segments { display: none; } .compact { display: block; } }
+    @media (prefers-reduced-motion: reduce) { .segment { transition: none; } }
+  `];customElements.define("iledclock-segmented-picker",Ae);var Pe=class extends m{constructor(){super(),this.value=0,this.min=0,this.max=100,this.step=1,this.disabled=!1,this.label="value"}render(){return o`<div class="stepper" role="group" aria-label=${this.label}>
+      <button type="button" class="step-btn" ?disabled=${this.disabled||this.value<=this.min} @click=${this._decrement} aria-label="Decrease ${this.label}">&minus;</button>
+      <output class="value" aria-live="polite">${this.value}</output>
+      <button type="button" class="step-btn" ?disabled=${this.disabled||this.value>=this.max} @click=${this._increment} aria-label="Increase ${this.label}">&plus;</button>
+    </div>`}_decrement(){this._emit(Math.max(this.min,this.value-this.step))}_increment(){this._emit(Math.min(this.max,this.value+this.step))}_emit(i){i!==this.value&&this.dispatchEvent(new CustomEvent("value-selected",{detail:{value:i},bubbles:!0,composed:!0}))}};Pe.properties={value:{type:Number},min:{type:Number},max:{type:Number},step:{type:Number},disabled:{type:Boolean},label:{type:String}},Pe.styles=[g,_,v`
+    :host { display: block; min-width: 0; }
+    .stepper { display: flex; align-items: center; justify-content: center; gap: var(--lu-space-3); }
+    .step-btn { flex: none; width: var(--lu-target); height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: var(--lu-glass-raised); font: 500 var(--lu-type-title)/1 var(--lu-font); cursor: pointer; }
+    .step-btn:disabled { opacity: 0.45; cursor: default; }
+    .step-btn:active:not(:disabled) { transform: scale(0.97); }
+    .step-btn:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .value { min-width: 2.2em; color: var(--lu-ink); text-align: center; font: 500 var(--lu-type-numeral)/1.2 var(--lu-font); font-variant-numeric: tabular-nums; }
+  `];customElements.define("iledclock-stepper",Pe);var De={phase:"idle",elapsedMs:0},Kr={durationMs:1500,drainMs:400};function Fi(){return{phase:"charging",elapsedMs:0}}function Yr(r,i,e){if(r.phase==="charging"){let t=r.elapsedMs+i;return t>=e.durationMs?{phase:"completed",elapsedMs:e.durationMs}:{phase:"charging",elapsedMs:t}}if(r.phase==="draining"){let t=r.elapsedMs-i;return t<=0?De:{phase:"draining",elapsedMs:t}}return r}function Xr(r){return r.phase!=="charging"?r:{phase:"draining",elapsedMs:r.elapsedMs}}function Zr(r,i){return r.phase==="completed"?1:r.phase==="idle"?0:Math.max(0,Math.min(1,r.elapsedMs/i.durationMs))}function jt(r){typeof window>"u"||window.dispatchEvent(new CustomEvent("haptic",{detail:r}))}var Ua={menu:"M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z",cog:"M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z",power:"M16.56,5.44L15.11,6.89C16.84,7.94 18,9.83 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12C6,9.83 7.16,7.94 8.88,6.88L7.44,5.44C5.36,6.88 4,9.28 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12C20,9.28 18.64,6.88 16.56,5.44M13,3H11V13H13",brightness:"M12,18V6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,15.31L23.31,12L20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31Z",pen:"M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z",eraser:"M16.24,3.56L21.19,8.5C21.97,9.29 21.97,10.55 21.19,11.34L12,20.53C10.44,22.09 7.91,22.09 6.34,20.53L2.81,17C2.03,16.21 2.03,14.95 2.81,14.16L13.41,3.56C14.2,2.78 15.46,2.78 16.24,3.56M4.22,15.58L7.76,19.11C8.54,19.9 9.8,19.9 10.59,19.11L14.12,15.58L9.17,10.63L4.22,15.58Z",fill:"M19,11.5C19,11.5 17,13.67 17,15A2,2 0 0,0 19,17A2,2 0 0,0 21,15C21,13.67 19,11.5 19,11.5M5.21,10L10,5.21L14.79,10M16.56,8.94L7.62,0L6.21,1.41L8.59,3.79L3.44,8.94C2.85,9.5 2.85,10.47 3.44,11.06L8.94,16.56C9.23,16.85 9.62,17 10,17C10.38,17 10.77,16.85 11.06,16.56L16.56,11.06C17.15,10.47 17.15,9.5 16.56,8.94Z",line:"M15,3V7.59L7.59,15H3V21H9V16.42L16.42,9H21V3M17,5H19V7H17M5,17H7V19H5",rectangle:"M4,6V19H20V6H4M18,17H6V8H18V17Z",ellipse:"M12,6C16.41,6 20,8.69 20,12C20,15.31 16.41,18 12,18C7.59,18 4,15.31 4,12C4,8.69 7.59,6 12,6M12,4C6.5,4 2,7.58 2,12C2,16.42 6.5,20 12,20C17.5,20 22,16.42 22,12C22,7.58 17.5,4 12,4Z",eyedropper:"M19.35,11.72L17.22,13.85L15.81,12.43L8.1,20.14L3.5,22L2,20.5L3.86,15.9L11.57,8.19L10.15,6.78L12.28,4.65L19.35,11.72M16.76,3C17.93,1.83 19.83,1.83 21,3C22.17,4.17 22.17,6.07 21,7.24L19.08,9.16L14.84,4.92L16.76,3M5.56,17.03L4.5,19.5L6.97,18.44L14.4,11L13,9.6L5.56,17.03Z",textStamp:"M18.5,4L19.66,8.35L18.7,8.61C18.25,7.74 17.79,6.87 17.26,6.43C16.73,6 16.11,6 15.5,6H13V16.5C13,17 13,17.5 13.33,17.75C13.67,18 14.33,18 15,18V19H9V18C9.67,18 10.33,18 10.67,17.75C11,17.5 11,17 11,16.5V6H8.5C7.89,6 7.27,6 6.74,6.43C6.21,6.87 5.75,7.74 5.3,8.61L4.34,8.35L5.5,4H18.5Z",flipH:"M15 21H17V19H15M19 9H21V7H19M3 5V19C3 20.1 3.9 21 5 21H9V19H5V5H9V3H5C3.9 3 3 3.9 3 5M19 3V5H21C21 3.9 20.1 3 19 3M11 23H13V1H11M19 17H21V15H19M15 5H17V3H15M19 13H21V11H19M19 21C20.1 21 21 20.1 21 19H19Z",flipV:"M3 15V17H5V15M15 19V21H17V19M19 3H5C3.9 3 3 3.9 3 5V9H5V5H19V9H21V5C21 3.9 20.1 3 19 3M21 19H19V21C20.1 21 21 20.1 21 19M1 11V13H23V11M7 19V21H9V19M19 15V17H21V15M11 19V21H13V19M3 19C3 20.1 3.9 21 5 21V19Z",shift:"M13,11H18L16.5,9.5L17.92,8.08L21.84,12L17.92,15.92L16.5,14.5L18,13H13V18L14.5,16.5L15.92,17.92L12,21.84L8.08,17.92L9.5,16.5L11,18V13H6L7.5,14.5L6.08,15.92L2.16,12L6.08,8.08L7.5,9.5L6,11H11V6L9.5,7.5L8.08,6.08L12,2.16L15.92,6.08L14.5,7.5L13,6V11Z",undo:"M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z",redo:"M18.4,10.6C16.55,9 14.15,8 11.5,8C6.85,8 2.92,11.03 1.54,15.22L3.9,16C4.95,12.81 7.95,10.5 11.5,10.5C13.45,10.5 15.23,11.22 16.62,12.38L13,16H22V7L18.4,10.6Z",save:"M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z",duplicate:"M11,17H4A2,2 0 0,1 2,15V3A2,2 0 0,1 4,1H16V3H4V15H11V13L15,16L11,19V17M19,21V7H8V13H6V7A2,2 0 0,1 8,5H19A2,2 0 0,1 21,7V21A2,2 0 0,1 19,23H8A2,2 0 0,1 6,21V19H8V21H19Z",delete:"M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19M8,9H16V19H8V9M15.5,4L14.5,3H9.5L8.5,4H5V6H19V4H15.5Z",plus:"M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z",minus:"M19,13H5V11H19V13Z",play:"M8,5.14V19.14L19,12.14L8,5.14Z",pause:"M14,19H18V5H14M6,19H10V5H6V19Z",chevronLeft:"M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z",chevronRight:"M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z",chevronUp:"M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z",chevronDown:"M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z",check:"M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z",close:"M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",upload:"M6.5 20Q4.22 20 2.61 18.43 1 16.85 1 14.58 1 12.63 2.17 11.1 3.35 9.57 5.25 9.15 5.88 6.85 7.75 5.43 9.63 4 12 4 14.93 4 16.96 6.04 19 8.07 19 11 20.73 11.2 21.86 12.5 23 13.78 23 15.5 23 17.38 21.69 18.69 20.38 20 18.5 20H13Q12.18 20 11.59 19.41 11 18.83 11 18V12.85L9.4 14.4L8 13L12 9L16 13L14.6 14.4L13 12.85V18H18.5Q19.55 18 20.27 17.27 21 16.55 21 15.5 21 14.45 20.27 13.73 19.55 13 18.5 13H17V11Q17 8.93 15.54 7.46 14.08 6 12 6 9.93 6 8.46 7.46 7 8.93 7 11H6.5Q5.05 11 4.03 12.03 3 13.05 3 14.5 3 15.95 4.03 17 5.05 18 6.5 18H9V20M12 13Z",image:"M19,19H5V5H19M19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M13.96,12.29L11.21,15.83L9.25,13.47L6.5,17H17.5L13.96,12.29Z",gif:"M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3M10 10.5H7.5V13.5H8.5V12H10V13.7C10 14.4 9.5 15 8.7 15H7.3C6.5 15 6 14.3 6 13.7V10.4C6 9.7 6.5 9 7.3 9H8.6C9.5 9 10 9.7 10 10.3V10.5M13 15H11.5V9H13V15M17.5 10.5H16V11.5H17.5V13H16V15H14.5V9H17.5V10.5Z",generative:"M19,1L17.74,3.75L15,5L17.74,6.26L19,9L20.25,6.26L23,5L20.25,3.75M9,4L6.5,9.5L1,12L6.5,14.5L9,20L11.5,14.5L17,12L11.5,9.5M19,15L17.74,17.74L15,19L17.74,20.25L19,23L20.25,20.25L23,19L20.25,17.74",palette:"M17.5,12A1.5,1.5 0 0,1 16,10.5A1.5,1.5 0 0,1 17.5,9A1.5,1.5 0 0,1 19,10.5A1.5,1.5 0 0,1 17.5,12M14.5,8A1.5,1.5 0 0,1 13,6.5A1.5,1.5 0 0,1 14.5,5A1.5,1.5 0 0,1 16,6.5A1.5,1.5 0 0,1 14.5,8M9.5,8A1.5,1.5 0 0,1 8,6.5A1.5,1.5 0 0,1 9.5,5A1.5,1.5 0 0,1 11,6.5A1.5,1.5 0 0,1 9.5,8M6.5,12A1.5,1.5 0 0,1 5,10.5A1.5,1.5 0 0,1 6.5,9A1.5,1.5 0 0,1 8,10.5A1.5,1.5 0 0,1 6.5,12M12,3A9,9 0 0,0 3,12A9,9 0 0,0 12,21A1.5,1.5 0 0,0 13.5,19.5C13.5,19.11 13.35,18.76 13.11,18.5C12.88,18.23 12.73,17.88 12.73,17.5A1.5,1.5 0 0,1 14.23,16H16A5,5 0 0,0 21,11C21,6.58 16.97,3 12,3Z",stopwatch:"M12,20A7,7 0 0,1 5,13A7,7 0 0,1 12,6A7,7 0 0,1 19,13A7,7 0 0,1 12,20M19.03,7.39L20.45,5.97C20,5.46 19.55,5 19.04,4.56L17.62,6C16.07,4.74 14.12,4 12,4A9,9 0 0,0 3,13A9,9 0 0,0 12,22C17,22 21,17.97 21,13C21,10.88 20.26,8.93 19.03,7.39M11,14H13V8H11M15,1H9V3H15V1Z",countdown:"M6,2H18V8H18V8L14,12L18,16V16H18V22H6V16H6V16L10,12L6,8V8H6V2M16,16.5L12,12.5L8,16.5V20H16V16.5M12,11.5L16,7.5V4H8V7.5L12,11.5M10,6H14V6.75L12,8.75L10,6.75V6Z",scoreboard:"M21 3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3M21 19H3V5H21M5 7H9C9.6 7 10 7.4 10 8V16C10 16.6 9.6 17 9 17H5C4.4 17 4 16.6 4 16V8C4 7.4 4.4 7 5 7M6 9V15H8V9M15 7H19C19.6 7 20 7.4 20 8V16C20 16.6 19.6 17 19 17H15C14.4 17 14 16.6 14 16V8C14 7.4 14.4 7 15 7M16 9V15H18V9M12 11C12.6 11 13 10.6 13 10C13 9.4 12.6 9 12 9C11.4 9 11 9.4 11 10C11 10.6 11.4 11 12 11M12 15C12.6 15 13 14.6 13 14C13 13.4 12.6 13 12 13C11.4 13 11 13.4 11 14C11 14.6 11.4 15 12 15Z",thermometer:"M15 13V5A3 3 0 0 0 9 5V13A5 5 0 1 0 15 13M12 4A1 1 0 0 1 13 5V8H11V5A1 1 0 0 1 12 4Z",humidity:"M12,3.25C12,3.25 6,10 6,14C6,17.32 8.69,20 12,20A6,6 0 0,0 18,14C18,10 12,3.25 12,3.25M14.47,9.97L15.53,11.03L9.53,17.03L8.47,15.97M9.75,10A1.25,1.25 0 0,1 11,11.25A1.25,1.25 0 0,1 9.75,12.5A1.25,1.25 0 0,1 8.5,11.25A1.25,1.25 0 0,1 9.75,10M14.25,14.5A1.25,1.25 0 0,1 15.5,15.75A1.25,1.25 0 0,1 14.25,17A1.25,1.25 0 0,1 13,15.75A1.25,1.25 0 0,1 14.25,14.5Z",link:"M19,10L17,12L19,14L21,12M14.88,16.29L13,18.17V14.41M13,5.83L14.88,7.71L13,9.58M17.71,7.71L12,2H11V9.58L6.41,5L5,6.41L10.59,12L5,17.58L6.41,19L11,14.41V22H12L17.71,16.29L13.41,12M7,12L5,10L3,12L5,14L7,12Z",linkOff:"M13,5.83L14.88,7.71L13.28,9.31L14.69,10.72L17.71,7.7L12,2H11V7.03L13,9.03M5.41,4L4,5.41L10.59,12L5,17.59L6.41,19L11,14.41V22H12L16.29,17.71L18.59,20L20,18.59M13,18.17V14.41L14.88,16.29",nightMode:"M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95M17.33,17.97C14.5,17.81 11.7,16.64 9.53,14.5C7.36,12.31 6.2,9.5 6.04,6.68C3.23,9.82 3.34,14.64 6.35,17.66C9.37,20.67 14.19,20.78 17.33,17.97Z",volumeHigh:"M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z",volumeOff:"M12,4L9.91,6.09L12,8.18M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.46 14,18.7V20.77C15.38,20.45 16.63,19.82 17.68,18.96L19.73,21L21,19.73L12,10.73M19,12C19,12.94 18.8,13.82 18.46,14.64L19.97,16.15C20.62,14.91 21,13.5 21,12C21,7.72 18,4.14 14,3.23V5.29C16.89,6.15 19,8.83 19,12M16.5,12C16.5,10.23 15.5,8.71 14,7.97V10.18L16.45,12.63C16.5,12.43 16.5,12.21 16.5,12Z",lock:"M12,17C10.89,17 10,16.1 10,15C10,13.89 10.89,13 12,13A2,2 0 0,1 14,15A2,2 0 0,1 12,17M18,20V10H6V20H18M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V10C4,8.89 4.89,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z",reminder:"M10 21H14C14 22.1 13.1 23 12 23S10 22.1 10 21M21 19V20H3V19L5 17V11C5 7.9 7 5.2 10 4.3V4C10 2.9 10.9 2 12 2S14 2.9 14 4V4.3C17 5.2 19 7.9 19 11V17L21 19M17 11C17 8.2 14.8 6 12 6S7 8.2 7 11V18H17V11Z",alarm:"M12,20A7,7 0 0,1 5,13A7,7 0 0,1 12,6A7,7 0 0,1 19,13A7,7 0 0,1 12,20M12,4A9,9 0 0,0 3,13A9,9 0 0,0 12,22A9,9 0 0,0 21,13A9,9 0 0,0 12,4M12.5,8H11V14L15.75,16.85L16.5,15.62L12.5,13.25V8M7.88,3.39L6.6,1.86L2,5.71L3.29,7.24L7.88,3.39M22,5.72L17.4,1.86L16.11,3.39L20.71,7.25L22,5.72Z",clock:"M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z",playlist:"M3 10H14V12H3V10M3 6H14V8H3V6M3 14H10V16H3V14M16 13V21L22 17L16 13Z",dotsGrid:"M12 16C13.1 16 14 16.9 14 18S13.1 20 12 20 10 19.1 10 18 10.9 16 12 16M12 10C13.1 10 14 10.9 14 12S13.1 14 12 14 10 13.1 10 12 10.9 10 12 10M12 4C13.1 4 14 4.9 14 6S13.1 8 12 8 10 7.1 10 6 10.9 4 12 4M6 16C7.1 16 8 16.9 8 18S7.1 20 6 20 4 19.1 4 18 4.9 16 6 16M6 10C7.1 10 8 10.9 8 12S7.1 14 6 14 4 13.1 4 12 4.9 10 6 10M6 4C7.1 4 8 4.9 8 6S7.1 8 6 8 4 7.1 4 6 4.9 4 6 4M18 16C19.1 16 20 16.9 20 18S19.1 20 18 20 16 19.1 16 18 16.9 16 18 16M18 10C19.1 10 20 10.9 20 12S19.1 14 18 14 16 13.1 16 12 16.9 10 18 10M18 4C19.1 4 20 4.9 20 6S19.1 8 18 8 16 7.1 16 6 16.9 4 18 4Z",drag:"M9,3H11V5H9V3M13,3H15V5H13V3M9,7H11V9H9V7M13,7H15V9H13V7M9,11H11V13H9V11M13,11H15V13H13V11M9,15H11V17H9V15M13,15H15V17H13V15M9,19H11V21H9V19M13,19H15V21H13V19Z",zoomIn:"M9,2A7,7 0 0,1 16,9C16,10.57 15.5,12 14.61,13.19L15.41,14H16L22,20L20,22L14,16V15.41L13.19,14.61C12,15.5 10.57,16 9,16A7,7 0 0,1 2,9A7,7 0 0,1 9,2M8,5V8H5V10H8V13H10V10H13V8H10V5H8Z",zoomOut:"M9,2A7,7 0 0,1 16,9C16,10.57 15.5,12 14.61,13.19L15.41,14H16L22,20L20,22L14,16V15.41L13.19,14.61C12,15.5 10.57,16 9,16A7,7 0 0,1 2,9A7,7 0 0,1 9,2M5,8V10H13V8H5Z",grid:"M10,4V8H14V4H10M16,4V8H20V4H16M16,10V14H20V10H16M16,16V20H20V16H16M14,20V16H10V20H14M8,20V16H4V20H8M8,14V10H4V14H8M8,8V4H4V8H8M10,14H14V10H10V14M4,2H20A2,2 0 0,1 22,4V20A2,2 0 0,1 20,22H4C2.92,22 2,21.1 2,20V4A2,2 0 0,1 4,2Z",restore:"M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z",refresh:"M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z",library:"M21,17H7V3H21M21,1H7A2,2 0 0,0 5,3V17A2,2 0 0,0 7,19H21A2,2 0 0,0 23,17V3A2,2 0 0,0 21,1M3,5H1V21A2,2 0 0,0 3,23H19V21H3M15.96,10.29L13.21,13.83L11.25,11.47L8.5,15H19.5L15.96,10.29Z",text:"M9.62,12L12,5.67L14.37,12M11,3L5.5,17H7.75L8.87,14H15.12L16.25,17H18.5L13,3H11Z"};function y(r){return Gt`<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d=${Ua[r]}></path></svg>`}var qa=900,He=class extends m{constructor(){super();this._hold=De;this._settled=!1;this._rafId=null;this._lastTs=0;this._settleTimer=void 0;this._onPointerDown=e=>{this.disabled||this._settled||(e.currentTarget.setPointerCapture(e.pointerId),e.preventDefault(),this._hold=Fi(),jt("light"),this._startLoop())};this._onKeyDown=e=>{e.key!==" "&&e.key!=="Enter"||this.disabled||this._settled||this._hold.phase==="charging"||(e.preventDefault(),this._hold=Fi(),jt("light"),this._startLoop())};this._onKeyUp=e=>{(e.key===" "||e.key==="Enter")&&this._release()};this._onPointerUp=()=>this._release();this._onPointerLeave=()=>this._release();this.label="Hold to confirm",this.completeLabel="Done",this.disabled=!1,this.danger=!1,this.config=Kr}disconnectedCallback(){super.disconnectedCallback(),this._stopLoop(),clearTimeout(this._settleTimer)}updated(e){e.has("disabled")&&this.disabled&&this._reset()}_reset(){this._stopLoop(),this._hold=De,this._settled=!1,this.requestUpdate()}_stopLoop(){this._rafId!==null&&cancelAnimationFrame(this._rafId),this._rafId=null}_startLoop(){if(this._rafId!==null)return;this._lastTs=performance.now();let e=t=>{let s=t-this._lastTs;this._lastTs=t;let a=this._hold.phase;if(this._hold=Yr(this._hold,s,this.config),this.requestUpdate(),a==="charging"&&this._hold.phase==="completed"&&this._onCompleted(),this._hold.phase==="idle"||this._hold.phase==="completed"){this._rafId=null;return}this._rafId=requestAnimationFrame(e)};this._rafId=requestAnimationFrame(e)}_onCompleted(){this._settled=!0,jt("success"),this.dispatchEvent(new CustomEvent("confirmed",{bubbles:!0,composed:!0})),this._settleTimer=setTimeout(()=>{this._hold=De,this._settled=!1,this.requestUpdate()},qa)}_release(){this._hold.phase==="charging"&&(this._hold=Xr(this._hold),this._startLoop())}render(){let e=Zr(this._hold,this.config),t=qr(),s=this._settled;return o`
       <button
         type="button"
         class="hold ${this.danger?"danger":""} ${t?"reduced":""}"
         ?disabled=${this.disabled}
         aria-label=${s?this.completeLabel:this.label}
         @pointerdown=${this._onPointerDown}
+        @keydown=${this._onKeyDown}
+        @keyup=${this._onKeyUp}
         @pointerup=${this._onPointerUp}
         @pointercancel=${this._onPointerUp}
         @pointerleave=${this._onPointerLeave}
@@ -233,7 +206,7 @@ var Pe=globalThis,He=Pe.ShadowRoot&&(Pe.ShadyCSS===void 0||Pe.ShadyCSS.nativeSha
         <span class="fill" style="transform: scaleX(${e})"></span>
         <span class="content">
           <span class="ring">
-            ${s?m("check"):Be`<svg viewBox="0 0 24 24" width="20" height="20">
+            ${s?y("check"):Gt`<svg viewBox="0 0 24 24" width="20" height="20">
                   <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="2.5" />
                   <circle
                     cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -247,7 +220,7 @@ var Pe=globalThis,He=Pe.ShadowRoot&&(Pe.ShadyCSS===void 0||Pe.ShadyCSS.nativeSha
           <span class="label">${s?this.completeLabel:this.label}</span>
         </span>
       </button>
-    `}};ge.properties={label:{type:String},completeLabel:{type:String,attribute:"complete-label"},disabled:{type:Boolean},danger:{type:Boolean},config:{attribute:!1}},ge.styles=[y,_`
+    `}};He.properties={label:{type:String},completeLabel:{type:String,attribute:"complete-label"},disabled:{type:Boolean},danger:{type:Boolean},config:{attribute:!1}},He.styles=[g,v`
     :host {
       display: block;
     }
@@ -256,9 +229,9 @@ var Pe=globalThis,He=Pe.ShadowRoot&&(Pe.ShadyCSS===void 0||Pe.ShadyCSS.nativeSha
       width: 100%;
       min-height: var(--lu-target, 48px);
       border-radius: var(--lu-radius-pill);
-      border: 1px solid var(--divider-color);
-      background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
-      color: var(--primary-text-color);
+      border: 1px solid var(--lu-edge-raised);
+      background: var(--lu-glass-raised);
+      color: var(--lu-ink);
       overflow: hidden;
       cursor: pointer;
       padding: 0;
@@ -277,16 +250,17 @@ var Pe=globalThis,He=Pe.ShadowRoot&&(Pe.ShadyCSS===void 0||Pe.ShadyCSS.nativeSha
     .fill {
       position: absolute;
       inset: 0;
-      background: var(--lu-accent);
+      background: var(--lu-accent-soft);
       transform-origin: left center;
       transform: scaleX(0);
       pointer-events: none;
     }
     .hold:not(.reduced) .fill {
-      transition: transform 60ms linear;
+      transition: transform var(--lu-motion-press) linear;
     }
-    .hold.danger .fill {
-      background: var(--lu-danger);
+    .hold.danger {
+      border-color: color-mix(in srgb, var(--lu-danger) 36%, var(--lu-edge));
+      color: var(--lu-danger);
     }
     .content {
       position: relative;
@@ -294,9 +268,9 @@ var Pe=globalThis,He=Pe.ShadowRoot&&(Pe.ShadyCSS===void 0||Pe.ShadyCSS.nativeSha
       align-items: center;
       justify-content: center;
       gap: 10px;
-      padding: 12px 20px;
-      font-size: 15px;
-      font-weight: 700;
+      padding: var(--lu-space-3) var(--lu-space-5);
+      font-size: var(--lu-type-body);
+      font-weight: 600;
     }
     .ring {
       display: inline-flex;
@@ -306,2968 +280,1622 @@ var Pe=globalThis,He=Pe.ShadowRoot&&(Pe.ShadyCSS===void 0||Pe.ShadyCSS.nativeSha
     .hold.danger .ring {
       color: var(--lu-danger);
     }
-    `];customElements.define("iledclock-hold-button",ge);function $t(r){let i=Math.max(0,Math.min(255,Math.round(r)));return i>=238?15:i<=47?0:Math.floor((i-47)/14)+1}function kt(r){let i=Math.max(0,Math.min(255,Math.round(r)));return Math.min(15,Math.floor(i/16))}function J(r){return Math.max(0,Math.min(15,Math.round(r)))*17}function Nr(r){return[$t(r[0]),$t(r[1]),$t(r[2])]}function Br(r){return[kt(r[0]),kt(r[1]),kt(r[2])]}function ee(r){let[i,e,t]=Nr(r);return[J(i),J(e),J(t)]}function xi(r){let[i,e,t]=Br(r);return[J(i),J(e),J(t)]}function fe(r){let i=e=>Math.max(0,Math.min(255,Math.round(e)));return[i(r[0]),i(r[1]),i(r[2])]}function O(r){let i=e=>Math.max(0,Math.min(255,Math.round(e))).toString(16).padStart(2,"0");return`#${i(r[0])}${i(r[1])}${i(r[2])}`}function F(r){let i=r.replace("#",""),e=i.length===3?i.split("").map(s=>s+s).join(""):i,t=Number.parseInt(e,16);return Number.isNaN(t)||e.length!==6?[0,0,0]:[t>>16&255,t>>8&255,t&255]}function Ke(r){return r?{type:"iledclock/designs/list",entry_id:r}:{type:"iledclock/designs/list"}}function wi(r){return{type:"iledclock/designs/save",design:r}}function $i(r){return{type:"iledclock/designs/delete",design_id:r}}function te(r,i){return{type:"iledclock/render",entry_id:r,spec:i}}function H(r,i){return{type:"iledclock/show",entry_id:r,item:i}}function ki(r){return{type:"iledclock/playlist/get",entry_id:r}}function Si(r,i){return{type:"iledclock/playlist/set",entry_id:r,playlist:i}}function Ze(r,i,e={}){return{type:"iledclock/command",entry_id:r,command:i,params:e}}var Gr=1,jr=3600,Ur=["clock","date","text","design","timer","scoreboard","temperature","humidity"];function St(r){return Math.max(Gr,Math.min(jr,Math.round(r)))}function Ci(r,i){return r.filter(e=>Ur.includes(e.kind)).slice(0,Math.max(0,i)).map(e=>({...e,duration_s:St(e.duration_s)}))}var qr=255;function _e(r,i,e={}){let t=r.trim();if(t.length===0)return null;let s={type:"text",text:t,color:fe(i)};return e.font&&(s.font=e.font),e.effect&&(s.effect=e.effect),e.speed!==void 0&&(s.speed=Math.max(0,Math.min(qr,Math.round(e.speed)))),s}function Ct(r,i,e,t){return{type:"clock",style:Math.max(1,Math.min(t,Math.round(r))),color:fe(i),h24:e}}var Ei=["M","T","W","T","F","S","S"],Wr=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];function Et(r,i){return(r&1<<i)!==0}function Li(r,i){return r^1<<i}function Mi(r){if(r===0)return"Once";if(r===127)return"Every day";if(r===31)return"Weekdays";let i=[];for(let e=0;e<7;e++)Et(r,e)&&i.push(Wr[e]);return i.join(", ")}function M(r){if(r instanceof Error)return r.message;if(r&&typeof r=="object"&&"message"in r){let i=r.message;if(typeof i=="string"&&i)return i}return"Something went wrong."}function Ai(r,i){if(!i)return null;let e=r.states[i];if(!e)return null;let t=Number(e.state);return Number.isNaN(t)?null:{value:t,min:Number(e.attributes.min??0),max:Number(e.attributes.max??100),step:Number(e.attributes.step??1)}}var Kr=-1,be=class extends g{constructor(){super(),this.state=null,this.open=!1,this._password="",this._busy=null,this._error=null}updated(i){i.has("open")&&this.open&&(this._error=null)}async _command(i,e){if(!(!this.entryId||!this.hass.callWS)){this._busy=i,this._error=null;try{await this.hass.callWS(Ze(this.entryId,i,e))}catch(t){this._error=M(t)}finally{this._busy=null,this.requestUpdate()}}}_setNumberEntity(i,e){this.hass.callService("number","set_value",{value:e},{entity_id:i})}_selectOption(i,e){this.hass.callService("select","select_option",{option:e},{entity_id:i})}_toggleSwitch(i){this.hass.callService("switch","toggle",{},{entity_id:i})}_pressButton(i){this.hass.callService("button","press",{},{entity_id:i})}_close(){this.dispatchEvent(new CustomEvent("close-requested",{bubbles:!0,composed:!0}))}_onKeydown(i){i.key==="Escape"&&this._close()}render(){return this.open?l`
-      <div class="backdrop" @click=${this._close}></div>
-      <div class="panel" role="dialog" aria-modal="true" aria-label="Clock settings" @keydown=${this._onKeydown}>
-        <header>
-          <h2>Settings</h2>
-          <button type="button" class="icon-button" @click=${this._close} aria-label="Close">${m("close")}</button>
-        </header>
-        <div class="body">
-          ${this._error?l`<p class="error">${this._error}</p>`:c}
-          ${this._renderNightMode()}
-          ${this._renderAlarms()}
-          ${this._renderTimerSwitches()}
-          ${this._renderReminders()}
-          ${this._renderDeviceSection()}
-          ${this._renderPassword()}
-          ${this.entities.deviceId?l`<button type="button" class="link-row" @click=${this._openDevicePage}>Open device page ${m("chevronRight")}</button>`:c}
-        </div>
-      </div>
-    `:c}_renderNightMode(){let i=this.state?.night_mode??{enabled:!1,start_h:22,start_m:0,end_h:7,end_m:0,device_off:!1,brightness:20,wake_minutes:5,voice:!1,voice_sensitivity:3},e=`${String(i.start_h).padStart(2,"0")}:${String(i.start_m).padStart(2,"0")}`,t=`${String(i.end_h).padStart(2,"0")}:${String(i.end_m).padStart(2,"0")}`,s=n=>this._command("night_mode_set",{...i,...n});return l`
-      <section>
-        <h3>Night mode</h3>
-        <button type="button" class="toggle-row" @click=${()=>s({enabled:!i.enabled})}>
-          <span class="toggle-icon">${m("nightMode")}</span>
-          <span class="toggle-label">Enabled</span>
-          ${this._renderPill(i.enabled)}
-        </button>
-        ${i.enabled?l`
-              <div class="row two-up">
-                <label>Starts<input type="time" .value=${e} @change=${n=>this._applyTime(n,(o,a)=>s({start_h:o,start_m:a}))} /></label>
-                <label>Ends<input type="time" .value=${t} @change=${n=>this._applyTime(n,(o,a)=>s({end_h:o,end_m:a}))} /></label>
-              </div>
-              <button type="button" class="toggle-row" @click=${()=>s({device_off:!i.device_off})}>
-                <span class="toggle-label">Turn display off</span>
-                ${this._renderPill(i.device_off)}
-              </button>
-              ${i.device_off?c:l`<label class="field">Brightness during night mode ${this._renderStepperInline(i.brightness,1,100,5,n=>s({brightness:n}))}</label>`}
-              <label class="field">Wake for ${i.wake_minutes} min on motion ${this._renderStepperInline(i.wake_minutes,0,60,1,n=>s({wake_minutes:n}))}</label>
-              <button type="button" class="toggle-row" @click=${()=>s({voice:!i.voice})}>
-                <span class="toggle-label">Wake on voice</span>
-                ${this._renderPill(i.voice)}
-              </button>
-              ${i.voice?l`<label class="field">Voice sensitivity ${this._renderStepperInline(i.voice_sensitivity,1,5,1,n=>s({voice_sensitivity:n}))}</label>`:c}
-            `:c}
+    `];customElements.define("iledclock-hold-button",He);function Wt(r){return Number.isFinite(r)?Math.max(1,Math.min(100,Math.round(r/255*100))):1}function Kt(r){return Number.isFinite(r)?Math.max(1,Math.min(255,Math.round(r/100*255))):1}function Ni(r){let i=Math.max(0,Math.min(255,Math.round(r)));return i>=238?15:i<=47?0:Math.floor((i-47)/14)+1}function Bi(r){let i=Math.max(0,Math.min(255,Math.round(r)));return Math.min(15,Math.floor(i/16))}function ge(r){return Math.max(0,Math.min(15,Math.round(r)))*17}function za(r){return[Ni(r[0]),Ni(r[1]),Ni(r[2])]}function ja(r){return[Bi(r[0]),Bi(r[1]),Bi(r[2])]}function I(r){let[i,e,t]=za(r);return[ge(i),ge(e),ge(t)]}function Qr(r){let[i,e,t]=ja(r);return[ge(i),ge(e),ge(t)]}function Oe(r){let i=e=>Math.max(0,Math.min(255,Math.round(e)));return[i(r[0]),i(r[1]),i(r[2])]}function J(r){return`rgb(${r[0]}, ${r[1]}, ${r[2]})`}function P(r){let i=e=>Math.max(0,Math.min(255,Math.round(e))).toString(16).padStart(2,"0");return`#${i(r[0])}${i(r[1])}${i(r[2])}`}function O(r){let i=r.replace("#",""),e=i.length===3?i.split("").map(s=>s+s).join(""):i,t=Number.parseInt(e,16);return Number.isNaN(t)||e.length!==6?[0,0,0]:[t>>16&255,t>>8&255,t&255]}function z(r){return r?{type:"iledclock/designs/list",entry_id:r}:{type:"iledclock/designs/list"}}function Fe(r){return{type:"iledclock/designs/save",design:r}}function Vi(r){return{type:"iledclock/designs/delete",design_id:r}}function D(r,i){return{type:"iledclock/render",entry_id:r,spec:i}}function Gi(r,i){return{type:"iledclock/show",entry_id:r,item:i}}function Jr(r){return{type:"iledclock/playlist/get",entry_id:r}}function es(r,i){return{type:"iledclock/playlist/set",entry_id:r,playlist:i}}function fe(r,i,e={}){return{type:"iledclock/command",entry_id:r,command:i,params:e}}var Wa=1,Ka=3600,Ya=["clock","date","text","design","timer","scoreboard","temperature","humidity"];function Ui(r){return Math.max(Wa,Math.min(Ka,Math.round(r)))}function ts(r,i){return r.filter(e=>Ya.includes(e.kind)).slice(0,Math.max(0,i)).map(e=>({...e,duration_s:Ui(e.duration_s)}))}var Xa=255;function oe(r,i,e={}){let t=r.trim();if(t.length===0)return null;let s={type:"text",text:t,color:Oe(i)};return e.font&&(s.font=e.font),e.effect&&(s.effect=e.effect),e.speed!==void 0&&(s.speed=Math.max(0,Math.min(Xa,Math.round(e.speed)))),s}function _e(r,i,e,t){return{type:"clock",style:Math.max(1,Math.min(t,Math.round(r))),color:Oe(i),h24:e}}var is=["M","T","W","T","F","S","S"],Za=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];function Yt(r,i){return Number.isInteger(i)&&i>=0&&i<7&&(r&1<<i)!==0}function rs(r,i){return!Number.isInteger(i)||i<0||i>=7?r&127:(r^1<<i)&127}function ss(r){if(r&=127,r===0)return"Once";if(r===127)return"Every day";if(r===31)return"Weekdays";let i=[];for(let e=0;e<7;e++)Yt(r,e)&&i.push(Za[e]);return i.join(", ")}function L(r){if(r instanceof Error)return r.message;if(r&&typeof r=="object"&&"message"in r){let i=r.message;if(typeof i=="string"&&i)return i}return"Something went wrong."}var Ne=class extends m{constructor(){super(),this.icon="",this.tooltip="",this.ariaLabel="",this.disabled=!1}_press(){this.disabled||this.dispatchEvent(new CustomEvent("lu-press",{bubbles:!0,composed:!0}))}render(){let i=this.ariaLabel||this.tooltip;return o`<button type="button" class="button" aria-label=${i} title=${this.tooltip||i} ?disabled=${this.disabled} @click=${this._press}>
+      <slot>${this.icon?o`<ha-icon .icon=${this.icon} aria-hidden="true"></ha-icon>`:""}</slot>
+    </button>`}};Ne.properties={icon:{type:String},tooltip:{type:String},ariaLabel:{type:String,attribute:"aria-label"},disabled:{type:Boolean,reflect:!0}},Ne.styles=[g,_,v`
+    :host { display: inline-flex; flex: none; }
+    .button { display: inline-flex; align-items: center; justify-content: center; width: var(--lu-target); height: var(--lu-target); padding: 0; border: 1px solid transparent; border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: transparent; cursor: pointer; transition: transform var(--lu-motion-press) var(--lu-ease), background-color var(--lu-motion-focus) var(--lu-ease); }
+    .button:hover:not(:disabled), .button:active:not(:disabled) { background: var(--lu-glass-raised); border-color: var(--lu-edge-raised); }
+    .button:active:not(:disabled) { transform: scale(0.97); }
+    .button:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .button:disabled { opacity: 0.5; cursor: default; }
+    ::slotted(ha-icon), .button ha-icon { width: var(--lu-space-6); height: var(--lu-space-6); }
+  `];customElements.define("lu-icon-button",Ne);var Qa="button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",Be=class extends m{constructor(){super();this._previousFocus=null;this._dragStart=null;this._dragCurrent=0;this._onKeydown=e=>{if(!this.open)return;if(e.key==="Escape"){e.preventDefault(),this._close();return}if(e.key!=="Tab")return;let t=this.renderRoot.querySelector(".dialog");if(!t)return;let s=this._getFocusable(t);if(s.length===0){e.preventDefault(),t.focus();return}let a=s[0],n=s[s.length-1],l=this._activeFocusable(s),d=l?s.indexOf(l):-1;e.shiftKey&&d<=0?(e.preventDefault(),n.focus()):!e.shiftKey&&(d<0||d===s.length-1)&&(e.preventDefault(),a.focus())};this._onScrim=e=>{e.target===e.currentTarget&&this.closeOnScrim&&this._close()};this._onDragStart=e=>{this.getBoundingClientRect().width>=600||(this._dragStart=e.clientY,this._dragCurrent=0,e.currentTarget.setPointerCapture(e.pointerId))};this._onDragMove=e=>{this._dragStart!==null&&(this._dragCurrent=Math.max(0,e.clientY-this._dragStart),this.style.setProperty("--lu-sheet-drag",this._dragCurrent+"px"))};this._onDragEnd=()=>{if(this._dragStart===null)return;let e=this._dragCurrent>80;this._dragStart=null,this._dragCurrent=0,this.style.removeProperty("--lu-sheet-drag"),e&&this._close()};this.open=!1,this.label="Dialog",this.closeOnScrim=!0}updated(e){e.has("open")&&(this.open?(this._previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null,document.addEventListener("keydown",this._onKeydown,!0),this.updateComplete.then(()=>this._focusFirst())):(document.removeEventListener("keydown",this._onKeydown,!0),this._previousFocus?.focus(),this._previousFocus=null,this._dragStart=null,this._dragCurrent=0))}disconnectedCallback(){super.disconnectedCallback(),document.removeEventListener("keydown",this._onKeydown,!0)}_close(){this.open&&(this.open=!1,this.dispatchEvent(new CustomEvent("closed",{bubbles:!0,composed:!0})))}_getFocusable(e){let t=[],s=n=>n.getClientRects().length>0,a=n=>{if(n instanceof HTMLSlotElement){let l=n.assignedNodes({flatten:!0});for(let d of l.length>0?l:Array.from(n.childNodes))a(d);return}if(n instanceof HTMLElement){n.matches(Qa)&&s(n)&&t.push(n);let l=n.shadowRoot?.childNodes??n.childNodes;for(let d of Array.from(l))a(d);return}for(let l of Array.from(n.childNodes))a(l)};for(let n of Array.from(e.childNodes))a(n);return t}_activeFocusable(e){let t=document.activeElement,s=null;for(;t instanceof HTMLElement;)e.includes(t)&&(s=t),t=t.shadowRoot?.activeElement??null;return s}_focusFirst(){let e=this.renderRoot.querySelector(".dialog");((e?this._getFocusable(e)[0]:void 0)??e)?.focus()}render(){return this.open?o`<div class="overlay" @click=${this._onScrim}>
+      <section class="dialog" role="dialog" aria-modal="true" aria-label=${this.label} tabindex="-1">
+        <button class="handle" type="button" aria-label="Drag down to close" @pointerdown=${this._onDragStart} @pointermove=${this._onDragMove} @pointerup=${this._onDragEnd} @pointercancel=${this._onDragEnd}><span></span></button>
+        <header class="header"><slot name="header"></slot><lu-icon-button icon="mdi:close" tooltip="Close" aria-label="Close dialog" @lu-press=${this._close}></lu-icon-button></header>
+        <div class="body"><slot></slot></div>
+        <footer><slot name="footer"></slot></footer>
       </section>
-    `}_applyTime(i,e){let t=i.target.value,[s,n]=t.split(":").map(Number);s===void 0||n===void 0||Number.isNaN(s)||Number.isNaN(n)||e(s,n)}_renderPill(i){return l`<span class="toggle-pill ${i?"on":""}"><span class="toggle-knob"></span></span>`}_renderStepperInline(i,e,t,s,n){return l`
-      <span class="inline-stepper">
-        <button type="button" class="step-btn small" ?disabled=${i<=e} @click=${()=>n(Math.max(e,i-s))}>&minus;</button>
-        <span class="step-value">${i}</span>
-        <button type="button" class="step-btn small" ?disabled=${i>=t} @click=${()=>n(Math.min(t,i+s))}>&plus;</button>
-      </span>
-    `}_renderAlarms(){let i=this.state?.alarms??[],e=t=>this._command("alarms_set",{items:t});return l`
-      <section>
-        <h3>Alarms</h3>
-        ${i.length===0?l`<p class="hint">No alarms set.</p>`:c}
-        ${i.map(t=>this._renderAlarmRow(t,i,e))}
-        <button type="button" class="add-row" @click=${()=>e([...i,{id:Kr--,hour:7,minute:0,enabled:!0,repeat:0}])}>
-          ${m("plus")} Add alarm
-        </button>
-      </section>
-    `}_renderAlarmRow(i,e,t){let s=`${String(i.hour).padStart(2,"0")}:${String(i.minute).padStart(2,"0")}`,n=o=>t(e.map(a=>a.id===i.id?{...a,...o}:a));return l`
-      <div class="entry-row">
-        <input
-          type="time"
-          .value=${s}
-          @change=${o=>this._applyTime(o,(a,d)=>n({hour:a,minute:d}))}
-        />
-        ${this._renderRepeatChips(i.repeat,o=>n({repeat:o}))}
-        <button type="button" class="mini-toggle ${i.enabled?"on":""}" @click=${()=>n({enabled:!i.enabled})} aria-label="Enabled">
-          ${m("check")}
-        </button>
-        <button type="button" class="icon-button" @click=${()=>t(e.filter(o=>o.id!==i.id))} aria-label="Delete alarm">${m("delete")}</button>
+    </div>`:u}};Be.properties={open:{type:Boolean,reflect:!0},label:{type:String},closeOnScrim:{type:Boolean,attribute:"close-on-scrim"}},Be.styles=[g,_,v`
+    :host { display: block; container-type: inline-size; }
+    :host(:not([open])) { display: none; }
+    .overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; justify-content: center; background: linear-gradient(180deg, var(--lu-scrim-top), var(--lu-scrim) 48%, var(--lu-scrim-bottom)); }
+    .dialog { display: flex; flex-direction: column; width: 100%; max-height: 92%; overflow: hidden; background: var(--lu-card); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-sheet) var(--lu-radius-sheet) 0 0; box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest); transform: translateY(var(--lu-sheet-drag, 0)); transition: transform var(--lu-motion-layer) var(--lu-ease); }
+    .handle { display: flex; justify-content: center; align-items: center; min-height: var(--lu-space-6); padding: var(--lu-space-2); border: 0; background: transparent; touch-action: none; }
+    .handle span { display: block; width: var(--lu-space-8); height: var(--lu-space-1); border-radius: var(--lu-radius-pill); background: var(--lu-ink-3); }
+    .header { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-3); padding: 0 var(--lu-space-4) var(--lu-space-3); }
+    .body { min-height: 0; overflow: auto; padding: 0 var(--lu-space-4) var(--lu-space-4); overscroll-behavior: contain; }
+    footer:empty { display: none; }
+    footer { padding: var(--lu-space-3) var(--lu-space-4) calc(var(--lu-space-4) + env(safe-area-inset-bottom)); border-top: 1px solid var(--lu-edge); }
+    @container (min-width: 600px) {
+      .overlay { align-items: center; padding: var(--lu-space-4); }
+      .dialog { width: min(100%, 560px); max-height: min(90%, 800px); border-radius: var(--lu-radius-sheet); }
+      .handle { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { .dialog { transition-duration: var(--lu-motion-layer); } }
+  `];customElements.define("lu-sheet",Be);var Ve=class extends m{constructor(){super(),this.label="",this.ariaLabel="",this.variant="secondary",this.loading=!1,this.disabled=!1,this.icon=""}_press(){this.disabled||this.loading||this.dispatchEvent(new CustomEvent("lu-press",{bubbles:!0,composed:!0}))}render(){let i=this.ariaLabel||this.label;return o`<button class="button ${this.variant}" type="button" aria-label=${i} aria-busy=${this.loading?"true":"false"} ?disabled=${this.disabled||this.loading} @click=${this._press}>
+      ${this.loading?o`<span class="loader" aria-hidden="true"></span>`:this.icon?o`<ha-icon .icon=${this.icon} aria-hidden="true"></ha-icon>`:""}
+      <span class="label"><slot>${this.label}</slot></span>
+    </button>`}};Ve.properties={label:{type:String},ariaLabel:{type:String,attribute:"aria-label"},variant:{type:String,reflect:!0},loading:{type:Boolean,reflect:!0},disabled:{type:Boolean,reflect:!0},icon:{type:String}},Ve.styles=[g,_,v`
+    :host { display: inline-flex; min-width: 0; }
+    .button { display: inline-flex; justify-content: center; align-items: center; gap: var(--lu-space-2); min-width: var(--lu-target); min-height: var(--lu-target); padding: 0 var(--lu-space-5); border: 1px solid transparent; border-radius: var(--lu-radius-pill); font: 600 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; transition: transform var(--lu-motion-press) var(--lu-ease), background-color var(--lu-motion-label) var(--lu-ease); }
+    .button:active:not(:disabled) { transform: scale(0.97); }
+    .button:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .primary { color: var(--lu-accent-ink); background: var(--lu-accent); }
+    .secondary { color: var(--lu-ink); background: var(--lu-glass-raised); border-color: var(--lu-edge-raised); box-shadow: var(--lu-highlight-rest); }
+    .danger { color: var(--lu-danger); background: var(--lu-glass-raised); border-color: color-mix(in srgb, var(--lu-danger) 36%, var(--lu-edge)); }
+    .quiet { color: var(--lu-ink-2); background: transparent; border-color: var(--lu-edge); }
+    .button:disabled { opacity: 0.55; cursor: default; }
+    .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .loader { width: var(--lu-space-3); height: var(--lu-space-3); border: 2px solid currentColor; border-right-color: transparent; border-radius: var(--lu-radius-pill); }
+    @media (prefers-reduced-motion: reduce) { .button { transition-duration: var(--lu-motion-layer); } }
+  `];customElements.define("lu-pill-button",Ve);function as(r,i){if(!i)return null;let e=r.states[i];if(!e)return null;let t=Number(e.state);return Number.isFinite(t)?{value:t,min:Number(e.attributes.min??0),max:Number(e.attributes.max??100),step:Number(e.attributes.step??1)}:null}var Ja=-1,Ge=class extends m{constructor(){super();this._setPassword=async()=>{let e=this._password;await this._command("set_password",{password:e})&&(this._password="")};this.state=null,this.open=!1,this.section="night-mode",this._password="",this._busy=null,this._error=null}updated(e){e.has("open")&&this.open&&(this._error=null)}async _command(e,t={}){if(!this.entryId||!this.hass?.callWS||this._busy)return!1;this._busy=e,this._error=null;try{return await this.hass.callWS(fe(this.entryId,e,t)),!0}catch(s){return this._error=L(s),!1}finally{this._busy=null}}_setNumberEntity(e,t){this.hass.callService("number","set_value",{value:t},{entity_id:e})}_toggleSwitch(e){this.hass.callService("switch","toggle",{},{entity_id:e})}_setDisplayBrightness(e){let t=Number(e.target.value);this.entities.display&&this.hass.callService("light","turn_on",{brightness:Kt(t)},{entity_id:this.entities.display})}_toggleDisplay(){let e=this.entities.display;if(!e)return;let t=this.hass.states[e]?.state==="on";this.hass.callService("light",t?"turn_off":"turn_on",{},{entity_id:e})}_setRotate(e){this._command("rotate",{mode:Number(e.target.value)})}_setNightMode(e){let t=this.state?.night_mode;t&&this._command("night_mode_set",{enabled:t.enabled,start_h:t.start_h,start_m:t.start_m,end_h:t.end_h,end_m:t.end_m,device_off:t.device_off,brightness:t.brightness,voice:t.voice,wake_minutes:t.wake_minutes,voice_sensitivity:t.voice_sensitivity,...e})}_applyTime(e,t){let[s,a]=e.target.value.split(":").map(Number);s!==void 0&&a!==void 0&&Number.isInteger(s)&&Number.isInteger(a)&&t(s,a)}_setAlarms(e){this._command("alarms_set",{items:e})}_setTimerSwitches(e){this._command("timer_switch_set",{items:e})}_setTimeButton(){this.entities.syncTimeButton?this.hass.callService("button","press",{},{entity_id:this.entities.syncTimeButton}):this._command("sync_time")}_close(){this.dispatchEvent(new CustomEvent("close-requested",{bubbles:!0,composed:!0}))}_openIntegrationOptions(){let e=this.entryId?"/config/integrations/integration/iledclock?config_entry="+encodeURIComponent(this.entryId):"/config/integrations/integration/iledclock";history.pushState(null,"",e),window.dispatchEvent(new CustomEvent("location-changed",{bubbles:!0,composed:!0})),this._close()}_renderToggle(e,t,s,a=!1){return o`<button type="button" class="toggle-row" role="switch" aria-label=${e} aria-checked=${t?"true":"false"} ?disabled=${a||this._busy!==null} @click=${s}><span>${e}</span><span class="switch ${t?"on":""}" aria-hidden="true"></span></button>`}_renderDisplay(){let e=this.entities.display,t=e?this.hass.states[e]:void 0,s=t?.state==="on",a=t?Wt(Number(t.attributes.brightness??128)):null,n=this.state?.rotate??0;return o`<details class="setting-section" name="settings" open=${this.section==="display"?!0:u}>
+      <summary><span class="section-icon"><ha-icon icon="mdi:monitor-dashboard"></ha-icon></span><span class="section-title"><strong>Display</strong><small>Power, brightness and orientation</small></span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary>
+      <div class="section-body">
+        ${e?this._renderToggle("Display power",s,this._toggleDisplay):o`<p class="hint">Display power is unavailable: no display light entity is registered.</p>`}
+        ${a!==null?o`<label class="field"><span>Brightness <strong>${a}%</strong></span><input type="range" min="1" max="100" .value=${String(a)} @input=${this._setDisplayBrightness} aria-label="Display brightness"></label>`:o`<p class="hint">Brightness is unavailable until the display entity is enabled.</p>`}
+        <label class="field"><span>Screen rotation</span><select .value=${String(n)} ?disabled=${this._busy!==null} @change=${this._setRotate} aria-label="Screen rotation">${[0,1,2,3].map(l=>o`<option value=${l}>${["Normal","Rotate 90\xB0","Rotate 180\xB0","Rotate 270\xB0"][l]}</option>`)}</select></label>
+        <p class="hint">12/24-hour format and date are set with the clock mode.</p>
       </div>
-    `}_renderRepeatChips(i,e){return l`
-      <span class="repeat-chips" title=${Mi(i)}>
-        ${Ei.map((t,s)=>l`<button type="button" class="day-chip ${Et(i,s)?"on":""}" @click=${()=>e(Li(i,s))}>${t}</button>`)}
-      </span>
-    `}_renderTimerSwitches(){let i=this.state?.timer_switches??[],e=t=>this._command("timer_switch_set",{items:t});return l`
-      <section>
-        <h3>Timer switches</h3>
-        <p class="hint">Turns the display on or off automatically.</p>
-        ${i.length===0?l`<p class="hint">None set.</p>`:c}
-        ${i.map(t=>{let s=`${String(t.hour).padStart(2,"0")}:${String(t.minute).padStart(2,"0")}`,n=o=>e(i.map(a=>a.index===t.index?{...a,...o}:a));return l`
-            <div class="entry-row">
-              <input type="time" .value=${s} @change=${o=>this._applyTime(o,(a,d)=>n({hour:a,minute:d}))} />
-              <iledclock-segmented-picker
-                group-label="Action"
-                content-fit
-                .options=${[{value:"on",label:"On"},{value:"off",label:"Off"}]}
-                .value=${t.on?"on":"off"}
-                @option-selected=${o=>n({on:o.detail.value==="on"})}
-              ></iledclock-segmented-picker>
-              ${this._renderRepeatChips(t.repeat,o=>n({repeat:o}))}
-              <button type="button" class="mini-toggle ${t.enabled?"on":""}" @click=${()=>n({enabled:!t.enabled})} aria-label="Enabled">${m("check")}</button>
-              <button type="button" class="icon-button" @click=${()=>e(i.filter(o=>o.index!==t.index))} aria-label="Delete">${m("delete")}</button>
-            </div>
-          `})}
-        ${i.length<4?l`<button type="button" class="add-row" @click=${()=>{let t=new Set(i.map(n=>n.index)),s=0;for(;t.has(s);)s++;e([...i,{index:s,hour:22,minute:0,on:!1,enabled:!0,repeat:0}])}}>${m("plus")} Add timer switch</button>`:c}
-      </section>
-    `}_renderReminders(){let i=this.state?.reminders??[];return i.length===0?c:l`
-      <section>
-        <h3>Reminders</h3>
-        <p class="hint">Created from the clock itself; delete them here.</p>
-        ${i.map(e=>l`
-          <div class="entry-row">
-            <span class="reminder-content">${e.content||"(untitled)"}</span>
-            <span class="reminder-time">${String(e.hour).padStart(2,"0")}:${String(e.minute).padStart(2,"0")}</span>
-            <button type="button" class="icon-button" @click=${()=>this._command("reminder_delete",{id:e.id})} aria-label="Delete reminder">${m("delete")}</button>
-          </div>
-        `)}
-      </section>
-    `}_renderDeviceSection(){let i=this.entities.rotationSelect,e=i?this.hass.states[i]:void 0,t=Ai(this.hass,this.entities.volumeNumber),s=Ai(this.hass,this.entities.colorSpeedNumber);return!i&&!t&&!s&&this.entities.settingSwitches.length===0?c:l`
-      <section>
-        <h3>Device</h3>
-        ${i&&e?l`
-              <label class="field">
-                Rotation
-                <select @change=${n=>this._selectOption(i,n.target.value)}>
-                  ${(e.attributes.options??[]).map(n=>l`<option value=${n} ?selected=${n===e.state}>${n}</option>`)}
-                </select>
-              </label>
-            `:c}
-        ${t?l`<label class="field">Volume ${this._renderStepperInline(t.value,t.min,t.max,t.step,n=>this._setNumberEntity(this.entities.volumeNumber,n))}</label>`:c}
-        ${s?l`<label class="field">Colour speed ${this._renderStepperInline(s.value,s.min,s.max,s.step,n=>this._setNumberEntity(this.entities.colorSpeedNumber,n))}</label>`:c}
-        ${this.entities.settingSwitches.map(n=>{let o=this.hass.states[n.entityId]?.state==="on";return l`
-            <button type="button" class="toggle-row" @click=${()=>this._toggleSwitch(n.entityId)}>
-              <span class="toggle-label">${n.name}</span>
-              ${this._renderPill(o)}
-            </button>
-          `})}
-        ${this.entities.syncTimeButton?l`<button type="button" class="cloud-toggle" @click=${()=>this._pressButton(this.entities.syncTimeButton)}>Sync time now</button>`:c}
-      </section>
-    `}_renderPassword(){return l`
-      <section>
-        <h3>Password</h3>
-        <p class="hint">Required by the clock before it accepts any command -- keep it in sync here if you change it on the device itself.</p>
-        <input type="password" class="password-input" .value=${this._password} placeholder="New password" @input=${i=>this._password=i.target.value} />
-        <iledclock-hold-button
-          label="Hold to set password"
-          complete-label="Password set"
-          ?disabled=${this._password.length===0||this._busy==="set_password"}
-          @confirmed=${this._setPassword}
-        ></iledclock-hold-button>
-      </section>
-    `}async _setPassword(){let i=this._password;await this._command("set_password",{password:i}),this._error||(this._password="")}_openDevicePage(){history.pushState(null,"",`/config/devices/device/${this.entities.deviceId}`),window.dispatchEvent(new CustomEvent("location-changed",{bubbles:!0,composed:!0})),this._close()}};be.properties={hass:{attribute:!1},entities:{attribute:!1},entryId:{attribute:!1},state:{attribute:!1},open:{type:Boolean,reflect:!0},_password:{state:!0},_busy:{state:!0},_error:{state:!0}},be.styles=[y,_`
-    :host(:not([open])) {
-      display: none;
-    }
-    :host {
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-    }
-    .backdrop {
-      position: absolute;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.5);
-    }
-    .panel {
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: min(420px, 100vw);
-      background: var(--lu-card);
-      color: var(--lu-ink);
-      box-shadow: var(--lu-shadow-raised);
-      border-left: 1px solid var(--lu-edge);
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px;
-      border-bottom: 1px solid var(--divider-color);
-      position: sticky;
-      top: 0;
-      background: inherit;
-      z-index: 1;
-    }
-    h2 {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 700;
-    }
-    .icon-button {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: none;
-      background: transparent;
-      color: var(--primary-text-color);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .icon-button:hover {
-      background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
-    }
-    .body {
-      padding: 8px 16px 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    section {
-      padding: 12px 0;
-      border-bottom: 1px solid var(--divider-color);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    section:last-of-type {
-      border-bottom: none;
-    }
-    h3 {
-      margin: 0;
-      font-size: 15px;
-      font-weight: 700;
-    }
-    .hint {
-      margin: 0;
-      font-size: 13px;
-      color: var(--secondary-text-color);
-    }
-    .error {
-      margin: 0;
-      font-size: 13px;
-      color: var(--lu-danger);
-    }
-    .row.two-up {
-      display: flex;
-      gap: 12px;
-    }
-    .row.two-up label {
-      flex: 1;
-    }
-    label.field {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 14px;
-      gap: 12px;
-    }
-    label.field input,
-    label.field select,
-    .row.two-up input {
-      margin-top: 4px;
-      width: 100%;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      padding: 0 10px;
-      box-sizing: border-box;
-      font-size: 14px;
-    }
-    .row.two-up label {
-      display: flex;
-      flex-direction: column;
-      font-size: 13px;
-      color: var(--secondary-text-color);
-    }
-    select {
-      appearance: auto;
-    }
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: none;
-      border: none;
-      padding: 6px 0;
-      min-height: var(--lu-target, 48px);
-      color: var(--primary-text-color);
-      cursor: pointer;
-      text-align: left;
-      font-size: 14px;
-    }
-    .toggle-icon {
-      display: inline-flex;
-      color: var(--secondary-text-color);
-    }
-    .toggle-label {
-      flex: 1;
-    }
-    .toggle-pill {
-      flex: none;
-      width: 40px;
-      height: 24px;
-      border-radius: var(--lu-radius-pill);
-      background: color-mix(in srgb, var(--primary-text-color) 20%, transparent);
-      position: relative;
-      transition: background 0.15s ease;
-    }
-    .toggle-pill.on {
-      background: var(--lu-accent);
-    }
-    .toggle-knob {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #fff;
-      transition: transform 0.15s ease;
-    }
-    .toggle-pill.on .toggle-knob {
-      transform: translateX(16px);
-    }
-    .inline-stepper {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .step-btn.small {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      font-size: 16px;
-      cursor: pointer;
-    }
-    .step-btn.small:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-    .step-value {
-      min-width: 2em;
-      text-align: center;
-      font-variant-numeric: tabular-nums;
-      font-weight: 600;
-    }
-    .entry-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .entry-row input[type="time"] {
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      padding: 0 8px;
-    }
-    iledclock-segmented-picker {
-      width: 100px;
-    }
-    .repeat-chips {
-      display: inline-flex;
-      gap: 3px;
-    }
-    .day-chip {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      border: none;
-      background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
-      color: var(--primary-text-color);
-      font-size: 11px;
-      cursor: pointer;
-    }
-    .day-chip.on {
-      background: var(--lu-accent);
-      color: var(--lu-accent-ink);
-    }
-    .mini-toggle {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 1px solid var(--divider-color);
-      background: transparent;
-      color: transparent;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .mini-toggle.on {
-      background: var(--lu-accent);
-      color: var(--lu-accent-ink);
-      border-color: transparent;
-    }
-    .add-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: none;
-      border: 1px dashed var(--divider-color);
-      border-radius: var(--lu-radius-control);
-      min-height: var(--lu-target, 48px);
-      color: var(--primary-text-color);
-      cursor: pointer;
-      justify-content: center;
-      font-size: 14px;
-    }
-    .reminder-content {
-      flex: 1;
-      font-size: 14px;
-    }
-    .reminder-time {
-      font-variant-numeric: tabular-nums;
-      color: var(--secondary-text-color);
-      font-size: 13px;
-    }
-    .password-input {
-      width: 100%;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      padding: 0 12px;
-      box-sizing: border-box;
-      font-size: 14px;
-    }
-    .cloud-toggle {
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-pill);
-      border: 1px solid var(--divider-color);
-      background: none;
-      color: var(--primary-text-color);
-      cursor: pointer;
-      font-size: 14px;
-    }
-    .link-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: none;
-      border: none;
-      min-height: var(--lu-target, 48px);
-      color: var(--primary-text-color);
-      cursor: pointer;
-      font-size: 14px;
-      padding: 8px 0;
-    }
-  `];customElements.define("iledclock-settings-sheet",be);var Zr=[{name:"device_id",required:!0,selector:{device:{filter:{integration:"iledclock"}}}},{name:"name",selector:{text:{}}}],Yr={device_id:"iLedClock device",name:"Name (optional)"},ve=class extends g{constructor(){super(...arguments);this._computeLabel=e=>Yr[e.name]??e.name}setConfig(e){this._config=e}render(){return this._config?customElements.get("ha-form")?l`
-        <ha-form .hass=${this.hass} .data=${this._config} .schema=${Zr} .computeLabel=${this._computeLabel} @value-changed=${this._formValueChanged}></ha-form>
-      `:this._renderFallback():c}_renderFallback(){let e=Object.values(this.hass?.entities??{}),t=Object.values(this.hass?.devices??{}).filter(s=>e.some(n=>n.device_id===s.id&&n.platform==="iledclock"));return l`
-      <div class="fallback">
-        <label>
-          <span>iLedClock device</span>
-          <select @change=${s=>this._updateDeviceId(s.target.value)}>
-            <option value="" ?selected=${!this._config?.device_id}>Choose a device…</option>
-            ${t.map(s=>l`<option value=${s.id} ?selected=${s.id===this._config?.device_id}>${s.name_by_user??s.name}</option>`)}
-          </select>
-        </label>
-        <label>
-          <span>Name (optional)</span>
-          <input type="text" .value=${this._config?.name??""} @change=${s=>this._updateName(s.target.value)} />
-        </label>
+    </details>`}_renderNightMode(){let e=this.state?.night_mode;if(!e)return o`<details class="setting-section" name="settings" open><summary><span class="section-icon"><ha-icon icon="mdi:weather-night"></ha-icon></span><span class="section-title"><strong>Night mode</strong><small>Unavailable until the clock reports its settings</small></span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary><div class="section-body"><p class="hint">Night-mode settings are not available while the clock is out of range or has not finished its first status refresh.</p></div></details>`;let t=(s,a)=>String(s).padStart(2,"0")+":"+String(a).padStart(2,"0");return o`<details class="setting-section" name="settings" open>
+      <summary><span class="section-icon"><ha-icon icon="mdi:weather-night"></ha-icon></span><span class="section-title"><strong>Night mode</strong><small>${t(e.start_h,e.start_m)}–${t(e.end_h,e.end_m)}</small></span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary>
+      <div class="section-body">
+        ${this._renderToggle("Enabled",e.enabled,()=>this._setNightMode({enabled:!e.enabled}),this._busy!==null)}
+        <div class="two-up"><label class="field"><span>Starts</span><input type="time" .value=${t(e.start_h,e.start_m)} ?disabled=${this._busy!==null} @change=${s=>this._applyTime(s,(a,n)=>this._setNightMode({start_h:a,start_m:n}))}></label><label class="field"><span>Ends</span><input type="time" .value=${t(e.end_h,e.end_m)} ?disabled=${this._busy!==null} @change=${s=>this._applyTime(s,(a,n)=>this._setNightMode({end_h:a,end_m:n}))}></label></div>
+        ${this._renderToggle("Turn display off during night mode",e.device_off,()=>this._setNightMode({device_off:!e.device_off}),this._busy!==null)}
+        ${e.device_off?u:o`<label class="field"><span>Night brightness <strong>${e.brightness}%</strong></span><input type="range" min="1" max="100" .value=${String(e.brightness)} ?disabled=${this._busy!==null} @change=${s=>this._setNightMode({brightness:Number(s.target.value)})} aria-label="Night mode brightness"></label>`}
+        <label class="field"><span>Wake for (minutes)</span><input type="number" min="0" max="60" .value=${String(e.wake_minutes)} ?disabled=${this._busy!==null} @change=${s=>this._setNightMode({wake_minutes:Math.max(0,Math.min(60,Number(s.target.value)))})}></label>
+        ${this._renderToggle("Wake on voice",e.voice,()=>this._setNightMode({voice:!e.voice}),this._busy!==null)}
+        ${e.voice?o`<label class="field"><span>Voice sensitivity <strong>${e.voice_sensitivity}</strong></span><input type="range" min="1" max="5" .value=${String(e.voice_sensitivity)} ?disabled=${this._busy!==null} @change=${s=>this._setNightMode({voice_sensitivity:Number(s.target.value)})}></label>`:u}
       </div>
-    `}_updateDeviceId(e){this._config&&(this._config={...this._config,device_id:e},this._fireConfigChanged())}_updateName(e){this._config&&(this._config={...this._config,name:e||void 0},this._fireConfigChanged())}_formValueChanged(e){this._config=e.detail.value,this._fireConfigChanged()}_fireConfigChanged(){this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config},bubbles:!0,composed:!0}))}};ve.properties={hass:{attribute:!1},_config:{state:!0}},ve.styles=[y,_`
-    .fallback {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      padding: 8px 0;
-    }
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 14px;
-      color: var(--primary-text-color);
-    }
-    select,
-    input {
-      min-height: 40px;
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      padding: 0 10px;
-      font-size: 14px;
-    }
-    `];customElements.define("iledclock-card-editor",ve);var Xr={display:{domain:"light",translationKeys:["display"],idSuffixes:["_display"]},message:{domain:"text",translationKeys:["message"],idSuffixes:["_message"]},preview:{domain:"image",translationKeys:["display"],idSuffixes:["_display"]},temperature:{domain:"sensor",translationKeys:["temperature"],idSuffixes:["_temperature"]},humidity:{domain:"sensor",translationKeys:["humidity"],idSuffixes:["_humidity"]},firmware:{domain:"sensor",translationKeys:["firmware"],idSuffixes:["_firmware"]},programCount:{domain:"sensor",translationKeys:["program_count"],idSuffixes:["_program_count"]},connected:{domain:"binary_sensor",translationKeys:["connected"],idSuffixes:["_connected"]},syncTimeButton:{domain:"button",translationKeys:["sync_time"],idSuffixes:["_sync_time"]},rotationSelect:{domain:"select",translationKeys:["rotation"],idSuffixes:["_rotation"]},clockFaceSelect:{domain:"select",translationKeys:["clock_face"],idSuffixes:["_clock_face"]},volumeNumber:{domain:"number",translationKeys:["volume"],idSuffixes:["_volume"]},colorSpeedNumber:{domain:"number",translationKeys:["color_speed"],idSuffixes:["_color_speed"]},nightModeSwitch:{domain:"switch",translationKeys:["night_mode"],idSuffixes:["_night_mode"]}};function Ii(r){return r.slice(0,r.indexOf("."))}function Ti(r){return r.slice(r.indexOf(".")+1)}function Qr(r,i){if(Ii(r.entity_id)!==i.domain)return!1;if(r.translation_key&&i.translationKeys.includes(r.translation_key))return!0;let e=Ti(r.entity_id);return i.idSuffixes.some(t=>e.endsWith(t))}function Jr(r){let i=r.name??r.original_name;if(i)return i;let e=Ti(r.entity_id).split("_").filter(Boolean).pop();return e?e[0].toUpperCase()+e.slice(1):"Setting"}function Pi(r,i){let e={deviceId:i,settingSwitches:[]},t=Object.values(r).filter(s=>s.device_id===i&&!s.disabled_by);for(let s of t){let n=!1;for(let o of Object.entries(Xr)){let[a,d]=o;if(!e[a]&&Qr(s,d)){e[a]=s.entity_id,n=!0;break}}!n&&Ii(s.entity_id)==="switch"&&e.settingSwitches.push({entityId:s.entity_id,name:Jr(s)})}return e.settingSwitches.sort((s,n)=>s.name.localeCompare(n.name)),e}function Ye(r,i){if(i)return r[i]?.config_entries?.[0]}function Hi(r){return Math.max(1,Math.min(100,Math.round(r/255*100)))}function Ri(r){return Math.max(1,Math.min(255,Math.round(r/100*255)))}var es=[...Array.from({length:35},(r,i)=>i+1),37,38,39,40,41],Lt=41,ye=es.map(r=>({style:r,label:"Face "+r})),z=[{index:0,label:"Red",rgb:[255,0,0]},{index:1,label:"Magenta",rgb:[255,0,255]},{index:2,label:"Yellow",rgb:[255,255,0]},{index:3,label:"Green",rgb:[0,255,0]},{index:4,label:"Cyan",rgb:[0,255,255]},{index:5,label:"Blue",rgb:[0,0,255]},{index:6,label:"White",rgb:[255,255,255]},{index:7,label:"Black",rgb:[0,0,0]}];var ts={1:"Solid",2:"Rainbow",3:"Fade",4:"Per-letter rainbow",5:"Per-letter fade"},is=28,Di=Array.from({length:is},(r,i)=>{let e=i+1;return{mode:e,label:ts[e]??`Effect ${e}`}});function N(r,i){if(r.length<=1)return 0;let e=r.reduce((s,n)=>s+Math.max(1,n.durationMs),0),t=(i%e+e)%e;for(let s=0;s<r.length;s++){let n=Math.max(1,r[s].durationMs);if(t<n)return s;t-=n}return r.length-1}function rs(r){let i="";for(let t=0;t<r.pixels.length;t+=8192)i+=String.fromCharCode(...r.pixels.subarray(t,t+8192));return btoa(i)}function xe(r,i,e,t){let s=atob(r),n=new Uint8Array(i*e*3),o=Math.min(s.length,n.length);for(let a=0;a<o;a++)n[a]=s.charCodeAt(a);return{width:i,height:e,pixels:n,durationMs:t}}function T(r){return r.frames.length===0?[P(r.width,r.height)]:r.frames.map((i,e)=>xe(i,r.width,r.height,r.delays[e]??100))}function Oi(r,i){return{id:i.id,name:i.name,kind:i.kind,width:r[0]?.width??32,height:r[0]?.height??16,frames:r.map(rs),delays:r.map(e=>e.durationMs),created:i.created,updated:i.updated,tags:i.tags}}var ss=[{value:"clock",label:"Clock"},{value:"text",label:"Text"},{value:"art",label:"Art"},{value:"timer",label:"Timer"},{value:"score",label:"Score"}],ns=[{value:"countdown",label:"Countdown"},{value:"stopwatch",label:"Stopwatch"},{value:"pomodoro",label:"Pomodoro"}],os=6e4,as=400,we=class extends g{constructor(){super();this._unsubscribe=null;this._heroStartedAt=0;this._heroRafId=null;this._designsWatchKey="";this._entities={deviceId:"",settingSwitches:[]},this._envelope=null,this._mode="clock",this._settingsOpen=!1,this._heroFrames=[P()],this._heroApproximate=!1,this._designs=null,this._designsLoading=!1,this._clockFaceIndex=1,this._clockColorIndex=6,this._clock24h=!0,this._textMessage="",this._textColorHex="#ffffff",this._textEffect=1,this._textSpeed=80,this._selectedDesignId=null,this._timerTab="countdown",this._countdownDraft={h:0,m:5,s:0},this._tomatoDraft=[25],this._busy=null,this._error=null}setConfig(e){if(!e.device_id)throw new Error("iLedClock card: a device is required. Choose it in the card editor.");this._config=e}getCardSize(){return 6}static getStubConfig(e){return{type:"custom:iledclock-card",device_id:Object.values(e.entities??{}).find(s=>s.platform==="iledclock")?.device_id??""}}static getConfigElement(){return document.createElement("iledclock-card-editor")}connectedCallback(){super.connectedCallback(),this._startHeroLoop(),this._idleClockTimer=setInterval(()=>{(this._mode==="clock"||this._heroFrames.length<=1&&this._heroApproximate)&&this._refreshIdleClockPreview()},os)}disconnectedCallback(){super.disconnectedCallback(),this._stopHeroLoop(),clearInterval(this._idleClockTimer),clearTimeout(this._textDebounceTimer),this._unsubscribe&&this._unsubscribe()}willUpdate(e){if((e.has("hass")||e.has("_config"))&&this.hass&&this._config?.device_id){this._entities=Pi(this.hass.entities,this._config.device_id);let t=Ye(this.hass.devices,this._config.device_id);this._entryId=t,t&&t!==this._lastEntryIdSubscribed&&(this._lastEntryIdSubscribed=t,this._connect(t))}e.has("_mode")&&this._mode==="art"&&this._loadDesigns()}async _connect(e){if(this._unsubscribe&&(this._unsubscribe(),this._unsubscribe=null),!!this.hass.callWS){try{this._envelope=await this.hass.callWS({type:"iledclock/state",entry_id:e})}catch{}this._heroApproximate||this._refreshIdleClockPreview(),this.hass.connection&&(this._unsubscribe=await this.hass.connection.subscribeMessage(t=>{t.type!=="upload"&&(this._envelope=t)},{type:"iledclock/subscribe",entry_id:e}))}}_startHeroLoop(){if(this._heroRafId!==null)return;this._heroStartedAt=performance.now();let e=()=>{this.requestUpdate("_heroFrames"),this._heroRafId=requestAnimationFrame(e)};this._heroRafId=requestAnimationFrame(e)}_stopHeroLoop(){this._heroRafId!==null&&cancelAnimationFrame(this._heroRafId),this._heroRafId=null}_currentHeroFrame(){let e=performance.now()-this._heroStartedAt,t=N(this._heroFrames,e);return this._heroFrames[t]??P()}async _refreshIdleClockPreview(){if(!this._entryId||!this.hass.callWS)return;let e=Ct(this._clockFaceIndex,z[this._clockColorIndex]?.rgb??[255,255,255],this._clock24h,Lt);await this._loadHeroPreview(e,!0)}async _loadHeroPreview(e,t){if(!(!this._entryId||!this.hass.callWS))try{let s=await this.hass.callWS(te(this._entryId,e)),n=(this._entities,32),o=s.frames.map((a,d)=>{let p=atob(a),u=new Uint8Array(n*16*3);for(let h=0;h<Math.min(p.length,u.length);h++)u[h]=p.charCodeAt(h);return{width:n,height:16,pixels:u,durationMs:s.delays[d]??100}});o.length>0&&(this._heroFrames=o,this._heroApproximate=t&&!!s.approximate,this._heroStartedAt=performance.now())}catch{}}_selectMode(e){if(this._mode=e,e==="art"&&this._selectedDesignId){let t=this._designs?.find(s=>s.id===this._selectedDesignId);t&&(this._heroFrames=T(t),this._heroStartedAt=performance.now())}}_toggleDisplay(){let e=this._entities.display;if(!e)return;let t=this.hass.states[e]?.state==="on";this.hass.callService("light",t?"turn_off":"turn_on",{},{entity_id:e})}_setBrightnessPercent(e){let t=this._entities.display;t&&this.hass.callService("light","turn_on",{brightness:Ri(e)},{entity_id:t})}_sendClock(){if(!this._entryId||!this.hass.callWS)return;let e=Ct(this._clockFaceIndex,z[this._clockColorIndex]?.rgb??[255,255,255],this._clock24h,Lt);this._runCommand("show-clock",()=>this.hass.callWS(H(this._entryId,{spec:e}))),this._loadHeroPreview(e,!1)}_onTextInput(e){this._textMessage=e,clearTimeout(this._textDebounceTimer),this._textDebounceTimer=setTimeout(()=>this._previewText(),as)}_previewText(){let e=_e(this._textMessage,F(this._textColorHex),{effect:String(this._textEffect),speed:this._textSpeed});e&&this._loadHeroPreview(e,!1)}_sendText(){if(!this._entryId||!this.hass.callWS)return;let e=_e(this._textMessage,F(this._textColorHex),{effect:String(this._textEffect),speed:this._textSpeed});e&&this._runCommand("show-text",()=>this.hass.callWS(H(this._entryId,{spec:e})))}async _loadDesigns(){let e=`${this._entryId??""}`;if(!(this._designsWatchKey===e&&this._designs)&&(this._designsWatchKey=e,!!this.hass.callWS)){this._designsLoading=!0;try{this._designs=await this.hass.callWS(Ke(this._entryId))}catch{this._designs=[]}finally{this._designsLoading=!1}}}_selectDesign(e){this._selectedDesignId=e.id,this._heroFrames=T(e),this._heroStartedAt=performance.now()}_sendDesign(){!this._entryId||!this._selectedDesignId||!this.hass.callWS||this._runCommand("show-design",()=>this.hass.callWS(H(this._entryId,{design_id:this._selectedDesignId})))}_openStudio(){history.pushState(null,"","/iledclock"),window.dispatchEvent(new CustomEvent("location-changed",{bubbles:!0,composed:!0}))}_runCommand(e,t){this._busy=e,this._error=null,t().catch(s=>{this._error=s instanceof Error?s.message:"Something went wrong."}).finally(()=>{this._busy=null,this.requestUpdate()})}_command(e,t={}){!this._entryId||!this.hass.callWS||this._runCommand(e,()=>this.hass.callWS(Ze(this._entryId,e,t)))}_adjustScore(e,t){let s=this._envelope?.state.scoreboard,n=Math.max(0,(s?.home??0)+(e==="home"?t:0)),o=Math.max(0,(s?.away??0)+(e==="away"?t:0));this._command("scoreboard_set_score",{home:n,away:o})}render(){if(!this._config)return c;let e=this._envelope?.state??null;return l`
-      <ha-card>
-        <div class="container">
-          <div class="root">
-            <div class="hero-wrap">
-              <iledclock-matrix-canvas .frame=${this._currentHeroFrame()} bloom></iledclock-matrix-canvas>
-              ${this._heroApproximate?l`<span class="approximate-badge">Preview</span>`:c}
-              <div class="hero-corner left">
-                ${this._entities.display?l`
-                      <button type="button" class="chip icon-chip" @click=${this._toggleDisplay} aria-label="Toggle display">
-                        ${m("power")}
-                      </button>
-                      <input
-                        class="brightness-slider"
-                        type="range"
-                        min="1"
-                        max="100"
-                        .value=${String(Hi(Number(this.hass.states[this._entities.display]?.attributes.brightness??128)))}
-                        @input=${t=>this._setBrightnessPercent(Number(t.target.value))}
-                        aria-label="Brightness"
-                      />
-                    `:c}
-              </div>
-              <button type="button" class="chip icon-chip hero-corner right" @click=${()=>this._settingsOpen=!0} aria-label="Settings">
-                ${m("cog")}
-              </button>
-              <div class="status-pills">${this._renderStatusPills(e)}</div>
-            </div>
-            <div class="controls">
-              <iledclock-segmented-picker
-                group-label="Mode"
-                .options=${ss}
-                .value=${this._mode}
-                @option-selected=${t=>this._selectMode(t.detail.value)}
-              ></iledclock-segmented-picker>
-              ${this._error?l`<p class="error">${this._error}</p>`:c}
-              <div class="mode-panel">
-                ${this._mode==="clock"?this._renderClockPanel():c}
-                ${this._mode==="text"?this._renderTextPanel():c}
-                ${this._mode==="art"?this._renderArtPanel():c}
-                ${this._mode==="timer"?this._renderTimerPanel(e):c}
-                ${this._mode==="score"?this._renderScorePanel(e):c}
-              </div>
-            </div>
-          </div>
-        </div>
-      </ha-card>
-      <iledclock-settings-sheet
-        .hass=${this.hass}
-        .entities=${this._entities}
-        .entryId=${this._entryId}
-        .state=${e}
-        ?open=${this._settingsOpen}
-        @close-requested=${()=>this._settingsOpen=!1}
-      ></iledclock-settings-sheet>
-    `}_renderStatusPills(e){let t=[];if(this._entities.connected){let s=this._envelope?.connected??this.hass.states[this._entities.connected]?.state==="on";t.push(l`<span class="pill ${s?"good":"warn"}"><span class="dot"></span>${s?"Connected":"Offline"}</span>`)}return e?.night_mode?.enabled&&t.push(l`<span class="pill night">${m("nightMode")} Night mode</span>`),e?.temperature!=null&&t.push(l`<span class="pill">${m("thermometer")} ${e.temperature}\u00b0</span>`),e?.humidity!=null&&t.push(l`<span class="pill">${m("humidity")} ${e.humidity}%</span>`),t}_renderClockPanel(){return l`
-      <div class="panel-section">
-        <div class="face-grid">
-          ${ye.map(e=>l`<button type="button" class="face-btn ${e.style===this._clockFaceIndex?"selected":""}" @click=${()=>(this._clockFaceIndex=e.style,this._refreshIdleClockPreview())}>
-              ${e.style}
-            </button>`)}
-        </div>
-        <div class="swatch-row">
-          ${z.map(e=>l`<button
-              type="button"
-              class="swatch ${e.index===this._clockColorIndex?"selected":""}"
-              style="background:${`rgb(${xi(e.rgb).join(",")})`}"
-              aria-label=${e.label}
-              @click=${()=>(this._clockColorIndex=e.index,this._refreshIdleClockPreview())}
-            ></button>`)}
-        </div>
-        <iledclock-segmented-picker
-          group-label="Hour format"
-          content-fit
-          .options=${[{value:"24",label:"24h"},{value:"12",label:"12h"}]}
-          .value=${this._clock24h?"24":"12"}
-          @option-selected=${e=>(this._clock24h=e.detail.value==="24",this._refreshIdleClockPreview())}
-        ></iledclock-segmented-picker>
-        <button type="button" class="primary-action" ?disabled=${this._busy==="show-clock"} @click=${this._sendClock}>Set clock face</button>
+    </details>`}_renderTime(){return o`<details class="setting-section" name="settings" open=${this.section==="time"?!0:u}>
+      <summary><span class="section-icon"><ha-icon icon="mdi:clock-check-outline"></ha-icon></span><span class="section-title"><strong>Time</strong><small>Synchronize the clock from Home Assistant</small></span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary>
+      <div class="section-body"><p class="hint">The clock uses Home Assistant's current time and timezone.</p><lu-pill-button variant="secondary" label="Sync time now" icon="mdi:sync" ?disabled=${!this.entryId||this._busy!==null} ?loading=${this._busy==="sync_time"} @lu-press=${this._setTimeButton}></lu-pill-button></div>
+    </details>`}_renderSound(){let e=as(this.hass,this.entities.volumeNumber),t=as(this.hass,this.entities.colorSpeedNumber),s=this.entities.settingSwitches;return!e&&!t&&!s.length?u:o`<details class="setting-section" name="settings" open=${this.section==="sound"?!0:u}>
+      <summary><span class="section-icon"><ha-icon icon="mdi:volume-high"></ha-icon></span><span class="section-title"><strong>Sound & device</strong><small>Volume, voice wake and device options</small></span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary>
+      <div class="section-body">
+        ${e?o`<label class="field"><span>Volume <strong>${e.value}</strong></span><input type="range" min=${e.min} max=${e.max} step=${e.step} .value=${String(e.value)} @change=${a=>this._setNumberEntity(this.entities.volumeNumber,Number(a.target.value))}></label>`:o`<p class="hint">Volume control is not available on this device.</p>`}
+        ${t?o`<label class="field"><span>Colour speed <strong>${t.value}</strong></span><input type="range" min=${t.min} max=${t.max} step=${t.step} .value=${String(t.value)} @change=${a=>this._setNumberEntity(this.entities.colorSpeedNumber,Number(a.target.value))}></label>`:u}
+        ${s.map(a=>this._renderToggle(a.name,this.hass.states[a.entityId]?.state==="on",()=>this._toggleSwitch(a.entityId)))}
+        ${!e&&!s.length?o`<p class="hint">This clock does not expose sound controls.</p>`:u}
       </div>
-    `}_renderTextPanel(){return l`
-      <div class="panel-section">
-        <input class="text-input" type="text" maxlength="64" placeholder="Message" .value=${this._textMessage} @input=${e=>this._onTextInput(e.target.value)} />
-        <div class="swatch-row">
-          <input type="color" class="color-input" .value=${this._textColorHex} @input=${e=>(this._textColorHex=e.target.value,this._previewText())} />
-          <select class="effect-select" @change=${e=>(this._textEffect=Number(e.target.value),this._previewText())}>
-            ${Di.map(e=>l`<option value=${e.mode} ?selected=${e.mode===this._textEffect}>${e.label}</option>`)}
-          </select>
-        </div>
-        <label class="field-label">
-          Speed
-          <input type="range" min="0" max="255" .value=${String(this._textSpeed)} @input=${e=>(this._textSpeed=Number(e.target.value),this._previewText())} />
-        </label>
-        <button type="button" class="primary-action" ?disabled=${this._busy==="show-text"||this._textMessage.trim().length===0} @click=${this._sendText}>Send</button>
+    </details>`}_renderRepeat(e,t){return o`<div class="repeat-row" role="group" aria-label=${"Repeats "+ss(e)}>${is.map((s,a)=>o`<button type="button" class="day ${Yt(e,a)?"on":""}" aria-label=${["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"][a]} aria-pressed=${Yt(e,a)?"true":"false"} ?disabled=${this._busy!==null} @click=${()=>t(rs(e,a))}>${s}</button>`)}</div>`}_renderAlarms(){let e=this.state?.alarms??[];return o`<section class="list-block"><div class="list-heading"><h3>Alarms</h3><span>${e.length}/16</span></div>
+      ${e.length?e.map(t=>o`<div class="item-row"><label class="field"><span>Alarm time</span><input type="time" .value=${String(t.hour).padStart(2,"0")+":"+String(t.minute).padStart(2,"0")} ?disabled=${this._busy!==null} @change=${s=>this._applyTime(s,(a,n)=>this._setAlarms(e.map(l=>l.id===t.id?{...l,hour:a,minute:n}:l)))}></label>${this._renderRepeat(t.repeat,s=>this._setAlarms(e.map(a=>a.id===t.id?{...a,repeat:s}:a)))}${this._renderToggle("Enabled",t.enabled,()=>this._setAlarms(e.map(s=>s.id===t.id?{...s,enabled:!s.enabled}:s)))}<iledclock-hold-button label="Hold to delete alarm" complete-label="Alarm deleted" danger ?disabled=${this._busy!==null} @confirmed=${()=>this._setAlarms(e.filter(s=>s.id!==t.id))}></iledclock-hold-button></div>`):o`<p class="hint">No alarms are set.</p>`}
+      <button type="button" class="add-button" ?disabled=${e.length>=16||this._busy!==null} @click=${()=>this._setAlarms([...e,{id:Ja--,hour:7,minute:0,enabled:!0,repeat:0}])}>Add alarm</button>
+    </section>`}_renderTimerSwitches(){let e=this.state?.timer_switches??[];return o`<section class="list-block"><div class="list-heading"><h3>Display schedule</h3><span>${e.length}/4</span></div><p class="hint">Turn the display on or off at a repeating time.</p>
+      ${e.length?e.map(t=>o`<div class="item-row"><label class="field"><span>Time</span><input type="time" .value=${String(t.hour).padStart(2,"0")+":"+String(t.minute).padStart(2,"0")} ?disabled=${this._busy!==null} @change=${s=>this._applyTime(s,(a,n)=>this._setTimerSwitches(e.map(l=>l.index===t.index?{...l,hour:a,minute:n}:l)))}></label><iledclock-segmented-picker group-label="Display action" content-fit .options=${[{value:"on",label:"On"},{value:"off",label:"Off"}]} .value=${t.on?"on":"off"} .disabled=${this._busy!==null} @option-selected=${s=>this._setTimerSwitches(e.map(a=>a.index===t.index?{...a,on:s.detail.value==="on"}:a))}></iledclock-segmented-picker>${this._renderRepeat(t.repeat,s=>this._setTimerSwitches(e.map(a=>a.index===t.index?{...a,repeat:s}:a)))}${this._renderToggle("Enabled",t.enabled,()=>this._setTimerSwitches(e.map(s=>s.index===t.index?{...s,enabled:!s.enabled}:s)))}<button type="button" class="icon-action danger-text" aria-label="Delete display schedule" @click=${()=>this._setTimerSwitches(e.filter(s=>s.index!==t.index))}><ha-icon icon="mdi:delete-outline"></ha-icon></button></div>`):o`<p class="hint">No automatic display schedules are set.</p>`}
+      ${e.length<4?o`<button type="button" class="add-button" ?disabled=${this._busy!==null} @click=${()=>{let t=new Set(e.map(a=>a.index)),s=0;for(;t.has(s);)s++;this._setTimerSwitches([...e,{index:s,hour:22,minute:0,on:!1,enabled:!0,repeat:0}])}}>Add display schedule</button>`:u}
+    </section>`}_renderReminders(){let e=this.state?.reminders??[];return o`<section class="list-block"><div class="list-heading"><h3>Reminders</h3><span>${e.length}</span></div><p class="hint">Reminders can be created on the clock; this integration can remove them.</p>
+      ${e.length?e.map(t=>o`<div class="reminder-row"><span>${t.content||"Untitled reminder"}<small>${String(t.hour).padStart(2,"0")}:${String(t.minute).padStart(2,"0")} · ${t.year}-${String(t.month).padStart(2,"0")}-${String(t.day).padStart(2,"0")}</small></span><iledclock-hold-button label="Hold to delete reminder" complete-label="Reminder deleted" danger ?disabled=${this._busy!==null} @confirmed=${()=>void this._command("reminder_delete",{id:t.id})}></iledclock-hold-button></div>`):o`<p class="hint">No reminders are stored on the clock.</p>`}
+    </section>`}_renderAlarmsAndReminders(){return o`<details class="setting-section" name="settings" open=${this.section==="alarms"?!0:u}>
+      <summary><span class="section-icon"><ha-icon icon="mdi:calendar-clock"></ha-icon></span><span class="section-title"><strong>Alarms & reminders</strong><small>${this.state?.alarms.length??0} alarms · ${this.state?.reminders.length??0} reminders</small></span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary>
+      <div class="section-body">${this._renderAlarms()}${this._renderTimerSwitches()}${this._renderReminders()}</div>
+    </details>`}_renderAccounts(){return o`<details class="setting-section" name="settings" open=${this.section==="accounts"?!0:u}>
+      <summary><span class="section-icon"><ha-icon icon="mdi:account-cog-outline"></ha-icon></span><span class="section-title"><strong>Accounts</strong><small>Divoom account status is managed in integration options</small></span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary>
+      <div class="section-body"><p class="hint">The clock status API does not report Divoom sign-in state. Review or update gallery credentials in the iLedClock integration options.</p><button type="button" class="add-button" @click=${this._openIntegrationOptions}>Open integration options</button></div>
+    </details>`}_renderAbout(){let e=this.hass?.devices?.[this.entities.deviceId],t=e?.identifiers?.find(([a])=>a==="iledclock")?.[1],s=this.state?.firmware;return o`<details class="setting-section" name="settings" open=${this.section==="about"?!0:u}>
+      <summary><span class="section-icon"><ha-icon icon="mdi:information-outline"></ha-icon></span><span class="section-title"><strong>About</strong><small>Clock and connection information</small></span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary>
+      <div class="section-body"><dl class="about-list"><div><dt>Device</dt><dd>${e?.name_by_user||e?.name||"iLedClock"}</dd></div><div><dt>Model</dt><dd>${e?.model||"Unknown"}</dd></div><div><dt>Firmware</dt><dd>${s==null?"Unavailable":String(s)}</dd></div><div><dt>BLE address</dt><dd>${t||"Not provided by Home Assistant"}</dd></div></dl>
+        <p class="hint">The integration version is shown on its Home Assistant integration page.</p><button type="button" class="add-button" @click=${this._openIntegrationOptions}>Open integration page</button>
+        <label class="field password-field"><span>Update the saved clock password</span><input type="password" autocomplete="new-password" .value=${this._password} placeholder="Clock password" @input=${a=>this._password=a.target.value}></label><p class="hint">Use this only after changing the password on the clock. The integration verifies the new password before saving.</p>
+        <iledclock-hold-button label="Hold to update password" complete-label="Password updated" ?disabled=${this._password.length===0||this._busy!==null} @confirmed=${this._setPassword}></iledclock-hold-button>
       </div>
-    `}_renderArtPanel(){return l`
-      <div class="panel-section">
-        ${this._designsLoading?l`<p class="hint">Loading designs…</p>`:c}
-        ${!this._designsLoading&&(this._designs?.length??0)===0?l`<p class="hint">No saved designs yet. Open the studio to create one.</p>`:c}
-        <div class="carousel">
-          ${(this._designs??[]).map(e=>{let t=T(e)[0];return l`
-              <button type="button" class="carousel-item ${e.id===this._selectedDesignId?"selected":""}" @click=${()=>this._selectDesign(e)}>
-                <span class="carousel-thumb"><iledclock-matrix-canvas .frame=${t}></iledclock-matrix-canvas></span>
-                <span class="carousel-label">${e.name}</span>
-              </button>
-            `})}
-        </div>
-        <div class="button-row">
-          <button type="button" class="primary-action" ?disabled=${this._busy==="show-design"||!this._selectedDesignId} @click=${this._sendDesign}>Send</button>
-          <button type="button" class="secondary-action" @click=${this._openStudio}>Open studio</button>
-        </div>
+    </details>`}render(){return this.open?o`<lu-sheet .open=${this.open} label="Clock settings" @closed=${this._close}>
+      <div slot="header" class="sheet-heading"><div><h2>Clock settings</h2><p>Available controls depend on the clock and enabled entities.</p></div></div>
+      <div class="sheet-content">
+        ${this._error?o`<p class="error" role="alert">${this._error}</p>`:u}
+        ${this._renderDisplay()}${this._renderNightMode()}${this._renderTime()}${this._renderSound()}${this._renderAlarmsAndReminders()}${this._renderAccounts()}${this._renderAbout()}
       </div>
-    `}_renderTimerPanel(e){return l`
-      <div class="panel-section">
-        <iledclock-segmented-picker
-          group-label="Timer type"
-          content-fit
-          .options=${ns}
-          .value=${this._timerTab}
-          @option-selected=${t=>this._timerTab=t.detail.value}
-        ></iledclock-segmented-picker>
-        ${this._timerTab==="countdown"?this._renderCountdown(e):c}
-        ${this._timerTab==="stopwatch"?this._renderStopwatch(e):c}
-        ${this._timerTab==="pomodoro"?this._renderPomodoro(e):c}
+    </lu-sheet>`:u}};Ge.properties={hass:{attribute:!1},entities:{attribute:!1},entryId:{attribute:!1},state:{attribute:!1},open:{type:Boolean,reflect:!0},section:{type:String},_password:{state:!0},_busy:{state:!0},_error:{state:!0}},Ge.styles=[g,_,v`
+    :host { display: block; }
+    .sheet-heading { display: grid; min-width: 0; gap: var(--lu-space-1); padding: 0; }
+    .sheet-heading h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.2 var(--lu-font); }
+    .sheet-heading p, .hint { margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.45 var(--lu-font); }
+    .sheet-content { display: grid; gap: var(--lu-space-3); padding-bottom: var(--lu-space-2); }
+    .setting-section { min-width: 0; overflow: hidden; border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); background: transparent; }
+    .setting-section > summary { display: flex; align-items: center; gap: var(--lu-space-3); min-height: var(--lu-target); padding: var(--lu-space-2) var(--lu-space-3); color: var(--lu-ink); cursor: pointer; list-style: none; }
+    .setting-section > summary::-webkit-details-marker { display: none; }
+    .section-icon { display: grid; place-items: center; width: var(--lu-target); height: var(--lu-target); flex: none; border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: var(--lu-tile); }
+    .section-icon ha-icon { --mdc-icon-size: 22px; }
+    .section-title { display: grid; flex: 1 1 auto; min-width: 0; gap: 2px; }
+    .section-title strong { color: var(--lu-ink); font: 600 var(--lu-type-label)/1.25 var(--lu-font); }
+    .section-title small { overflow: hidden; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.25 var(--lu-font); text-overflow: ellipsis; white-space: nowrap; }
+    .chevron { flex: none; color: var(--lu-ink-3); transition: transform var(--lu-motion-label) var(--lu-ease); }
+    details[open] > summary .chevron { transform: rotate(180deg); }
+    .section-body { display: grid; gap: var(--lu-space-3); padding: 0 var(--lu-space-3) var(--lu-space-4); }
+    .field { display: grid; gap: var(--lu-space-2); min-width: 0; color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.35 var(--lu-font); }
+    .field > span { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-2); }
+    .field strong { color: var(--lu-ink); font-variant-numeric: tabular-nums; }
+    input[type="time"], input[type="number"], input[type="password"], select { box-sizing: border-box; width: 100%; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 400 var(--lu-type-label)/1.3 var(--lu-font); }
+    input[type="range"] { width: 100%; min-height: var(--lu-target); margin: 0; accent-color: var(--lu-accent); }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-3); min-height: var(--lu-target); padding: 0; border: 0; color: var(--lu-ink); background: transparent; text-align: left; font: 500 var(--lu-type-label)/1.3 var(--lu-font); cursor: pointer; }
+    .toggle-row:disabled { opacity: .55; cursor: default; }
+    .switch { position: relative; flex: none; width: 48px; height: 28px; border-radius: var(--lu-radius-pill); background: var(--lu-track-off); transition: background-color var(--lu-motion-label) var(--lu-ease); }
+    .switch::after { position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; border-radius: var(--lu-radius-pill); background: var(--lu-card); content: ""; transition: transform var(--lu-motion-label) var(--lu-ease); }
+    .switch.on { background: var(--lu-accent); }
+    .switch.on::after { transform: translateX(20px); }
+    .two-up { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--lu-space-3); }
+    .list-block { display: grid; gap: var(--lu-space-3); padding-top: var(--lu-space-2); border-top: 1px solid var(--lu-edge); }
+    .list-heading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--lu-space-2); }
+    .list-heading h3 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-label)/1.3 var(--lu-font); }
+    .list-heading span { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .item-row { display: grid; min-width: 0; gap: var(--lu-space-2); padding: var(--lu-space-3) 0; border-bottom: 1px solid var(--lu-edge); }
+    .item-row .toggle-row { border-top: 1px solid var(--lu-edge); }
+    .repeat-row { display: flex; gap: var(--lu-space-1); overflow-x: auto; padding-bottom: var(--lu-space-1); }
+    .day { flex: 0 0 var(--lu-target); min-width: var(--lu-target); min-height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: var(--lu-glass-raised); font: 500 var(--lu-type-caption)/1 var(--lu-font); cursor: pointer; }
+    .day.on { border-color: var(--lu-accent); color: var(--lu-accent-ink); background: var(--lu-accent); }
+    .add-button { min-height: var(--lu-target); padding: 0 var(--lu-space-4); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: var(--lu-glass-raised); font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .add-button:disabled { opacity: .5; cursor: default; }
+    .reminder-row { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-2); min-height: var(--lu-target); }
+    .reminder-row > span { display: grid; min-width: 0; gap: var(--lu-space-1); color: var(--lu-ink); font: 500 var(--lu-type-label)/1.3 var(--lu-font); }
+    .reminder-row small { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .about-list { display: grid; gap: var(--lu-space-2); margin: 0; }
+    .about-list > div { display: flex; justify-content: space-between; gap: var(--lu-space-3); }
+    .about-list dt { color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .about-list dd { margin: 0; color: var(--lu-ink); font: 500 var(--lu-type-caption)/1.4 var(--lu-font); text-align: right; overflow-wrap: anywhere; }
+    .password-field { margin-top: var(--lu-space-2); }
+    .error { margin: 0; padding: var(--lu-space-3); border: 1px solid color-mix(in srgb, var(--lu-danger) 36%, var(--lu-edge)); border-radius: var(--lu-radius-control); color: var(--lu-danger); background: var(--lu-tile); font: 400 var(--lu-type-label)/1.4 var(--lu-font); }
+    .setting-section :focus-visible, .add-button:focus-visible, outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    @container (max-width: 359px) { .two-up { grid-template-columns: 1fr; } .item-row { grid-template-columns: 1fr; } }
+    @media (prefers-reduced-motion: reduce) { .switch, .switch::after, .chevron { transition: none; } }
+  `];customElements.define("iledclock-settings-sheet",Ge);var en=[{name:"device_id",required:!0,selector:{device:{filter:{integration:"iledclock"}}}},{name:"name",selector:{text:{}}}],tn={device_id:"iLedClock device",name:"Name (optional)"},Ue=class extends m{constructor(){super(...arguments);this._computeLabel=e=>tn[e.name]??e.name}setConfig(e){this._config=e}render(){return this._config?customElements.get("ha-form")?o`<ha-form .hass=${this.hass} .data=${this._config} .schema=${en} .computeLabel=${this._computeLabel} @value-changed=${this._formValueChanged}></ha-form>`:this._renderFallback():u}_renderFallback(){let e=Object.values(this.hass?.entities??{}),t=Object.values(this.hass?.devices??{}).filter(s=>e.some(a=>a.device_id===s.id&&a.platform==="iledclock"));return o`<section class="editor lu-section-surface" aria-label="iLedClock card options">
+      <h2>iLedClock card</h2>
+      <p>Choose the clock this card controls. The device's entities are resolved automatically.</p>
+      <label><span>iLedClock device</span><select required .value=${this._config?.device_id??""} @change=${s=>this._updateDeviceId(s.target.value)}><option value="">Choose a device…</option>${t.map(s=>o`<option value=${s.id}>${s.name_by_user??s.name}</option>`)}</select></label>
+      <label><span>Name (optional)</span><input type="text" .value=${this._config?.name??""} @change=${s=>this._updateName(s.target.value)}></label>
+    </section>`}_updateDeviceId(e){this._config&&(this._config={...this._config,device_id:e},this._fireConfigChanged())}_updateName(e){this._config&&(this._config={...this._config,name:e||void 0},this._fireConfigChanged())}_formValueChanged(e){this._config=e.detail.value,this._fireConfigChanged()}_fireConfigChanged(){this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config},bubbles:!0,composed:!0}))}};Ue.properties={hass:{attribute:!1},_config:{state:!0}},Ue.styles=[g,_,v`
+    :host { display: block; min-width: 0; color: var(--lu-ink); font-family: var(--lu-font); }
+    .editor { display: grid; gap: var(--lu-space-3); padding: var(--lu-space-4); }
+    h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); }
+    p { margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-body)/1.45 var(--lu-font); }
+    label { display: grid; gap: var(--lu-space-2); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.3 var(--lu-font); }
+    select, input { box-sizing: border-box; width: 100%; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 400 var(--lu-type-body)/1.3 var(--lu-font); }
+    select:focus-visible, input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+  `];customElements.define("iledclock-card-editor",Ue);var rn={display:{domain:"light",translationKeys:["display"],idSuffixes:["_display"]},message:{domain:"text",translationKeys:["message"],idSuffixes:["_message"]},preview:{domain:"image",translationKeys:["display"],idSuffixes:["_display"]},temperature:{domain:"sensor",translationKeys:["temperature"],idSuffixes:["_temperature"]},humidity:{domain:"sensor",translationKeys:["humidity"],idSuffixes:["_humidity"]},firmware:{domain:"sensor",translationKeys:["firmware"],idSuffixes:["_firmware"]},programCount:{domain:"sensor",translationKeys:["program_count"],idSuffixes:["_program_count"]},connected:{domain:"binary_sensor",translationKeys:["connected"],idSuffixes:["_connected"]},syncTimeButton:{domain:"button",translationKeys:["sync_time"],idSuffixes:["_sync_time"]},rotationSelect:{domain:"select",translationKeys:["rotation"],idSuffixes:["_rotation"]},clockFaceSelect:{domain:"select",translationKeys:["clock_face"],idSuffixes:["_clock_face"]},volumeNumber:{domain:"number",translationKeys:["volume"],idSuffixes:["_volume"]},colorSpeedNumber:{domain:"number",translationKeys:["color_speed"],idSuffixes:["_color_speed"]},nightModeSwitch:{domain:"switch",translationKeys:["night_mode"],idSuffixes:["_night_mode"]}};function ns(r){return r.slice(0,r.indexOf("."))}function os(r){return r.slice(r.indexOf(".")+1)}function sn(r,i){if(ns(r.entity_id)!==i.domain)return!1;if(r.translation_key&&i.translationKeys.includes(r.translation_key))return!0;let e=os(r.entity_id);return i.idSuffixes.some(t=>e.endsWith(t))}function an(r){let i=r.name??r.original_name;if(i)return i;let e=os(r.entity_id).split("_").filter(Boolean).pop();return e?e[0].toUpperCase()+e.slice(1):"Setting"}function Xt(r,i){let e={deviceId:i,settingSwitches:[]},t=Object.values(r).filter(s=>s.device_id===i&&!s.disabled_by);for(let s of t){let a=!1;for(let n of Object.entries(rn)){let[l,d]=n;if(!e[l]&&sn(s,d)){e[l]=s.entity_id,a=!0;break}}!a&&ns(s.entity_id)==="switch"&&e.settingSwitches.push({entityId:s.entity_id,name:an(s)})}return e.settingSwitches.sort((s,a)=>s.name.localeCompare(a.name)),e}function le(r,i){if(i)return r[i]?.config_entries?.[0]}var nn=[...Array.from({length:35},(r,i)=>i+1),37,38,39,40,41],be=41;var qe=nn.map(r=>({style:r,label:ze(r)}));function ze(r){return"Face "+r}var q=[{index:0,label:"Red",rgb:[255,0,0]},{index:1,label:"Magenta",rgb:[255,0,255]},{index:2,label:"Yellow",rgb:[255,255,0]},{index:3,label:"Green",rgb:[0,255,0]},{index:4,label:"Cyan",rgb:[0,255,255]},{index:5,label:"Blue",rgb:[0,0,255]},{index:6,label:"White",rgb:[255,255,255]},{index:7,label:"Black",rgb:[0,0,0]}];function qi(r){let i="";for(let t=0;t<r.pixels.length;t+=8192)i+=String.fromCharCode(...r.pixels.subarray(t,t+8192));return btoa(i)}function V(r,i,e,t){let s=atob(r),a=new Uint8Array(i*e*3),n=Math.min(s.length,a.length);for(let l=0;l<n;l++)a[l]=s.charCodeAt(l);return{width:i,height:e,pixels:a,durationMs:t}}function G(r){return r.frames.length===0?[$(r.width,r.height)]:r.frames.map((i,e)=>V(i,r.width,r.height,r.delays[e]??100))}function ls(r,i){return{id:i.id,name:i.name,kind:i.kind,width:r[0]?.width??32,height:r[0]?.height??16,frames:r.map(qi),delays:r.map(e=>e.durationMs),created:i.created,updated:i.updated,tags:i.tags}}function Zt(r,i){return Number.isFinite(r)&&r>0?r:i}function Qt(r,i,e){return Math.max(i,Math.min(e,Math.floor(r)))}function ye(r,i,e,t={}){let s=Zt(i,32),a=Zt(e,s/2),n=t.maxPitch===void 0?Number.POSITIVE_INFINITY:Math.max(1,Math.floor(t.maxPitch)),l,d=32,c=16;switch(r){case"hero":{let p=Math.floor(Math.min(s/32,a/16));l=Qt(p,6,Math.min(12,n));break}case"editor":{let p=Math.floor(Math.min(s/32,a/16)),h=Number.isFinite(t.zoom)&&t.zoom>0?t.zoom:1,f=Math.min(h>1?40:22,n),b=Qt(p,8,Math.min(22,n));l=h>1?Qt(b*h,8,f):b;break}case"tile":{d=Zt(t.artWidth??32,32),c=Zt(t.artHeight??16,16),l=Math.max(1,Math.floor(Math.min(s/d,a/c))),Number.isFinite(n)&&(l=Math.min(l,n));break}case"thumb":{let p=Math.floor(Math.min(s/32,a/16));l=Qt(p,2,Math.min(3,n));break}}return{pitch:l,width:d*l,height:c*l}}function Jt(r,i){if(r.length<=1)return 0;let e=r.reduce((s,a)=>s+Math.max(1,a.durationMs),0),t=(i%e+e)%e;for(let s=0;s<r.length;s++){let a=Math.max(1,r[s].durationMs);if(t<a)return s;t-=a}return r.length-1}var on=$(32,16),je=class extends m{constructor(){super();this._stageRef=B();this._resizeObserver=null;this._intersectionObserver=null;this._motionQuery=null;this._playFrames=[];this._visible=!0;this._reducedMotion=!1;this._startedAt=0;this._rafId=null;this._onMotionChanged=e=>{this._reducedMotion=e.matches,this._syncPlayback()};this.frames=[],this.delays=[],this.context="hero",this.maxPitch=void 0,this.zoom=1,this.playing=!0,this.label="LED preview",this._size=null,this._frameIndex=0}connectedCallback(){super.connectedCallback(),typeof ResizeObserver<"u"&&(this._resizeObserver=new ResizeObserver(()=>this._measure())),typeof IntersectionObserver<"u"&&(this._intersectionObserver=new IntersectionObserver(e=>{this._visible=e[0]?.isIntersecting??!1,this._syncPlayback()})),this._motionQuery=window.matchMedia("(prefers-reduced-motion: reduce)"),this._reducedMotion=this._motionQuery.matches,this._motionQuery.addEventListener("change",this._onMotionChanged)}firstUpdated(){let e=this._stageRef.value;e&&this._resizeObserver?.observe(e),this._intersectionObserver&&this._intersectionObserver.observe(this),this._measure(),this._syncPlayback()}willUpdate(e){(e.has("frames")||e.has("delays"))&&(this._playFrames=this.frames.map((t,s)=>({...t,durationMs:Math.max(1,this.delays[s]??t.durationMs)})),this._frameIndex=0,this._startedAt=performance.now())}updated(e){(e.has("context")||e.has("maxPitch")||e.has("zoom"))&&this._measure(),(e.has("frames")||e.has("delays")||e.has("playing"))&&this._syncPlayback()}disconnectedCallback(){super.disconnectedCallback(),this._resizeObserver?.disconnect(),this._intersectionObserver?.disconnect(),this._motionQuery?.removeEventListener("change",this._onMotionChanged),this._resizeObserver=null,this._intersectionObserver=null,this._motionQuery=null,this._stopPlayback()}_measure(){let e=this._stageRef.value?.getBoundingClientRect();if(!e||e.width<=0||e.height<=0)return;let t=ye(this.context,e.width,e.height,{maxPitch:this.maxPitch,zoom:this.zoom});this._size?.pitch!==t.pitch&&(this._size=t)}_canAnimate(){return this.playing&&this._visible&&!this._reducedMotion&&this._playFrames.length>1}_startPlayback(){if(this._rafId!==null)return;this._startedAt=performance.now();let e=t=>{if(!this._canAnimate()){this._rafId=null;return}let s=Jt(this._playFrames,t-this._startedAt);s!==this._frameIndex&&(this._frameIndex=s,this.requestUpdate()),this._rafId=requestAnimationFrame(e)};this._rafId=requestAnimationFrame(e)}_stopPlayback(){this._rafId!==null&&(cancelAnimationFrame(this._rafId),this._rafId=null)}_syncPlayback(){this._canAnimate()?this._startPlayback():(this._stopPlayback(),this._frameIndex!==0&&(this._frameIndex=0))}render(){let e=this._playFrames.length?this._playFrames:this.frames,t=e[this._frameIndex]??e[0]??on,s=this._size?.width,a=this._size?.height;return o`<div class="stage" ${A(this._stageRef)} role="img" aria-label=${this.label}>
+      <iledclock-matrix-canvas .frame=${t} .bloom=${(this._size?.pitch??0)>=10} style=${s&&a?"width: "+s+"px; height: "+a+"px":"width: 100%; height: 100%"}></iledclock-matrix-canvas>
+    </div>`}};je.properties={frames:{attribute:!1},delays:{attribute:!1},context:{type:String},maxPitch:{type:Number,attribute:"max-pitch"},zoom:{type:Number},playing:{type:Boolean},label:{type:String},_size:{state:!0},_frameIndex:{state:!0}},je.styles=[g,v`
+    :host { display: block; width: 100%; min-width: 0; aspect-ratio: 2 / 1; overflow: hidden; border-radius: var(--lu-radius-tile); }
+    .stage { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: var(--lu-space-7); overflow: hidden; border-radius: inherit; background: #050607; }
+    iledclock-matrix-canvas { display: block; flex: none; border-radius: inherit; }
+  `];customElements.define("iledclock-led-preview",je);var ln={1:"Solid",2:"Rainbow",3:"Fade",4:"Per-letter rainbow",5:"Per-letter fade"},dn=28,ds=Array.from({length:dn},(r,i)=>{let e=i+1;return{mode:e,label:ln[e]??"Effect "+e}});var cn=5e3;function ei(r,i){r.dispatchEvent(new CustomEvent("lu-toast",{detail:i,bubbles:!0,composed:!0}))}function cs(r){return r&&typeof r=="object"&&"message"in r&&typeof r.message=="string"?r.message:"The clock did not accept it"}async function F(r,i,e,t,s){let a=i.callWS?.bind(i);if(!a)return!1;try{await a(Gi(e,t))}catch(n){return ei(r,{message:`Couldn't show ${s}: ${cs(n)}`,actionLabel:"Retry",action:()=>void F(r,i,e,t,s),timeoutMs:8e3}),!1}return ei(r,{message:`Now showing ${s}`,actionLabel:"Undo",timeoutMs:cn,action:async()=>{try{await a(Gi(e,{restore:"previous"})),ei(r,{message:"Restored the previous item",timeoutMs:3e3})}catch(n){ei(r,{message:`Couldn't undo: ${cs(n)}`,timeoutMs:6e3})}}}),!0}var us=["now","create","explore","library"],We="/iledclock";function Ke(r){let i=r instanceof URL?r:new URL(r,"http://home-assistant.local"),e=i.pathname.replace(/\/+$/,"")||We,t=e===We?"now":e.startsWith(We+"/")?e.slice(We.length+1).split("/")[0]:"now",s=us.includes(t)?t:"now",a=i.searchParams.get("item")||void 0,n=i.searchParams.get("design")||void 0;return{destination:s,...a?{item:a}:{},...n?{design:n}:{}}}function un(r){let i=us.includes(r.destination)?r.destination:"now",e=new URLSearchParams;r.item&&e.set("item",r.item),r.design&&e.set("design",r.design);let t=e.toString();return We+"/"+i+(t?"?"+t:"")}function T(r,i=!1){let e=un(r);i?window.history.replaceState(null,"",e):window.history.pushState(null,"",e),window.dispatchEvent(new Event("location-changed"))}function ps(r){return r<1?2e3:null}function hs(r,i,e){let t=r.indexOf("#"),s=t<0?"":r.slice(t),a=t<0?r:r.slice(0,t),n=a.includes("?")?"&":"?";return a+n+"iledclock_retry="+encodeURIComponent(String(i)+"-"+String(e))+s}function pn(r,i=12){let e=Math.max(0,Math.floor(i)),t=new Set,s=[];for(let a of r)if(!t.has(a)){if(t.add(a),s.length===e)break;s.push(a)}return s}var zi=class{constructor(){this._visible=new Set;this._granted=new Set;this._listeners=new Map}register(i,e){this._listeners.set(i,e),e(this._granted.has(i))}unregister(i){this._visible.delete(i),this._listeners.delete(i),this._recalculate()}setVisible(i,e){e?this._visible.add(i):this._visible.delete(i),this._recalculate()}_recalculate(){let i=new Set(pn([...this._visible]));for(let e of this._granted)i.has(e)||this._listeners.get(e)?.(!1);for(let e of i)this._granted.has(e)||this._listeners.get(e)?.(!0);this._granted.clear();for(let e of i)this._granted.add(e)}},ti=new zi;var hn=0,Ye=class extends m{constructor(){super();this._surfaceRef=B();this._observer=null;this._resizeObserver=null;this._motionQuery=null;this._tileKey="";this._attempts=0;this._reducedMotion=!1;this._onBudgetChanged=e=>{this._granted!==e&&(this._granted=e,this.requestUpdate())};this._onMotionChanged=e=>{this._reducedMotion=e.matches,this._syncBudget()};this._onImageError=()=>{this._failed=!0;let e=ps(this._attempts);e!==null&&(this._autoRetryTimer=setTimeout(()=>this._retry(),e))};this._onImageLoad=()=>{this._failed=!1,this._attempts=0,clearTimeout(this._autoRetryTimer),this._measureImage()};this._retry=e=>{if(e?.stopPropagation(),!!this.imageUrl){if(clearTimeout(this._autoRetryTimer),this._attempts+=1,this._failed=!1,this.mediaPath){this.dispatchEvent(new CustomEvent("media-retry-request",{detail:{itemId:this.itemId,mediaPath:this.mediaPath},bubbles:!0,composed:!0}));return}this._retryUrl=hs(this.imageUrl,this._attempts,Date.now())}};this._select=()=>{this.dispatchEvent(new CustomEvent("tile-selected",{detail:{itemId:this.itemId},bubbles:!0,composed:!0}))};this._onKeydown=e=>{e.key!=="Enter"&&e.key!==" "||(e.preventDefault(),this._select())};this.itemId="",this.imageUrl="",this.mediaPath="",this.frames=[],this.delays=[],this.animated=!1,this.aspect="square",this.title="",this.subtitle="",this._failed=!1,this._retryUrl="",this._visible=!1,this._granted=!1,this._imageSize=null}connectedCallback(){super.connectedCallback(),this._tileKey="art-tile-"+ ++hn,ti.register(this._tileKey,this._onBudgetChanged),this._visible=typeof IntersectionObserver>"u",typeof IntersectionObserver<"u"&&(this._observer=new IntersectionObserver(e=>{this._visible=(e[0]?.intersectionRatio??0)>=.5,this._syncBudget()},{threshold:[0,.5,1]})),typeof ResizeObserver<"u"&&(this._resizeObserver=new ResizeObserver(()=>this._measureImage())),this._motionQuery=window.matchMedia("(prefers-reduced-motion: reduce)"),this._reducedMotion=this._motionQuery.matches,this._motionQuery.addEventListener("change",this._onMotionChanged)}firstUpdated(){this._observer&&this._observer.observe(this),this._surfaceRef.value&&this._resizeObserver?.observe(this._surfaceRef.value),this._measureImage()}willUpdate(e){if(e.has("imageUrl")||e.has("mediaPath")||e.has("itemId")){clearTimeout(this._autoRetryTimer);let t=e.has("itemId")&&e.get("itemId")!==this.itemId,s=e.has("mediaPath")&&e.get("mediaPath")!==this.mediaPath;(t||s||e.has("imageUrl")&&!this.mediaPath)&&(this._attempts=0),this._failed=!1,this._retryUrl=this.imageUrl,this._imageSize=null}(e.has("animated")||e.has("frames")||e.has("imageUrl"))&&this._syncBudget()}updated(e){(e.has("imageUrl")||e.has("aspect"))&&this._measureImage()}disconnectedCallback(){super.disconnectedCallback(),clearTimeout(this._autoRetryTimer),this._observer?.disconnect(),this._resizeObserver?.disconnect(),this._motionQuery?.removeEventListener("change",this._onMotionChanged),this._observer=null,this._resizeObserver=null,this._motionQuery=null,this._tileKey&&ti.unregister(this._tileKey)}_isAnimated(){return this.animated||this.frames.length>1}_syncBudget(){this._tileKey&&ti.setVisible(this._tileKey,this._visible&&this._isAnimated()&&!this._reducedMotion)}_measureImage(){let e=this._surfaceRef.value?.getBoundingClientRect();if(!e||e.width<=0||e.height<=0)return;let t=this.renderRoot.querySelector("img.art-image"),s=t?.naturalWidth||32,a=t?.naturalHeight||16,n=ye("tile",e.width,e.height,{artWidth:s,artHeight:a});this._imageSize?.pitch===n.pitch&&this._imageSize.width===n.width&&this._imageSize.height===n.height||(this._imageSize=n)}render(){let e=this.frames.length>0,t=this._isAnimated()&&!e&&this._granted&&!this._reducedMotion,s=this._retryUrl||this.imageUrl,a=this._imageSize?"width:"+this._imageSize.width+"px;height:"+this._imageSize.height+"px":"",n=!this._failed&&(!this._isAnimated()||e||t);return o`<article class="tile">
+      <div class="plate ${this.aspect==="design"?"design":"square"}" ${A(this._surfaceRef)} @click=${this._select}>
+        ${e?o`<iledclock-led-preview context="tile" max-pitch="4" .frames=${this.frames} .delays=${this.delays} .playing=${this._granted&&!this._reducedMotion} label=${this.title||"Pixel art"}></iledclock-led-preview>`:n&&s?o`<img class="art-image" src=${s} alt="" style=${a} @load=${this._onImageLoad} @error=${this._onImageError}>`:o`<div class="placeholder" aria-hidden="true"><span class="glyph">${this._failed?"\u25A7":"\u25A6"}</span></div>`}
+        <div class="badges"><slot name="badges"></slot></div>
+        ${this._failed&&this.imageUrl?o`<lu-icon-button class="retry" icon="mdi:refresh" tooltip="Retry image" aria-label="Retry loading image" @lu-press=${this._retry}></lu-icon-button>`:u}
       </div>
-    `}_renderCountdown(e){let t=e?.countdown,s=this._countdownDraft;return l`
-      <div class="timer-display">${this._formatHms(t?.hours??s.h,t?.minutes??s.m,t?.seconds??s.s)}</div>
-      <div class="hms-inputs">
-        ${this._renderHmsField("h",s.h,0,23)}
-        ${this._renderHmsField("m",s.m,0,59)}
-        ${this._renderHmsField("s",s.s,0,59)}
+      <button type="button" class="text" aria-label=${this.title?"Open "+this.title:"Open artwork"} @click=${this._select} @keydown=${this._onKeydown}>
+        <span class="title">${this.title}</span>
+        ${this.subtitle?o`<span class="subtitle">${this.subtitle}</span>`:u}
+      </button>
+    </article>`}};Ye.properties={itemId:{type:String,attribute:"item-id"},imageUrl:{type:String,attribute:"image-url"},mediaPath:{type:String,attribute:"media-path"},frames:{attribute:!1},delays:{attribute:!1},animated:{type:Boolean},aspect:{type:String},title:{type:String},subtitle:{type:String},_failed:{state:!0},_retryUrl:{state:!0},_visible:{state:!0},_granted:{state:!0},_imageSize:{state:!0}},Ye.styles=[g,_,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .tile { display: flex; min-width: 0; flex-direction: column; gap: var(--lu-space-2); }
+    .plate { position: relative; display: grid; place-items: center; width: 100%; overflow: hidden; border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-tile); background: #050607; }
+    .plate.square { aspect-ratio: 1 / 1; }
+    .plate.design { aspect-ratio: 2 / 1; }
+    .art-image { display: block; max-width: none; max-height: none; image-rendering: pixelated; object-fit: contain; }
+    .placeholder { display: grid; place-items: center; width: 100%; height: 100%; color: var(--lu-ink-3); }
+    .glyph { font: 400 var(--lu-type-display)/1 var(--lu-font); }
+    .badges { position: absolute; inset: var(--lu-space-2) var(--lu-space-2) auto; display: flex; flex-wrap: wrap; gap: var(--lu-space-1); align-items: flex-start; pointer-events: none; }
+    ::slotted([slot="badges"]) { pointer-events: auto; }
+    .retry { position: absolute; right: var(--lu-space-2); bottom: var(--lu-space-2); }
+    .text { display: flex; flex-direction: column; min-width: 0; min-height: 48px; gap: var(--lu-space-1); padding: 0; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
+    .text:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; border-radius: var(--lu-radius-control); }
+    .title { overflow: hidden; color: var(--lu-ink); font: 500 var(--lu-type-label)/1.3 var(--lu-font); text-overflow: ellipsis; white-space: nowrap; }
+    .subtitle { overflow: hidden; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); text-overflow: ellipsis; white-space: nowrap; }
+    iledclock-led-preview { width: 100%; }
+  `];customElements.define("iledclock-art-tile",Ye);var Xe=class extends m{constructor(){super();this._observer=null;this._visible=typeof IntersectionObserver>"u";this._loadedKey="";this._revision=0;this._inFlight=!1;this._loadQueued=!1;this.faceStyle=1,this.color=[255,255,255],this.hours24=!0,this.selected=!1,this._frames=[$(32,16)],this._loading=!1}connectedCallback(){super.connectedCallback(),typeof IntersectionObserver<"u"&&(this._observer=new IntersectionObserver(e=>{this._visible=e[0]?.isIntersecting??!1,this._visible&&this._loadPreview()},{rootMargin:"48px"}))}firstUpdated(){this._observer?.observe(this),this._visible&&this._loadPreview()}updated(e){(e.has("entryId")||e.has("faceStyle")||e.has("color")||e.has("hours24"))&&this._visible&&this._loadPreview()}disconnectedCallback(){super.disconnectedCallback(),this._revision++,this._observer?.disconnect(),this._observer=null}async _loadPreview(){if(!this.entryId||!this.hass?.callWS)return;let e=[this.entryId,this.faceStyle,this.color.join(","),this.hours24?"24":"12"].join("|");if(e===this._loadedKey)return;if(this._inFlight){this._loadQueued=!0;return}let t=++this._revision;this._inFlight=!0,this._loading=!0;try{let s=await this.hass.callWS(D(this.entryId,_e(this.faceStyle,this.color,this.hours24,be)));if(t!==this._revision)return;this._frames=s.frames.map((a,n)=>{let l=atob(a),d=new Uint8Array(32*16*3);for(let c=0;c<Math.min(l.length,d.length);c++)d[c]=l.charCodeAt(c);return{width:32,height:16,pixels:d,durationMs:s.delays[n]??100}}),this._frames.length||(this._frames=[$(32,16)]),this._loadedKey=e}catch{this._loadedKey=""}finally{this._inFlight=!1,t===this._revision&&(this._loading=!1),this._loadQueued&&(this._loadQueued=!1,this._loadPreview())}}_select(){this.dispatchEvent(new CustomEvent("face-selected",{detail:{style:this.faceStyle},bubbles:!0,composed:!0}))}render(){return o`<button type="button" class="face" aria-label=${ze(this.faceStyle)} aria-pressed=${this.selected?"true":"false"} ?disabled=${!this.entryId} @click=${this._select}>
+      <iledclock-led-preview context="thumb" .frames=${this._frames} .playing=${!1} label=${ze(this.faceStyle)}></iledclock-led-preview>
+      <span>${ze(this.faceStyle)}</span>
+      ${this._loading?o`<span class="loading" role="status">Loading preview</span>`:""}
+    </button>`}};Xe.properties={hass:{attribute:!1},entryId:{attribute:!1},faceStyle:{type:Number,attribute:"face-style"},color:{attribute:!1},hours24:{type:Boolean,attribute:"hours24"},selected:{type:Boolean,reflect:!0},_frames:{state:!0},_loading:{state:!0}},Xe.styles=[g,v`
+    :host { display: block; flex: 0 0 96px; min-width: 0; }
+    .face { display: flex; width: 100%; min-height: var(--lu-target); flex-direction: column; justify-content: center; gap: var(--lu-space-1); padding: var(--lu-space-1); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-tile); color: var(--lu-ink-2); background: transparent; font: 500 var(--lu-type-caption)/1.2 var(--lu-font); cursor: pointer; }
+    :host([selected]) .face { border-color: var(--lu-accent); color: var(--lu-ink); background: var(--lu-glass-raised); box-shadow: var(--lu-highlight-raised); }
+    .face:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .face span { text-align: center; }
+    .loading { color: var(--lu-ink-3); font-size: var(--lu-type-caption); }
+    iledclock-led-preview { width: 100%; }
+  `];customElements.define("iledclock-clock-face-thumb",Xe);var Ze=class extends m{constructor(){super(),this.title="Something went wrong",this.message="This information could not be loaded.",this.retryLabel="Retry",this.busy=!1}_retry(){this.dispatchEvent(new CustomEvent("retry",{bubbles:!0,composed:!0}))}render(){return o`<div class="error" role="alert">
+      <div class="copy"><h2>${this.title}</h2><p>${this.message}</p></div>
+      <lu-pill-button variant="secondary" .label=${this.retryLabel} ?loading=${this.busy} ?disabled=${this.busy} @lu-press=${this._retry}></lu-pill-button>
+    </div>`}};Ze.properties={title:{type:String},message:{type:String},retryLabel:{type:String,attribute:"retry-label"},busy:{type:Boolean}},Ze.styles=[g,_,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .error { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-4); padding: var(--lu-space-4); border: 1px solid color-mix(in srgb, var(--lu-danger) 32%, var(--lu-edge)); border-radius: var(--lu-radius-tile); }
+    .copy { min-width: 0; }
+    h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-label)/1.3 var(--lu-font); }
+    p { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.45 var(--lu-font); }
+    @container (max-width: 400px) { .error { align-items: flex-start; flex-direction: column; } }
+  `];customElements.define("lu-error",Ze);var mn=[{value:"clock",label:"Clock"},{value:"text",label:"Text"},{value:"art",label:"Art"},{value:"timer",label:"Timer"},{value:"score",label:"Score"}],vn=[{value:"countdown",label:"Countdown"},{value:"stopwatch",label:"Stopwatch"}],gn=[1,5,10,25],fn=300,Qe=$(32,16);function _n(r){return r.frames.map((i,e)=>{let t=atob(i),s=new Uint8Array(32*16*3);for(let a=0;a<Math.min(t.length,s.length);a++)s[a]=t.charCodeAt(a);return{width:32,height:16,pixels:s,durationMs:r.delays[e]??100}})}var Je=class extends m{constructor(){super();this._designsEntry="";this._designsRevision=0;this._textPreviewRevision=0;this._mode="clock",this._clockStyle=1,this._clockColor=6,this._hours24=!0,this._showDate=!1,this._text="",this._textColor="#ffffff",this._textEffect=1,this._textSpeed=80,this._textFrames=[Qe],this._textLoading=!1,this._designs=null,this._designsLoading=!1,this._designsError=null,this._selectedDesignId=null,this._timerType="countdown",this._timerMinutes=5,this._homeName="Home",this._awayName="Away",this._busy=null,this._error=null}willUpdate(e){e.has("entryId")&&this.entryId!==this._designsEntry&&(this._designsEntry=this.entryId??"",this._designs=null,this._selectedDesignId=null,this._designsRevision++,this._designsLoading=!1)}updated(e){(e.has("_mode")&&this._mode==="art"||e.has("entryId")&&this._mode==="art")&&this._loadDesigns()}disconnectedCallback(){super.disconnectedCallback(),clearTimeout(this._textTimer),this._textPreviewRevision++}async _loadDesigns(){let e=this.entryId;if(!e||!this.hass?.callWS)return;let t=++this._designsRevision;this._designsLoading=!0,this._designsError=null;try{let s=await this.hass.callWS(z(e));if(t!==this._designsRevision||e!==this.entryId)return;this._designs=s,this._selectedDesignId||(this._selectedDesignId=this._recentDesigns()[0]?.id??this._favoriteDesigns()[0]?.id??null)}catch(s){if(t!==this._designsRevision||e!==this.entryId)return;this._designs=[],this._designsError=L(s)}finally{t===this._designsRevision&&(this._designsLoading=!1)}}_recentDesigns(){return[...this._designs??[]].sort((e,t)=>t.updated-e.updated).slice(0,6)}_favoriteDesigns(){return(this._designs??[]).filter(e=>e.tags?.some(t=>/^(favorite|favourite)$/i.test(t.trim()))).slice(0,6)}async _show(e,t){!this.entryId||!this.hass?.callWS||this._busy||(this._busy="show",this._error=null,await F(this,this.hass,this.entryId,e,t),this._busy=null)}async _command(e,t={}){if(!this.entryId||!this.hass?.callWS||this._busy)return!1;this._busy=e,this._error=null;try{return await this.hass.callWS(fe(this.entryId,e,t)),!0}catch(s){return this._error=L(s),!1}finally{this._busy=null}}_selectMode(e){this._mode=e.detail.value,this._error=null}_clockSpec(){return _e(this._clockStyle,q[this._clockColor]?.rgb??[255,255,255],this._hours24,be)}_showClock(){if(this._showDate){let e={spec:{type:"date",color:q[this._clockColor]?.rgb??[255,255,255]}};this._show(e,"Date");return}this._show({spec:this._clockSpec()},"Clock \xB7 style "+this._clockStyle)}_scheduleTextPreview(){if(this._textPreviewRevision++,clearTimeout(this._textTimer),!this.entryId||!this.hass?.callWS){this._textLoading=!1,this._textFrames=[Qe];return}this._textLoading=!0,this._textTimer=setTimeout(()=>{this._textTimer=void 0,this._previewText()},fn)}_onTextChange(e){this._text=e.target.value,this._scheduleTextPreview()}async _previewText(){let e=++this._textPreviewRevision,t=this.entryId,s=this.hass;if(!t||!s?.callWS){this._textLoading=!1;return}let a=oe(this._text,O(this._textColor),{effect:String(this._textEffect),speed:this._textSpeed});if(!a){this._textFrames=[Qe],this._textLoading=!1;return}this._textLoading=!0;try{let n=await s.callWS(D(t,a));if(e!==this._textPreviewRevision||t!==this.entryId)return;this._textFrames=_n(n).slice(0,1),this._textFrames.length||(this._textFrames=[Qe])}catch{e===this._textPreviewRevision&&t===this.entryId&&(this._textFrames=[Qe])}finally{e===this._textPreviewRevision&&(this._textLoading=!1)}}_selectColor(e){this._clockColor=e}_showText(){let e=oe(this._text,O(this._textColor),{effect:String(this._textEffect),speed:this._textSpeed});e&&this._show({spec:e},"Text \xB7 "+this._text)}_showDesign(e){this._selectedDesignId=e.id,this._show({design_id:e.id},e.name)}_selectDesign(e){let t=this._designs?.find(s=>s.id===e.detail.itemId);t&&this._showDesign(t)}_openLibrary(){T({destination:"library"})}async _startCountdown(){let e=Math.floor(this._timerMinutes/60),t=this._timerMinutes%60;await this._command("countdown_reset",{h:e,m:t,s:0})&&await this._command("countdown_run",{start:!0})}_toggleTimer(){this._timerType==="countdown"?this.state?.countdown?.running?this._command("countdown_run",{start:!1}):this._startCountdown():this._command("stopwatch_run",{start:!this.state?.stopwatch?.running})}_resetTimer(){this._timerType==="countdown"?this._command("countdown_reset",{h:Math.floor(this._timerMinutes/60),m:this._timerMinutes%60,s:0}):this._command("stopwatch_reset")}_adjustScore(e,t){let s=this.state?.scoreboard,a=Math.max(0,Math.min(999,(s?.home??0)+(e==="home"?t:0))),n=Math.max(0,Math.min(999,(s?.away??0)+(e==="away"?t:0)));this._command("scoreboard_set_score",{home:a,away:n})}async _resetScore(){await this._command("scoreboard_set_score",{home:0,away:0})&&await this._command("scoreboard_set_time",{m:10,s:0,count_down:!0})}_renderClockMode(){let e=q[this._clockColor]?.rgb??[255,255,255];return o`<div class="panel-content">
+      <div class="control-label"><h3>Clock face</h3><span>Choose a built-in style</span></div>
+      <div class="faces" role="group" aria-label="Clock face previews">
+        ${qe.map(t=>o`<iledclock-clock-face-thumb .hass=${this.hass} .entryId=${this.entryId} .faceStyle=${t.style} .color=${e} .hours24=${this._hours24} ?selected=${t.style===this._clockStyle} @face-selected=${s=>this._clockStyle=s.detail.style}></iledclock-clock-face-thumb>`)}
       </div>
+      <div class="color-row" role="group" aria-label="Clock colour">
+        ${q.map(t=>o`<button type="button" class="swatch ${t.index===this._clockColor?"selected":""}" style=${"background:rgb("+Qr(t.rgb).join(",")+")"} aria-label=${t.label} aria-pressed=${t.index===this._clockColor?"true":"false"} @click=${()=>this._selectColor(t.index)}></button>`)}
+      </div>
+      <iledclock-segmented-picker group-label="Hour format" content-fit .options=${[{value:"24",label:"24-hour"},{value:"12",label:"12-hour"}]} .value=${this._hours24?"24":"12"} @option-selected=${t=>this._hours24=t.detail.value==="24"}></iledclock-segmented-picker>
+      <button type="button" class="toggle-row" role="switch" aria-checked=${this._showDate?"true":"false"} @click=${()=>this._showDate=!this._showDate}><span>Show date instead of time</span><span class="switch ${this._showDate?"on":""}"></span></button>
+      <p class="hint">The clock can show a date program or a time face, but its firmware does not layer the date over a face.</p>
+      <lu-pill-button variant="primary" label=${this._showDate?"Show date":"Show clock"} icon="mdi:television-play" ?disabled=${!this.entryId||this._busy!==null} ?loading=${this._busy==="show"} @lu-press=${this._showClock}></lu-pill-button>
+    </div>`}_renderTextMode(){let e=oe(this._text,O(this._textColor),{effect:String(this._textEffect),speed:this._textSpeed});return o`<div class="panel-content">
+      <label class="field"><span>Message</span><input class="text-input" type="text" maxlength="64" .value=${this._text} placeholder="Type a message" @input=${this._onTextChange}></label>
+      <div class="color-row text-settings">
+        <label class="field color-field"><span>Colour</span><input type="color" .value=${this._textColor} @input=${t=>{this._textColor=t.target.value,this._scheduleTextPreview()}}></label>
+        <label class="field effect-field"><span>Effect</span><select .value=${String(this._textEffect)} @change=${t=>{this._textEffect=Number(t.target.value),this._scheduleTextPreview()}}>${ds.map(t=>o`<option value=${t.mode}>${t.label}</option>`)}</select></label>
+      </div>
+      <label class="field slider-field"><span>Speed <strong>${this._textSpeed}</strong></span><input type="range" min="0" max="255" .value=${String(this._textSpeed)} @input=${t=>{this._textSpeed=Number(t.target.value),this._scheduleTextPreview()}}></label>
+      <div class="preview-wrap"><iledclock-led-preview context="thumb" .frames=${this._textFrames} .playing=${!1} label="Text preview"></iledclock-led-preview>${this._textLoading?o`<span class="preview-state" role="status">Updating preview…</span>`:u}</div>
+      <lu-pill-button variant="primary" label="Show text" icon="mdi:send" ?disabled=${!e||!this.entryId||this._busy!==null} ?loading=${this._busy==="show"} @lu-press=${this._showText}></lu-pill-button>
+    </div>`}_renderDesignTile(e){let t=G(e);return o`<iledclock-art-tile item-id=${e.id} aspect="design" title=${e.name} subtitle=${e.kind==="animation"?"Animated design":"Saved design"} .frames=${t} .delays=${e.delays} @tile-selected=${this._selectDesign}></iledclock-art-tile>`}_renderDesignRow(e,t){return t.length?o`<section class="design-row"><h3>${e}</h3><div class="designs">${t.map(s=>this._renderDesignTile(s))}</div></section>`:u}_renderArtMode(){let e=this._favoriteDesigns(),t=this._recentDesigns(),s=this._designs?.find(a=>a.id===this._selectedDesignId);return o`<div class="panel-content">
+      ${this._designsLoading?o`<p class="hint" role="status">Loading saved designs…</p>`:u}
+      ${this._designsError?o`<lu-error message=${this._designsError} @retry=${()=>void this._loadDesigns()}></lu-error>`:u}
+      ${this._renderDesignRow("Favorites",e)}
+      ${this._renderDesignRow("Recent designs",t)}
+      ${!this._designsLoading&&!this._designsError&&!t.length?o`<p class="hint">No saved designs yet. Create one in Pixel Studio.</p>`:u}
       <div class="button-row">
-        <button type="button" class="secondary-action" @click=${()=>this._command("countdown_reset",{h:s.h,m:s.m,s:s.s})}>Reset</button>
-        <button type="button" class="primary-action" @click=${()=>this._command("countdown_run",{start:!t?.running})}>${t?.running?"Stop":"Start"}</button>
+        <lu-pill-button variant="primary" label="Show on clock" icon="mdi:television-play" ?disabled=${!s||!this.entryId||this._busy!==null} ?loading=${this._busy==="show"} @lu-press=${()=>s&&this._showDesign(s)}></lu-pill-button>
+        <button type="button" class="library-link" @click=${this._openLibrary}>Open Library</button>
       </div>
-    `}_renderStopwatch(e){let t=e?.stopwatch;return l`
-      <div class="timer-display">${this._formatHms(t?.hours??0,t?.minutes??0,t?.seconds??0)}</div>
+    </div>`}_renderTimerMode(){let e=this.state?.countdown,t=this.state?.stopwatch,s=this._timerType==="countdown"?!!e?.running:!!t?.running,a=this._timerType==="countdown"?e:t,n=a?.hours??(this._timerType==="countdown"?Math.floor(this._timerMinutes/60):0),l=a?.minutes??(this._timerType==="countdown"?this._timerMinutes%60:0),d=a?.seconds??0;return o`<div class="panel-content">
+      <iledclock-segmented-picker group-label="Timer type" content-fit .options=${vn} .value=${this._timerType} @option-selected=${c=>this._timerType=c.detail.value}></iledclock-segmented-picker>
+      ${this._timerType==="countdown"?o`<div class="preset-row" aria-label="Countdown presets">${gn.map(c=>o`<button type="button" class="preset ${c===this._timerMinutes?"selected":""}" aria-pressed=${c===this._timerMinutes?"true":"false"} @click=${()=>this._timerMinutes=c}>${c} min</button>`)}</div>
+        <div class="custom-time"><span class="field-title">Custom duration · minutes</span><iledclock-stepper label="minutes" min="1" max="1439" step="1" .value=${this._timerMinutes} @value-selected=${c=>this._timerMinutes=c.detail.value}></iledclock-stepper></div>`:u}
+      <p class="timer-readout" aria-label=${(this._timerType==="countdown"?"Countdown":"Stopwatch")+" time"}>${String(n).padStart(2,"0")}:${String(l).padStart(2,"0")}:${String(d).padStart(2,"0")}</p>
       <div class="button-row">
-        <button type="button" class="secondary-action" @click=${()=>this._command("stopwatch_reset")}>Reset</button>
-        <button type="button" class="primary-action" @click=${()=>this._command("stopwatch_run",{start:!t?.running})}>${t?.running?"Stop":"Start"}</button>
+        <button type="button" class="secondary-button" ?disabled=${!this.entryId||this._busy!==null} @click=${this._resetTimer}>Reset</button>
+        <lu-pill-button variant="primary" label=${s?"Pause":this._timerType==="countdown"?"Start timer":"Start stopwatch"} icon=${s?"mdi:pause":"mdi:play"} ?disabled=${!this.entryId||this._busy!==null} ?loading=${this._busy!==null} @lu-press=${this._toggleTimer}></lu-pill-button>
       </div>
-    `}_renderPomodoro(e){let t=e?.tomato?.minutes??this._tomatoDraft;return l`
-      <div class="tomato-list">
-        ${t.map((s,n)=>l`
-            <span class="tomato-chip">
-              ${s}m
-              <button type="button" class="chip-remove" @click=${()=>this._tomatoDraft=t.filter((o,a)=>a!==n)} aria-label="Remove">${m("close")}</button>
-            </span>
-          `)}
-        ${t.length<6?l`<button type="button" class="chip-add" @click=${()=>this._tomatoDraft=[...t,25]}>${m("plus")}</button>`:c}
+    </div>`}_renderScoreMode(){let e=this.state?.scoreboard,t=!!e?.running;return o`<div class="panel-content">
+      <div class="scoreboard">
+        ${this._renderScoreSide("home",this._homeName,e?.home??0)}
+        <span class="versus" aria-hidden="true">–</span>
+        ${this._renderScoreSide("away",this._awayName,e?.away??0)}
       </div>
-      <button type="button" class="primary-action" @click=${()=>this._command("tomato_set",{minutes:t})}>Set</button>
-    `}_renderHmsField(e,t,s,n){return l`
-      <label class="hms-field">
-        ${e.toUpperCase()}
-        <input
-          type="number"
-          min=${s}
-          max=${n}
-          .value=${String(t)}
-          @input=${o=>this._countdownDraft={...this._countdownDraft,[e]:Math.max(s,Math.min(n,Number(o.target.value)))}}
-        />
-      </label>
-    `}_formatHms(e,t,s){return`${String(e).padStart(2,"0")}:${String(t).padStart(2,"0")}:${String(s).padStart(2,"0")}`}_renderScorePanel(e){let t=e?.scoreboard;return l`
-      <div class="panel-section">
-        <div class="score-row">
-          <div class="score-side">
-            <span class="score-label">Home</span>
-            <span class="score-value">${t?.home??0}</span>
-            <div class="score-buttons">
-              <button type="button" class="step-btn" @click=${()=>this._adjustScore("home",-1)}>&minus;</button>
-              <button type="button" class="step-btn" @click=${()=>this._adjustScore("home",1)}>&plus;</button>
+      <p class="hint local-names">Team names are control labels; the clock displays Home and Away.</p>
+      <p class="timer-readout small">${String(e?.minutes??0).padStart(2,"0")}:${String(e?.seconds??0).padStart(2,"0")}</p>
+      <div class="button-row">
+        <iledclock-hold-button label="Hold to reset scoreboard" complete-label="Scoreboard reset" ?disabled=${!this.entryId||this._busy!==null} @confirmed=${this._resetScore}></iledclock-hold-button>
+        <lu-pill-button variant="primary" label=${t?"Pause scoreboard":"Start scoreboard"} icon=${t?"mdi:pause":"mdi:play"} ?disabled=${!this.entryId||this._busy!==null} @lu-press=${()=>void this._command("scoreboard_run",{start:!t})}></lu-pill-button>
+      </div>
+    </div>`}_renderScoreSide(e,t,s){return o`<div class="score-side">
+      <label class="name-field"><span>Team name</span><input type="text" maxlength="16" .value=${t} @input=${a=>{let n=a.target.value;e==="home"?this._homeName=n:this._awayName=n}}></label>
+      <strong class="score-value">${s}</strong>
+      <div class="score-stepper"><button type="button" aria-label=${"Decrease "+t+" score"} ?disabled=${s<=0||this._busy!==null} @click=${()=>this._adjustScore(e,-1)}>−</button><button type="button" aria-label=${"Increase "+t+" score"} ?disabled=${s>=999||this._busy!==null} @click=${()=>this._adjustScore(e,1)}>+</button></div>
+    </div>`}render(){let e=this._mode==="clock"?this._renderClockMode():this._mode==="text"?this._renderTextMode():this._mode==="art"?this._renderArtMode():this._mode==="timer"?this._renderTimerMode():this._renderScoreMode();return o`<section class="deck" aria-label="Clock controls">
+      <header class="deck-heading"><div><h2>Choose a mode</h2><p>Set up what appears on your clock.</p></div></header>
+      <iledclock-segmented-picker group-label="Mode" .options=${mn} .value=${this._mode} @option-selected=${this._selectMode}></iledclock-segmented-picker>
+      ${this._error?o`<p class="error" role="alert">${this._error}</p>`:u}
+      <div class="mode-panel">${e}</div>
+    </section>`}};Je.properties={hass:{attribute:!1},entryId:{attribute:!1},state:{attribute:!1},_mode:{state:!0},_clockStyle:{state:!0},_clockColor:{state:!0},_hours24:{state:!0},_showDate:{state:!0},_text:{state:!0},_textColor:{state:!0},_textEffect:{state:!0},_textSpeed:{state:!0},_textFrames:{state:!0},_textLoading:{state:!0},_designs:{state:!0},_designsLoading:{state:!0},_designsError:{state:!0},_selectedDesignId:{state:!0},_timerType:{state:!0},_timerMinutes:{state:!0},_homeName:{state:!0},_awayName:{state:!0},_busy:{state:!0},_error:{state:!0}},Je.styles=[g,_,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .deck { display: grid; gap: var(--lu-space-3); min-width: 0; padding: var(--lu-space-4); color: var(--lu-ink); background: var(--lu-card); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); box-shadow: var(--lu-highlight-rest); }
+    .deck-heading h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); letter-spacing: -0.01em; }
+    .deck-heading p { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .mode-panel, .panel-content { min-width: 0; }
+    .panel-content { display: grid; gap: var(--lu-space-3); }
+    .control-label { display: flex; align-items: baseline; justify-content: space-between; gap: var(--lu-space-2); }
+    .control-label h3, .design-row h3 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-label)/1.3 var(--lu-font); }
+    .control-label span, .hint { color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .faces { display: flex; gap: var(--lu-space-2); overflow-x: auto; padding: var(--lu-space-1) 2px var(--lu-space-2); scroll-snap-type: x proximity; scrollbar-width: thin; }
+    iledclock-clock-face-thumb { scroll-snap-align: start; }
+    .color-row { display: flex; align-items: end; flex-wrap: wrap; gap: var(--lu-space-2); }
+    .swatch { flex: 0 0 var(--lu-target); width: var(--lu-target); height: var(--lu-target); border: 2px solid transparent; border-radius: var(--lu-radius-pill); cursor: pointer; }
+    .swatch.selected { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .swatch:focus-visible, .preset:focus-visible, .secondary-button:focus-visible, .library-link:focus-visible, .score-stepper button:focus-visible, .toggle-row:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-3); min-height: var(--lu-target); padding: 0; border: 0; color: var(--lu-ink); background: transparent; text-align: left; font: 500 var(--lu-type-label)/1.3 var(--lu-font); cursor: pointer; }
+    .switch { position: relative; flex: none; width: 48px; height: 28px; border-radius: var(--lu-radius-pill); background: var(--lu-track-off); transition: background-color var(--lu-motion-label) var(--lu-ease); }
+    .switch::after { position: absolute; inset: 4px auto auto 4px; width: 20px; height: 20px; border-radius: var(--lu-radius-pill); background: var(--lu-card); content: ""; transition: transform var(--lu-motion-label) var(--lu-ease); }
+    .switch.on { background: var(--lu-accent); }
+    .switch.on::after { transform: translateX(20px); }
+    .hint { margin: 0; }
+    .field { display: grid; gap: var(--lu-space-1); min-width: 0; color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .text-input, .field select, .name-field input { box-sizing: border-box; width: 100%; min-width: 0; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 400 var(--lu-type-body)/1.3 var(--lu-font); }
+    .text-settings { align-items: stretch; }
+    .color-field { flex: 1 1 7rem; }
+    .color-field input { width: 100%; min-height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-card); }
+    .effect-field { flex: 2 1 9rem; }
+    .slider-field input { width: 100%; accent-color: var(--lu-accent); }
+    .slider-field strong { float: right; color: var(--lu-ink); font-variant-numeric: tabular-nums; }
+    .preview-wrap { position: relative; min-width: 0; }
+    .preview-state { position: absolute; right: var(--lu-space-2); bottom: var(--lu-space-2); padding: var(--lu-space-1) var(--lu-space-2); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: var(--lu-card); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); }
+    iledclock-led-preview { width: 100%; }
+    .design-row { display: grid; gap: var(--lu-space-2); }
+    .designs { display: grid; grid-auto-columns: minmax(112px, 1fr); grid-auto-flow: column; gap: var(--lu-space-3); overflow-x: auto; padding: 1px 2px var(--lu-space-2); scroll-snap-type: x proximity; }
+    .designs iledclock-art-tile { width: 112px; scroll-snap-align: start; }
+    .button-row { display: flex; flex-wrap: wrap; gap: var(--lu-space-2); align-items: center; }
+    .button-row lu-pill-button { flex: 1 1 10rem; }
+    .library-link, .secondary-button { display: inline-flex; align-items: center; justify-content: center; min-width: var(--lu-target); min-height: var(--lu-target); padding: 0 var(--lu-space-4); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: var(--lu-glass-raised); font: 500 var(--lu-type-label)/1.2 var(--lu-font); text-decoration: none; cursor: pointer; }
+    .library-link { flex: 1 1 8rem; }
+    .preset-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--lu-space-2); }
+    .preset { min-width: 0; min-height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: var(--lu-glass-raised); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); cursor: pointer; }
+    .preset.selected { border-color: var(--lu-accent); color: var(--lu-accent-ink); background: var(--lu-accent); }
+    .custom-time { display: grid; grid-template-columns: minmax(0, 1fr) minmax(8rem, 1fr); align-items: center; gap: var(--lu-space-2); }
+    .field-title { color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .timer-readout { margin: 0; color: var(--lu-ink); text-align: center; font: 400 var(--lu-type-display)/1.2 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .timer-readout.small { font-size: var(--lu-type-title); }
+    .scoreboard { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--lu-space-2); }
+    .score-side { display: grid; min-width: 0; gap: var(--lu-space-2); justify-items: center; }
+    .name-field { display: grid; gap: var(--lu-space-1); width: 100%; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); text-align: center; }
+    .name-field input { min-height: var(--lu-target); padding: 0 var(--lu-space-2); text-align: center; }
+    .score-value { color: var(--lu-ink); font: 500 var(--lu-type-title)/1.1 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .score-stepper { display: flex; gap: var(--lu-space-2); }
+    .score-stepper button { min-width: var(--lu-target); min-height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: var(--lu-glass-raised); font: 500 var(--lu-type-title)/1 var(--lu-font); cursor: pointer; }
+    .score-stepper button:disabled { opacity: .5; }
+    .versus { color: var(--lu-ink-3); font: 400 var(--lu-type-title)/1 var(--lu-font); }
+    .local-names { text-align: center; }
+    iledclock-hold-button, .button-row iledclock-hold-button { flex: 1 1 10rem; min-width: 0; }
+    .error { margin: 0; padding: var(--lu-space-2) var(--lu-space-3); border-radius: var(--lu-radius-control); color: var(--lu-danger); background: var(--lu-tile); font: 400 var(--lu-type-label)/1.4 var(--lu-font); }
+    @container (max-width: 359px) { .deck { padding: var(--lu-space-3); } .custom-time { grid-template-columns: 1fr; } .preset-row { gap: var(--lu-space-1); } }
+    @media (prefers-reduced-motion: reduce) { .switch, .switch::after { transition: none; } }
+  `];customElements.define("iledclock-mode-deck",Je);var et=class extends m{constructor(){super(),this.label="",this.kind="neutral",this.dot=!0}render(){return o`<span class="chip" role="status">
+      ${this.dot?o`<span class="dot" aria-hidden="true"></span>`:""}
+      <slot>${this.label}</slot>
+    </span>`}};et.properties={label:{type:String},kind:{type:String,reflect:!0},dot:{type:Boolean}},et.styles=[g,_,v`
+    :host { display: inline-flex; min-width: 0; }
+    .chip { display: inline-flex; align-items: center; gap: var(--lu-space-2); min-height: var(--lu-target); padding: 0 var(--lu-space-3); color: var(--lu-ink-2); background: var(--lu-tile); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); white-space: nowrap; }
+    .dot { width: var(--lu-space-2); height: var(--lu-space-2); border-radius: var(--lu-radius-pill); background: var(--lu-ink-3); flex: none; }
+    :host([kind="positive"]) .dot { background: var(--lu-positive); }
+    :host([kind="warning"]) .dot { background: var(--lu-warning); }
+    :host([kind="danger"]) .dot { background: var(--lu-danger); }
+    :host([kind="info"]) .dot { background: var(--lu-info); }
+    :host([kind="live"]) .dot { background: var(--lu-live); }
+  `];customElements.define("lu-chip",et);var tt=class extends m{constructor(){super();this._runAction=()=>{let e=this._current?.action;e&&(e(),this._dismiss())};this._current=null,this._queue=[]}disconnectedCallback(){super.disconnectedCallback(),clearTimeout(this._timer)}enqueue(e){if(e.message){if(!this._current){this._show(e);return}this._queue=[...this._queue,e]}}_show(e){clearTimeout(this._timer),this._current=e;let t=e.timeoutMs??5e3;t>0&&(this._timer=setTimeout(()=>this._dismiss(),t))}_dismiss(){clearTimeout(this._timer),this._timer=void 0,this._current=null;let[e,...t]=this._queue;this._queue=t,e&&this._show(e)}render(){let e=this._current;return e?o`<div class="toast" role="status" aria-live="polite" aria-atomic="true">
+      <span class="message">${e.message}</span>
+      ${e.actionLabel&&e.action?o`<lu-pill-button class="action" variant="quiet" .label=${e.actionLabel} @lu-press=${this._runAction}></lu-pill-button>`:""}
+      <lu-icon-button icon="mdi:close" tooltip="Dismiss" aria-label="Dismiss notification" @lu-press=${this._dismiss}></lu-icon-button>
+    </div>`:o``}};tt.properties={_current:{state:!0},_queue:{state:!0}},tt.styles=[g,_,v`
+    :host { container-type: inline-size; display: block; pointer-events: none; }
+    .toast { position: fixed; z-index: 1100; left: var(--lu-space-4); right: var(--lu-space-4); bottom: calc(var(--lu-space-4) + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-3); width: min(100%, 560px); margin: 0 auto; padding: var(--lu-space-2) var(--lu-space-3); color: var(--lu-ink); background: var(--lu-card); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest); pointer-events: auto; }
+    .message { min-width: 0; overflow-wrap: anywhere; font: 500 var(--lu-type-label)/1.4 var(--lu-font); }
+    .action { color: var(--lu-accent); }
+    @container (max-width: 719px) { .toast { bottom: calc(64px + var(--lu-space-4) + env(safe-area-inset-bottom)); } }
+  `];customElements.define("lu-toast",tt);var bn=$(32,16),ii=[bn];function ji(r){return r.frames.map((i,e)=>{let t=atob(i),s=new Uint8Array(32*16*3);for(let a=0;a<Math.min(t.length,s.length);a++)s[a]=t.charCodeAt(a);return{width:32,height:16,pixels:s,durationMs:r.delays[e]??100}})}function Wi(r){return r?[r.kind,r.shown_at??"",r.design_id??"",r.style??"",r.text??""].join("|"):"empty"}var it=class extends m{constructor(){super();this._unsubscribe=null;this._previewKey="";this._previewRevision=0;this._connectionRevision=0;this._resizeObserver=null;this._cardWidth=0;this._onToast=e=>{let t=this.renderRoot.querySelector("lu-toast");e.detail&&typeof e.detail.message=="string"&&t?.enqueue?.(e.detail)};this._entities={deviceId:"",settingSwitches:[]},this._envelope=null,this._heroFrames=ii,this._heroDelays=[],this._heroApproximate=!1,this._previewError=null,this._upload=null,this._settingsOpen=!1,this._narrowCard=!0}setConfig(e){if(!e.device_id)throw new Error("iLedClock card: a device is required. Choose it in the card editor.");this._config=e}getCardSize(){return 7}static getStubConfig(e){return{type:"custom:iledclock-card",device_id:Object.values(e.entities??{}).find(s=>s.platform==="iledclock")?.device_id??""}}static getConfigElement(){return document.createElement("iledclock-card-editor")}connectedCallback(){super.connectedCallback(),typeof ResizeObserver<"u"&&(this._resizeObserver=new ResizeObserver(e=>{let t=e[0]?.contentRect.width??0;this._cardWidth=t;let s=this._cardWidth<400;s!==this._narrowCard&&(this._narrowCard=s)})),this._entryId&&this._entryId!==this._subscribedEntryId&&(this._subscribedEntryId=this._entryId,this._connect(this._entryId))}firstUpdated(){this._resizeObserver?.observe(this)}willUpdate(e){if(!(e.has("hass")||e.has("_config"))||!this.hass||!this._config?.device_id)return;let t=this._config.device_id;this._entities=Xt(this.hass.entities,t);let s=le(this.hass.devices,t);s!==this._entryId&&(this._entryId=s,s||(this._subscribedEntryId=void 0,this._connectionRevision++,this._previewRevision++,this._unsubscribe&&this._unsubscribe(),this._unsubscribe=null,this._envelope=null,this._heroFrames=ii,this._heroDelays=[],this._heroApproximate=!1,this._previewError=null,this._upload=null,this._previewKey="")),s&&s!==this._subscribedEntryId&&(this._subscribedEntryId=s,this._connect(s))}disconnectedCallback(){super.disconnectedCallback(),this._resizeObserver?.disconnect(),this._resizeObserver=null,this._connectionRevision++,this._previewRevision++,this._subscribedEntryId=void 0,this._unsubscribe&&this._unsubscribe(),this._unsubscribe=null}async _connect(e){this._unsubscribe&&(this._unsubscribe(),this._unsubscribe=null);let t=++this._connectionRevision;if(this._previewRevision++,this._envelope=null,this._heroFrames=ii,this._heroDelays=[],this._heroApproximate=!1,this._previewError=null,this._upload=null,this._previewKey="",!this.hass?.callWS){this._subscribedEntryId=void 0;return}try{let s=await this.hass.callWS({type:"iledclock/state",entry_id:e});if(e!==this._entryId||t!==this._connectionRevision||!this.isConnected)return;if(this._envelope=s,this._loadPreview(s.now_showing??null),this.hass.connection){let a=await this.hass.connection.subscribeMessage(n=>{if(e!==this._entryId||t!==this._connectionRevision)return;if(n.type==="upload"){let d=n;this._upload=d.upload===null||d.state==="done"||d.state==="error"?null:d;return}let l=Wi(this._envelope?.now_showing);this._envelope=n,Wi(this._envelope.now_showing)!==l&&this._loadPreview(this._envelope.now_showing??null)},{type:"iledclock/subscribe",entry_id:e});if(e!==this._entryId||t!==this._connectionRevision||!this.isConnected){a();return}this._unsubscribe=a}}catch{}}async _loadPreview(e){let t=Wi(e);if(t===this._previewKey)return;this._previewKey=t;let s=++this._previewRevision,a=this._entryId;if(!(!a||!this.hass?.callWS)){this._previewError=null,this._heroApproximate=!1;try{let n,l=!1;if(e)if(e.kind==="design"&&e.design_id){let d=await this.hass.callWS(z(a));if(s!==this._previewRevision)return;let c=d.find(p=>p.id===e.design_id);if(!c)throw new Error("The current design is no longer in the library.");n=G(c)}else if(e.kind==="clock"){let d=Array.isArray(e.color)&&e.color.length>=3?e.color.slice(0,3).map(Number):[255,255,255],c=await this.hass.callWS(D(a,{type:"clock",style:Number(e.style)||1,color:d,h24:e.h24??e.hours24!==!1}));n=ji(c),l=!!c.approximate}else if(e.kind==="text"&&typeof e.text=="string"){let d=Array.isArray(e.color)&&e.color.length>=3?e.color.slice(0,3).map(Number):[255,255,255],c=await this.hass.callWS(D(a,{type:"text",text:e.text,color:d,speed:typeof e.speed=="number"?e.speed:128}));n=ji(c)}else throw new Error("A preview is not available for this item; keeping the last known image.");else{let d=await this.hass.callWS(D(a,_e(1,q[6].rgb,!0,be)));n=ji(d),l=!!d.approximate}s===this._previewRevision&&(this._heroApproximate=l,this._heroFrames=n.length?n:ii,this._heroDelays=this._heroFrames.map(d=>d.durationMs))}catch(n){s===this._previewRevision&&(this._previewError=n instanceof Error?n.message:"Preview unavailable; keeping the last known image.")}}}_toggleDisplay(){let e=this._entities.display;if(!e)return;let t=this.hass.states[e]?.state==="on";this.hass.callService("light",t?"turn_off":"turn_on",{},{entity_id:e})}_setBrightness(e){let t=this._entities.display;if(!t)return;let s=Number(e.target.value);this.hass.callService("light","turn_on",{brightness:Kt(s)},{entity_id:t})}_openSettings(){this._settingsOpen=!0}_openStudio(){history.pushState(null,"","/iledclock/now"),window.dispatchEvent(new CustomEvent("location-changed",{bubbles:!0,composed:!0}))}_connectionLabel(){if(this._envelope)return this._envelope.connected?"Connected":"Out of range";let e=this._entities.connected?this.hass.states[this._entities.connected]?.state==="on":void 0;return e===void 0?"Connecting":e?"Connected":"Out of range"}render(){if(!this._config)return u;let e=this._envelope?.state??null,t=this._envelope?.now_showing,s=this._entities.display?this.hass?.states[this._entities.display]:void 0,a=this._entities.display?s?.attributes.brightness??e?.brightness:void 0,n=a===void 0?null:Wt(Number(a)),l=t?.title||(t?t.kind:"Clock preview"),d=this._envelope?.connected??(this._entities.connected?this.hass?.states[this._entities.connected]?.state==="on":!1),c=this._upload?.upload,p=c&&c.total>0?Math.max(0,Math.min(100,Math.round(c.done/c.total*100))):null,h=this._config.name||this.hass?.devices[this._config.device_id??""]?.name_by_user||this.hass?.devices[this._config.device_id??""]?.name||"iLedClock";return o`<ha-card @lu-toast=${this._onToast}>
+      <div class="card" aria-label=${h}>
+        <header class="card-heading"><h2>${h}</h2><a href="/iledclock/now" @click=${f=>{f.preventDefault(),this._openStudio()}}>Open Pixel Studio</a></header>
+        <div class="layout">
+          <section class="hero-wrap" aria-label="Current clock display">
+            <iledclock-led-preview context="hero" .maxPitch=${this._narrowCard?10:void 0} .frames=${this._heroFrames} .delays=${this._heroDelays} .playing=${!!(e?.power&&d&&!this._upload)} label=${l}></iledclock-led-preview>
+            <div class="hero-chips">
+              <lu-chip label=${this._connectionLabel()} kind=${d?"positive":"warning"} dot></lu-chip>
+              ${this._upload?o`<lu-chip label=${p===null?"Sending":"Sending "+p+"%"} kind="info" dot></lu-chip>`:u}
+              <lu-chip label=${l} kind="neutral"></lu-chip>
+            </div>
+            ${this._heroApproximate?o`<span class="approximate">Preview</span>`:u}
+            ${this._previewError?o`<span class="preview-error" role="status">${this._previewError}</span>`:u}
+            ${this._entities.display?o`<button type="button" class="power" aria-label=${s?.state==="on"?"Turn display off":"Turn display on"} aria-pressed=${s?.state==="on"?"true":"false"} @click=${this._toggleDisplay}><ha-icon icon="mdi:power"></ha-icon></button>`:u}
+          </section>
+          <div class="controls">
+            <iledclock-mode-deck .hass=${this.hass} .entryId=${this._entryId} .state=${e}></iledclock-mode-deck>
+            <section class="brightness-control" aria-label="Brightness control">
+              ${n!==null?o`<label for="brightness">Brightness <strong>${n}%</strong></label><input id="brightness" type="range" min="1" max="100" .value=${String(n)} @input=${this._setBrightness}>`:o`<p class="brightness-hint">Brightness control is unavailable until device state is available.</p>`}
+            </section>
+          </div>
+        </div>
+      </div>
+      <iledclock-settings-sheet .hass=${this.hass} .entities=${this._entities} .entryId=${this._entryId} .state=${e} ?open=${this._settingsOpen} section="display" @close-requested=${()=>this._settingsOpen=!1}></iledclock-settings-sheet>
+      <lu-icon-button class="gear" icon="mdi:cog-outline" tooltip="Settings" aria-label="Clock settings" @lu-press=${this._openSettings}></lu-icon-button>
+    </ha-card>
+    <lu-toast></lu-toast>`}};it.properties={hass:{attribute:!1},_config:{state:!0},_entities:{state:!0},_entryId:{state:!0},_envelope:{state:!0},_heroFrames:{state:!0},_heroDelays:{state:!0},_heroApproximate:{state:!0},_previewError:{state:!0},_upload:{state:!0},_settingsOpen:{state:!0},_narrowCard:{state:!0}},it.styles=[g,_,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    ha-card { position: relative; overflow: hidden; color: var(--lu-ink); }
+    .card { display: grid; min-width: 0; gap: var(--lu-space-3); padding: var(--lu-space-3); }
+    .card-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-2); min-width: 0; }
+    .card-heading h2 { min-width: 0; margin: 0; overflow: hidden; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.2 var(--lu-font); text-overflow: ellipsis; white-space: nowrap; }
+    .card-heading a { display: inline-flex; align-items: center; justify-content: center; flex: none; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: var(--lu-glass-raised); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); text-decoration: none; }
+    .card-heading a:focus-visible, .power:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .layout { display: grid; min-width: 0; gap: var(--lu-space-3); }
+    .hero-wrap { position: relative; min-width: 0; overflow: hidden; border-radius: var(--lu-radius-tile); background: #050607; }
+    .hero-wrap iledclock-led-preview { width: 100%; }
+    .hero-chips { position: absolute; inset: var(--lu-space-2) var(--lu-space-2) auto; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: var(--lu-space-1); pointer-events: none; }
+    .hero-chips lu-chip { max-width: 80%; padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: color-mix(in srgb, var(--lu-card) 78%, transparent); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); pointer-events: auto; }
+    .hero-chips lu-chip:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .approximate, .preview-error { position: absolute; left: var(--lu-space-2); bottom: var(--lu-space-2); max-width: calc(100% - var(--lu-space-4)); padding: var(--lu-space-1) var(--lu-space-2); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: color-mix(in srgb, var(--lu-card) 82%, transparent); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .power { position: absolute; right: var(--lu-space-2); bottom: var(--lu-space-2); display: grid; place-items: center; min-width: var(--lu-target); min-height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: color-mix(in srgb, var(--lu-card) 82%, transparent); cursor: pointer; }
+    .controls { display: grid; min-width: 0; gap: var(--lu-space-3); }
+    .brightness-control { display: grid; gap: var(--lu-space-2); padding: var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-tile); }
+    .brightness-control label { display: flex; justify-content: space-between; color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.3 var(--lu-font); }
+    .brightness-hint { margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .brightness-control strong { color: var(--lu-ink); font-variant-numeric: tabular-nums; }
+    .brightness-control input { width: 100%; min-height: var(--lu-target); margin: 0; accent-color: var(--lu-accent); }
+    .gear { position: absolute; top: var(--lu-space-2); right: var(--lu-space-2); z-index: 2; }
+    @container (max-width: 399px) { .card { padding: var(--lu-space-2); } .card-heading { padding-right: var(--lu-space-8); } }
+    @container (min-width: 640px) { .layout { grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr); align-items: start; } }
+  `];customElements.define("iledclock-card",it);window.customCards=window.customCards||[];window.customCards.push({type:"iledclock-card",name:"iLedClock",description:"Control and preview an iLedClock 32x16 RGB BLE pixel clock."});function ms(r,i,e,t,s=!1){if(!ve(r,i,e))return r;let a=U(r,i,e),n=I(t);if(a[0]===n[0]&&a[1]===n[1]&&a[2]===n[2])return r;let l=H(r),d=new Uint8Array(r.width*r.height),c=[[i,e]];for(;c.length>0;){let[p,h]=c.pop();if(!ve(r,p,h))continue;let f=h*r.width+p;if(d[f])continue;let b=U(r,p,h);if(b[0]!==a[0]||b[1]!==a[1]||b[2]!==a[2])continue;d[f]=1,C(l,p,h,n);let k=s?[[(p+1)%r.width,h],[(p-1+r.width)%r.width,h],[p,(h+1)%r.height],[p,(h-1+r.height)%r.height]]:[[p+1,h],[p-1,h],[p,h+1],[p,h-1]];for(let S of k)c.push(S)}return l}function vs(r,i,e,t,s,a,n=I){let l=H(r),d=n(a),c=Math.abs(t-i),p=-Math.abs(s-e),h=i<t?1:-1,f=e<s?1:-1,b=c+p,k=i,S=e;for(;C(l,k,S,d),!(k===t&&S===s);){let R=2*b;R>=p&&(b+=p,k+=h),R<=c&&(b+=c,S+=f)}return l}function gs(r,i,e,t,s,a,n,l=I){let d=H(r),c=l(a),p=Math.min(i,t),h=Math.max(i,t),f=Math.min(e,s),b=Math.max(e,s);for(let k=f;k<=b;k++)for(let S=p;S<=h;S++)(n||k===f||k===b||S===p||S===h)&&C(d,S,k,c);return d}function fs(r,i,e,t,s,a,n,l=I){let d=H(r),c=l(a),p=Math.min(i,t),h=Math.max(i,t),f=Math.min(e,s),b=Math.max(e,s),k=(p+h)/2,S=(f+b)/2,R=(h-p)/2,Q=(b-f)/2;if(R<.5||Q<.5){for(let M=p;M<=h;M++)for(let N=f;N<=b;N++)C(d,M,N,c);return d}let Ca=M=>{let N=1-M*M/(Q*Q);return N<=0?0:R*Math.sqrt(N)};for(let M=-Math.ceil(Q);M<=Math.ceil(Q);M++){let N=Ca(M),he=Math.round(S+M),$e=Math.round(k+N),br=Math.round(k-N);if(n)for(let ki=br;ki<=$e;ki++)C(d,ki,he,c);else C(d,br,he,c),C(d,$e,he,c)}if(!n)for(let M=-Math.ceil(R);M<=Math.ceil(R);M++){let N=1-M*M/(R*R),he=N<=0?0:Q*Math.sqrt(N),$e=Math.round(k+M);C(d,$e,Math.round(S+he),c),C(d,$e,Math.round(S-he),c)}return d}var ri="with_clock";function _s(r){return r?{x:32/2,y:0,w:32/2,h:16}:null}function bs(r){return r.clock_region!=null||(r.tags?.some(i=>i===ri||i==="with-clock"||i==="clock_region")??!1)}function de(r,i){return i?Math.floor(r/2):r}function si(r,i,e){return r>=0&&r<de(i,e)}function Ki(r,i,e,t,s){let a=Math.max(1,de(e,s));return{x:Math.max(0,Math.min(a-1,r.x+i.x)),y:Math.max(0,Math.min(t-1,r.y+i.y))}}function ys(r,i,e){if(!e)return Ur(r,i);let t=de(r.width,!0),s=H(r);for(let a=0;a<r.height;a++)for(let n=0;n<t;n++){let l=i==="horizontal"?t-1-n:n,d=i==="vertical"?r.height-1-a:a;C(s,n,a,U(r,l,d))}return s}function ai(r,i,e){if(!e||i===r)return i;let t=de(r.width,!0);for(let s=0;s<r.height;s++)for(let a=t;a<r.width;a++)C(i,a,s,U(r,a,s));return i}var ce=[{tool:"pen",label:"Pen",icon:"pen"},{tool:"eraser",label:"Eraser",icon:"eraser"},{tool:"fill",label:"Fill",icon:"fill"},{tool:"line",label:"Line",icon:"line"},{tool:"rectangle",label:"Rectangle",icon:"rectangle"},{tool:"ellipse",label:"Ellipse",icon:"ellipse"}],rt=[{tool:"eyedropper",label:"Eyedropper",icon:"eyedropper"},{tool:"text",label:"Text stamp",icon:"textStamp"},{tool:"pan",label:"Move canvas",icon:"shift"},{tool:"shift",label:"Shift artwork",icon:"shift"}],st=class extends m{constructor(){super(),this.tool="pen",this.narrow=!0,this.filled=!1,this.wrap=!1,this.activeColor=[255,255,255],this._moreOpen=!1}_send(i,e={}){this.dispatchEvent(new CustomEvent(i,{detail:e,bubbles:!0,composed:!0}))}_select(i){this._send("editor-tool-selected",{tool:i}),this._moreOpen=!1}_renderTool(i){return o`<button type="button" class="tool ${this.tool===i.tool?"selected":""}" aria-label=${i.label} title=${i.label} aria-pressed=${String(this.tool===i.tool)} @click=${()=>this._select(i.tool)}>${y(i.icon)}<span>${i.label}</span></button>`}_renderMirror(i){let e=i==="horizontal"?"Mirror horizontal":"Mirror vertical";return o`<button type="button" class="tool" aria-label=${e} title=${e} @click=${()=>{this._send("editor-mirror-requested",{axis:i}),this._moreOpen=!1}}>${y(i==="horizontal"?"flipH":"flipV")}<span>${e}</span></button>`}_toggleFilled(){this._send("editor-filled-changed",{filled:!this.filled})}_toggleWrap(){this._send("editor-wrap-changed",{wrap:!this.wrap})}render(){return o`
+      <nav class="rail" aria-label="Drawing tools">
+        <div class="tool-group" role="group" aria-label="Draw">${this._renderTool(ce[0])}${this._renderTool(ce[1])}${this._renderTool(ce[2])}${this._renderTool(rt[0])}${this._renderTool(rt[1])}</div>
+        <div class="tool-group" role="group" aria-label="Shape">${this._renderTool(ce[3])}${this._renderTool(ce[4])}${this._renderTool(ce[5])}<button type="button" class="tool ${this.filled?"selected":""}" aria-label=${this.filled?"Use outline shapes":"Use filled shapes"} aria-pressed=${String(this.filled)} @click=${this._toggleFilled}>${y("check")}<span>${this.filled?"Filled":"Outline"}</span></button></div>
+        <div class="tool-group" role="group" aria-label="Transform">${this._renderTool(rt[2])}${this._renderTool(rt[3])}${this._renderMirror("horizontal")}${this._renderMirror("vertical")}</div>
+        <button type="button" class="tool wrap-toggle ${this.wrap?"selected":""}" aria-pressed=${String(this.wrap)} @click=${this._toggleWrap} aria-label=${this.wrap?"Disable wrap":"Enable wrap"}><span class="wrap-mark">↻</span><span>Wrap</span></button>
+      </nav>
+      <div class="dock" aria-label="Drawing tools">
+        ${ce.map(i=>o`<button type="button" class="dock-tool ${this.tool===i.tool?"selected":""}" aria-label=${i.label} title=${i.label} aria-pressed=${String(this.tool===i.tool)} @click=${()=>this._select(i.tool)}>${y(i.icon)}</button>`)}
+        <button type="button" class="dock-color" aria-label="Choose drawing colour" title="Choose drawing colour" style=${`--swatch: rgb(${this.activeColor.join(",")})`} @click=${()=>this._send("editor-color-requested")}></button>
+        <button type="button" class="dock-tool" aria-label="More tools" aria-expanded=${String(this._moreOpen)} @click=${()=>this._moreOpen=!0}>${y("menu")}</button>
+      </div>
+      <lu-sheet .open=${this._moreOpen} label="More drawing tools" @closed=${()=>this._moreOpen=!1}>
+        <div class="more-grid" role="group" aria-label="More drawing tools">
+          ${rt.map(i=>this._renderTool(i))}
+          ${this._renderMirror("horizontal")}${this._renderMirror("vertical")}
+          <button type="button" class="tool ${this.filled?"selected":""}" aria-pressed=${String(this.filled)} @click=${this._toggleFilled}>${y("check")}<span>${this.filled?"Filled shapes":"Outline shapes"}</span></button>
+          <button type="button" class="tool ${this.wrap?"selected":""}" aria-pressed=${String(this.wrap)} @click=${this._toggleWrap}><span class="wrap-mark">↻</span><span>${this.wrap?"Wrap on":"Wrap off"}</span></button>
+        </div>
+      </lu-sheet>
+    `}};st.properties={tool:{type:String},narrow:{type:Boolean,reflect:!0},filled:{type:Boolean},wrap:{type:Boolean},activeColor:{attribute:!1},_moreOpen:{state:!0}},st.styles=[g,_,v`
+    :host { display: block; min-width: 0; }
+    .rail { display: flex; flex-direction: column; align-items: center; gap: var(--lu-space-3); }
+    .tool-group { display: flex; flex-direction: column; align-items: center; gap: var(--lu-space-1); padding: var(--lu-space-1); border-radius: var(--lu-radius-card); background: var(--lu-tile); }
+    .tool, .dock-tool, .dock-color { display: inline-flex; align-items: center; justify-content: center; gap: var(--lu-space-2); min-width: var(--lu-target); min-height: var(--lu-target); border: 1px solid transparent; border-radius: var(--lu-radius-control); background: transparent; color: var(--lu-ink); cursor: pointer; font: 500 var(--lu-type-label)/1.2 var(--lu-font); }
+    .tool { width: var(--lu-target); padding: var(--lu-space-1); flex-direction: column; font-size: var(--lu-type-caption); }
+    .tool span:not(.wrap-mark) { max-width: 5rem; text-align: center; }
+    .tool.selected, .dock-tool.selected { color: var(--lu-accent); background: var(--lu-accent-soft); border-color: var(--lu-edge-raised); }
+    .wrap-toggle { width: auto; min-width: 64px; }
+    .wrap-mark { font-size: var(--lu-type-numeral); }
+    .dock { display: none; min-width: 0; gap: var(--lu-space-1); overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; padding: var(--lu-space-1) 0; }
+    .dock-tool, .dock-color { flex: 0 0 var(--lu-target); border-radius: var(--lu-radius-control); }
+    .dock-color { position: relative; border: 1px solid var(--lu-edge); background: var(--swatch); }
+    .dock-color:after { content: ""; position: absolute; inset: 6px; border: 2px solid color-mix(in srgb, var(--lu-ink) 42%, transparent); border-radius: var(--lu-radius-control); }
+    .more-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--lu-space-2); }
+    :host([narrow]) .rail { display: none; }
+    :host([narrow]) .dock { display: flex; }
+    button:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  `];customElements.define("iledclock-editor-toolbox",st);var yn={ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0},ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1}};function ws(r,i,e,t,s,a){let n=H(r),l=I(t),d=i-Math.floor(s/2),c=e-Math.floor(s/2),p=Math.min(r.width,a);for(let h=0;h<s;h++)for(let f=0;f<s;f++){let b=d+f;b<0||b>=p||C(n,b,c+h,l)}return n}function xs(r,i){return Math.hypot(r.x-i.x,r.y-i.y)}function ks(r){return Math.max(8,Math.min(40,Math.round(r)))}var at=class extends m{constructor(){super();this._viewportRef=B();this._resizeObserver=null;this._dragStart=null;this._strokeActive=!1;this._panningStart=null;this._spaceHeld=!1;this._touchPoints=new Map;this._pinch=null;this._isPinching=!1;this._measure=()=>{let t=this._viewportRef.value?.getBoundingClientRect();if(!t||t.width<=0||t.height<=0)return;let s=ye("editor",t.width,t.height,{maxPitch:22}).pitch;this._fitPitch=s,(this._pitch<8||!this._userZoomed)&&(this._pitch=s)};this._userZoomed=!1;this._capturePointerDown=e=>{if(e.pointerType!=="touch"||!e.composedPath().some(a=>a instanceof HTMLElement&&a.classList.contains("canvas-viewport"))||(this._touchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY}),this._touchPoints.size<2))return;let t=[...this._touchPoints.values()],s=this._viewportRef.value;s&&(this._isPinching=!0,this._cancelStroke(),this._pinch={distance:xs(t[0],t[1]),pitch:this._pitch,middleX:(t[0].x+t[1].x)/2,middleY:(t[0].y+t[1].y)/2,scrollLeft:s.scrollLeft,scrollTop:s.scrollTop})};this._capturePointerMove=e=>{if(!this._touchPoints.has(e.pointerId)||!this._isPinching)return;this._touchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY});let t=[...this._touchPoints.values()],s=this._pinch,a=this._viewportRef.value;if(!s||!a||t.length<2)return;let n=Math.max(1,xs(t[0],t[1])),l=(t[0].x+t[1].x)/2,d=(t[0].y+t[1].y)/2;this._pitch=ks(s.pitch*n/Math.max(1,s.distance)),this._userZoomed=!0,a.scrollLeft=s.scrollLeft-(l-s.middleX),a.scrollTop=s.scrollTop-(d-s.middleY),e.preventDefault()};this._capturePointerEnd=e=>{this._touchPoints.has(e.pointerId)&&(this._touchPoints.delete(e.pointerId),this._touchPoints.size<2&&(this._pinch=null,this._isPinching=!1))};this._onKeyDown=e=>{if(e.key===" "&&(this._spaceHeld=!0),!(e.ctrlKey||e.metaKey)||e.key.toLowerCase()!=="z")return;let t=e.target;t instanceof HTMLElement&&t.matches("input, textarea, select")||(e.preventDefault(),this._emit(e.shiftKey?"redo-requested":"undo-requested"))};this._onKeyUp=e=>{e.key===" "&&(this._spaceHeld=!1)};this._onCanvasFocus=()=>{this._canvasFocused=!0};this._onCanvasBlur=()=>{this._canvasFocused=!1};this._onCanvasKeydown=e=>{if(this.disabled)return;let t=yn[e.key];if(t){e.preventDefault(),this._tool==="shift"?this._emitFrame(ai(this.frame,Oi(this.frame,t.x,t.y,this.wrap),this.clockRegion)):this._keyboardCell=Ki(this._keyboardCell,t,this.frame.width,this.frame.height,this.clockRegion);return}if(e.key!==" "&&e.key!=="Enter"||(e.preventDefault(),e.repeat))return;let s={x:this._keyboardCell.x,y:this._keyboardCell.y,buttons:1,pointerId:-1};this._onMatrixPointer(new CustomEvent("matrix-pointer",{detail:{...s,phase:"down"}})),this._onMatrixPointer(new CustomEvent("matrix-pointer",{detail:{...s,phase:"up"}}))};this._onWheel=e=>{!e.ctrlKey&&!e.metaKey||(e.preventDefault(),this._zoomBy(e.deltaY<0?1:-1))};this._onViewportPointerDown=e=>{e.button!==1&&!this._spaceHeld&&this._tool!=="pan"||(e.preventDefault(),e.currentTarget.setPointerCapture(e.pointerId),this._panningStart={x:e.clientX,y:e.clientY},this._panning=!0)};this._onViewportPointerMove=e=>{if(!this._panning||!this._panningStart)return;let t=this._viewportRef.value;t&&(t.scrollLeft-=e.clientX-this._panningStart.x,t.scrollTop-=e.clientY-this._panningStart.y,this._panningStart={x:e.clientX,y:e.clientY})};this._onViewportPointerUp=e=>{if(this._panning){this._panning=!1,this._panningStart=null;return}!this._strokeActive||!e.composedPath().some(t=>t instanceof HTMLElement&&t.classList.contains("canvas-viewport"))||(this._draft&&this._emitFrame(this._draft),this._draft=null,this._strokeActive=!1,this._dragStart=null)};this._selectTool=e=>{this._tool=e.detail.tool,this._cancelStroke()};this._onMirror=e=>{this._emitFrame(ys(this.frame,e.detail.axis,this.clockRegion))};this._onFilled=e=>{this._filled=e.detail.filled};this._onWrap=e=>{this._emit("wrap-changed",{wrap:e.detail.wrap})};this._onMatrixPointer=e=>{if(this.disabled||this._isPinching)return;let{x:t,y:s,phase:a}=e.detail;if(!(a==="leave"||s<0||!si(t,this.frame.width,this.clockRegion)))switch(this._tool){case"pen":case"eraser":{let n=this._tool==="eraser"?[0,0,0]:this.activeColor;if(a==="down"){this._draft=ws(this.frame,t,s,n,this.brushSize,de(this.frame.width,this.clockRegion)),this._strokeActive=!0;return}if(!this._strokeActive||!this._draft)return;this._draft=ws(this._draft,t,s,n,this.brushSize,de(this.frame.width,this.clockRegion)),a==="up"&&(this._emitFrame(this._draft),this._draft=null,this._strokeActive=!1);return}case"fill":if(a==="down"){let n=ms(this.frame,t,s,this.activeColor,this.wrap);this._emitFrame(ai(this.frame,n,this.clockRegion))}return;case"eyedropper":a==="down"&&this._emit("color-picked",{color:U(this.frame,t,s)});return;case"text":a==="down"&&(this.stampText?this._emit("text-place-requested",{x:t,y:s}):this._emit("text-config-requested",{mode:"stamp"}));return;case"line":case"rectangle":case"ellipse":case"shift":{if(a==="down"){this._dragStart=[t,s],this._draft=this.frame,this._strokeActive=!0;return}if(!this._dragStart||!this._strokeActive)return;let[n,l]=this._dragStart,d=this._tool==="line"?vs(this.frame,n,l,t,s,this.activeColor):this._tool==="rectangle"?gs(this.frame,n,l,t,s,this.activeColor,this._filled):this._tool==="ellipse"?fs(this.frame,n,l,t,s,this.activeColor,this._filled):ai(this.frame,Oi(this.frame,t-n,s-l,this.wrap),this.clockRegion);this._draft=d,a==="up"&&(this._emitFrame(d),this._draft=null,this._dragStart=null,this._strokeActive=!1);return}case"pan":return}};this.wrap=!1,this.activeColor=[255,255,255],this.brushSize=1,this.clockRegion=!1,this.stampText=null,this.narrow=!0,this.disabled=!1,this._tool="pen",this._filled=!1,this._pitch=8,this._fitPitch=8,this._draft=null,this._panning=!1,this._canvasFocused=!1,this._keyboardCell={x:0,y:0}}connectedCallback(){super.connectedCallback(),this.addEventListener("pointerdown",this._capturePointerDown,!0),this.addEventListener("pointermove",this._capturePointerMove,!0),this.addEventListener("pointerup",this._capturePointerEnd,!0),this.addEventListener("pointercancel",this._capturePointerEnd,!0),this.addEventListener("keydown",this._onKeyDown),this.addEventListener("keyup",this._onKeyUp),this._resizeObserver=new ResizeObserver(()=>this._measure()),window.addEventListener("resize",this._measure)}firstUpdated(){let e=this._viewportRef.value;e&&this._resizeObserver?.observe(e),this._measure()}updated(e){e.has("frame")&&(this._draft=null,this._strokeActive=!1),(e.has("frame")||e.has("clockRegion"))&&(this._keyboardCell=Ki(this._keyboardCell,{x:0,y:0},this.frame.width,this.frame.height,this.clockRegion)),e.has("disabled")&&this.disabled&&this._cancelGesture()}disconnectedCallback(){super.disconnectedCallback(),this.removeEventListener("pointerdown",this._capturePointerDown,!0),this.removeEventListener("pointermove",this._capturePointerMove,!0),this.removeEventListener("pointerup",this._capturePointerEnd,!0),this.removeEventListener("pointercancel",this._capturePointerEnd,!0),this.removeEventListener("keydown",this._onKeyDown),this.removeEventListener("keyup",this._onKeyUp),window.removeEventListener("resize",this._measure),this._resizeObserver?.disconnect(),this._resizeObserver=null,this._cancelGesture()}_emit(e,t={}){this.dispatchEvent(new CustomEvent(e,{detail:t,bubbles:!0,composed:!0}))}_emitFrame(e){this._emit("frame-changed",{frame:e})}_cancelGesture(){this._draft=null,this._dragStart=null,this._strokeActive=!1,this._panning=!1,this._panningStart=null,this._pinch=null,this._isPinching=!1,this._touchPoints.clear()}_cancelStroke(){this._draft=null,this._dragStart=null,this._strokeActive=!1}_zoomBy(e){this._pitch=ks(this._pitch+e),this._userZoomed=!0}_fit(){this._pitch=this._fitPitch,this._userZoomed=!1;let e=this._viewportRef.value;e&&(e.scrollLeft=0,e.scrollTop=0)}render(){let e=this._draft??this.frame,t=this._pitch*e.width,s=this._pitch*e.height,a=`width: max(100%, ${t}px); height: max(100%, ${s}px);`,n=`width: ${t}px; height: ${s}px;`,l=`left: ${this._keyboardCell.x*this._pitch}px; top: ${this._keyboardCell.y*this._pitch}px; width: ${this._pitch}px; height: ${this._pitch}px;`,d=`Column ${this._keyboardCell.x+1} of ${e.width}, row ${this._keyboardCell.y+1} of ${e.height}. ${this._tool} tool; colour ${this.activeColor.join(", ")}.`;return o`<div class="workbench ${this._tool==="pan"?"pan-tool":""}">
+      <iledclock-editor-toolbox .tool=${this._tool} .narrow=${this.narrow} .filled=${this._filled} .wrap=${this.wrap} .activeColor=${this.activeColor} @editor-tool-selected=${this._selectTool} @editor-mirror-requested=${this._onMirror} @editor-filled-changed=${this._onFilled} @editor-wrap-changed=${this._onWrap} @editor-color-requested=${()=>this._emit("color-requested")}></iledclock-editor-toolbox>
+      <section class="canvas-panel" aria-label="Pixel drawing canvas">
+        <div class="canvas-controls">
+          <span class="pitch-label" aria-live="polite">${this._pitch} px / LED</span>
+          <button type="button" class="zoom-control" aria-label="Zoom out" ?disabled=${this._pitch<=8} @click=${()=>this._zoomBy(-1)}>−</button>
+          <button type="button" class="zoom-control" aria-label="Zoom in" ?disabled=${this._pitch>=40} @click=${()=>this._zoomBy(1)}>+</button>
+          <button type="button" class="fit-control" @click=${this._fit}>Fit</button>
+        </div>
+        <div class="canvas-viewport" ${A(this._viewportRef)} @wheel=${this._onWheel} @pointerdown=${this._onViewportPointerDown} @pointermove=${this._onViewportPointerMove} @pointerup=${this._onViewportPointerUp} @pointercancel=${this._onViewportPointerUp}>
+          <div class="canvas-world" style=${a}>
+            <div class="canvas-stage" style=${n}>
+              <iledclock-matrix-canvas class="active-canvas" .frame=${e} interactive show-grid role="application" aria-roledescription="pixel editor canvas" aria-label=${`Pixel art canvas, ${e.width} columns by ${e.height} rows. Use arrow keys to move and Space or Enter to use the ${this._tool} tool.`} aria-describedby="canvas-help canvas-cursor-status" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Space Enter" aria-disabled=${String(this.disabled)} tabindex="0" @focus=${this._onCanvasFocus} @blur=${this._onCanvasBlur} @keydown=${this._onCanvasKeydown} @matrix-pointer=${this._onMatrixPointer}></iledclock-matrix-canvas>
+              ${this.onionSkin?o`<iledclock-matrix-canvas class="onion-layer" .frame=${this.onionSkin} .bloom=${!1} aria-hidden="true"></iledclock-matrix-canvas>`:u}
+              ${this.clockRegion?o`<div class="clock-region" aria-hidden="true"><span>Live clock</span></div>`:u}
+              ${this._canvasFocused?o`<div class="keyboard-cursor" style=${l} aria-hidden="true"></div>`:u}
             </div>
           </div>
-          <div class="score-side">
-            <span class="score-label">Away</span>
-            <span class="score-value">${t?.away??0}</span>
-            <div class="score-buttons">
-              <button type="button" class="step-btn" @click=${()=>this._adjustScore("away",-1)}>&minus;</button>
-              <button type="button" class="step-btn" @click=${()=>this._adjustScore("away",1)}>&plus;</button>
-            </div>
+        </div>
+        <p class="canvas-help" id="canvas-help">Drag to draw. Or focus the canvas, move with arrow keys, and use the selected tool with Space or Enter. Pinch or Ctrl/⌘ + wheel to zoom.</p>
+        <p class="sr-only" id="canvas-cursor-status" aria-live="polite" aria-atomic="true">${d}</p>
+      </section>
+    </div>`}};at.properties={frame:{attribute:!1},onionSkin:{attribute:!1},wrap:{type:Boolean},activeColor:{attribute:!1},brushSize:{type:Number,attribute:"brush-size"},clockRegion:{type:Boolean,attribute:"clock-region"},stampText:{attribute:!1},narrow:{type:Boolean,reflect:!0},disabled:{type:Boolean},_tool:{state:!0},_filled:{state:!0},_pitch:{state:!0},_fitPitch:{state:!0},_draft:{state:!0},_panning:{state:!0},_canvasFocused:{state:!0},_keyboardCell:{state:!0}},at.styles=[g,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .workbench { display: grid; grid-template-columns: var(--lu-target) minmax(0, 1fr); align-items: start; gap: var(--lu-space-3); min-width: 0; }
+    .canvas-panel { display: grid; min-width: 0; gap: var(--lu-space-2); }
+    .canvas-controls { display: flex; align-items: center; justify-content: flex-end; gap: var(--lu-space-1); min-height: var(--lu-target); }
+    .pitch-label { margin-right: auto; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .zoom-control, .fit-control { min-width: var(--lu-target); min-height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-tile); color: var(--lu-ink); font: 500 var(--lu-type-label)/1 var(--lu-font); cursor: pointer; }
+    .zoom-control { font-size: var(--lu-type-title); }
+    .zoom-control:disabled { opacity: .45; cursor: default; }
+    .canvas-viewport { width: 100%; height: min(calc(100dvh - 360px), 42rem); min-height: 128px; overflow: auto; overscroll-behavior: contain; touch-action: none; border-radius: var(--lu-radius-tile); background: color-mix(in srgb, var(--lu-card) 60%, transparent); scrollbar-width: thin; }
+    .canvas-world { display: grid; min-width: 100%; min-height: 100%; place-items: center; }
+    .canvas-stage { position: relative; flex: none; max-width: none; max-height: none; }
+    .active-canvas, .onion-layer { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+    .active-canvas { z-index: 1; }
+    .onion-layer { z-index: 2; opacity: .28; mix-blend-mode: screen; pointer-events: none; }
+    .clock-region { position: absolute; z-index: 3; inset-block: 0; inset-inline-end: 0; display: grid; place-items: center; width: 50%; border-inline-start: 1px dashed var(--lu-edge-raised); background: color-mix(in srgb, var(--lu-card) 18%, transparent); color: var(--lu-ink-2); pointer-events: none; }
+    .clock-region span { padding: var(--lu-space-1) var(--lu-space-2); border-radius: var(--lu-radius-pill); background: color-mix(in srgb, var(--lu-card) 74%, transparent); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .keyboard-cursor { position: absolute; z-index: 4; box-sizing: border-box; border: 2px solid var(--lu-accent); pointer-events: none; }
+    .active-canvas:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 3px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    .canvas-help { margin: 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.35 var(--lu-font); }
+    .pan-tool .canvas-viewport { cursor: grab; }
+    .pan-tool .canvas-viewport:active { cursor: grabbing; }
+    :host([narrow]) .workbench { display: flex; flex-direction: column; gap: var(--lu-space-2); }
+    :host([narrow]) .canvas-panel { order: 0; width: 100%; }
+    :host([narrow]) iledclock-editor-toolbox { order: 1; width: 100%; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  `];customElements.define("iledclock-pixel-editor",at);var wn=100,Yi=10,xn=6e4,we=64;function Xi(r){return Math.max(Yi,Math.min(xn,Math.round(r)))}function Zi(r,i,e){if(r.length>=we)return r.slice();let t=e?H(e):$(r[0]?.width,r[0]?.height,[0,0,0],wn),s=Math.max(-1,Math.min(r.length-1,i))+1,a=r.slice();return a.splice(s,0,t),a}function $s(r,i){let e=r[i];return!e||r.length>=we?r.slice():Zi(r,i,e)}function Ss(r,i){if(r.length<=1||i<0||i>=r.length)return r.slice();let e=r.slice();return e.splice(i,1),e}function Qi(r,i,e){if(i===e||i<0||i>=r.length||e<0||e>=r.length)return r.slice();let t=r.slice(),[s]=t.splice(i,1);return t.splice(e,0,s),t}function ni(r,i,e){let t=r[i];if(!t)return r.slice();let s=r.slice();return s[i]={...t,durationMs:Xi(e)},s}function Es(r){return r.reduce((i,e)=>i+e.durationMs,0)}function oi(r,i,e){if(r.length===0)return 0;let t=i==="x"?e.clientX:e.clientY;for(let s=0;s<r.length;s++){let a=r[s],n=i==="x"?a.left+a.width:a.top+a.height;if(t<n)return s}return r.length-1}function Cs(r,i,e){if(i===e||i<0||i>=r.length||e<0||e>=r.length)return r.slice();let t=r.slice(),[s]=t.splice(i,1);return t.splice(e,0,s),t}function kn(r){for(let i of r.pixels)if(i!==0)return!0;return!1}function Is(r,i,e){return r===i?e:i<e&&r>i&&r<=e?r-1:i>e&&r>=e&&r<i?r+1:r}var nt=class extends m{constructor(){super();this._itemRefs=new Map;this._rafId=null;this._playStartedAt=0;this._onAdd=()=>{let e=Zi(this.frames,this.frames.length-1);this._emitFrames(e,Math.min(e.length-1,this.frames.length))};this.frames=[],this.activeIndex=0,this.playing=!1,this.disabled=!1,this._dragOriginalIndex=null,this._dragTarget=null}disconnectedCallback(){super.disconnectedCallback(),this._stopLoop()}updated(e){(e.has("playing")||e.has("frames"))&&(this.playing?this._startLoop():this._stopLoop())}_startLoop(){if(this._rafId!==null)return;this._playStartedAt=performance.now();let e=()=>{let t=Jt(this.frames,performance.now()-this._playStartedAt);t!==this.activeIndex&&this.dispatchEvent(new CustomEvent("frame-selected",{detail:{index:t},bubbles:!0,composed:!0})),this._rafId=requestAnimationFrame(e)};this._rafId=requestAnimationFrame(e)}_stopLoop(){this._rafId!==null&&cancelAnimationFrame(this._rafId),this._rafId=null}_emitFrames(e,t){this.dispatchEvent(new CustomEvent("frames-changed",{detail:{frames:e,activeIndex:t},bubbles:!0,composed:!0}))}_select(e){this.dispatchEvent(new CustomEvent("frame-selected",{detail:{index:e},bubbles:!0,composed:!0}))}_togglePlay(){this.dispatchEvent(new CustomEvent("play-toggled",{detail:{playing:!this.playing},bubbles:!0,composed:!0}))}_onDelayInput(e,t){let s=Number(t.target.value),a=Xi(Number.isFinite(s)?s:this.frames[e]?.durationMs??100),n=ni(this.frames,e,a);this.dispatchEvent(new CustomEvent("frames-changed",{detail:{frames:n,activeIndex:this.activeIndex},bubbles:!0,composed:!0}))}_onDuplicate(e){let t=$s(this.frames,e);this._emitFrames(t,Math.min(t.length-1,e+1))}_onDelete(e){let t=Ss(this.frames,e);this._emitFrames(t,Math.min(e,t.length-1))}_move(e,t){let s=Math.max(0,Math.min(this.frames.length-1,e+t));s!==e&&this._emitFrames(Qi(this.frames,e,s),Is(this.activeIndex,e,s))}_onFrameKeydown(e,t){!t.altKey||t.key!=="ArrowLeft"&&t.key!=="ArrowRight"||(t.preventDefault(),this._move(e,t.key==="ArrowLeft"?-1:1))}_onDragStart(e,t){this.disabled||(t.currentTarget.setPointerCapture(t.pointerId),this._dragOriginalIndex=e,this._dragTarget=e)}_onDragMove(e){if(this._dragOriginalIndex===null)return;let t=[];for(let s=0;s<this.frames.length;s++){let a=this._itemRefs.get(s);a&&t.push(a.getBoundingClientRect())}this._dragTarget=oi(t,"x",e)}_onDragEnd(){let e=this._dragOriginalIndex,t=this._dragTarget;e!==null&&t!==null&&t!==e&&this._emitFrames(Qi(this.frames,e,t),Is(this.activeIndex,e,t)),this._dragOriginalIndex=null,this._dragTarget=null}render(){let e=this.frames,t=Math.min(Math.max(this.activeIndex,0),Math.max(e.length-1,0)),s=Es(e),a=s>0?Math.max(1,Math.round(e.length*1e3/s)):0;return o`
+      <section class="timeline" aria-label="Animation timeline">
+        <div class="toolbar">
+          <button type="button" class="control" ?disabled=${this.disabled||e.length<2} @click=${this._togglePlay} aria-label=${this.playing?"Pause animation preview":"Play animation preview"} aria-pressed=${String(this.playing)}>${y(this.playing?"pause":"play")}</button>
+          <span class="counter" aria-live="polite">${t+1} / ${e.length} · max ${we}</span>
+          <span class="fps">${a} fps</span>
+        </div>
+        <div class="strip" role="list" aria-label="Animation frames">
+          ${e.map((n,l)=>o`
+            <article class="frame-item ${l===t?"active":""} ${l===this._dragTarget&&this._dragOriginalIndex!==null?"drop-target":""}" role="listitem" tabindex="0" aria-label=${`Frame ${l+1} of ${e.length}`} @keydown=${d=>this._onFrameKeydown(l,d)} ${A(d=>{d?this._itemRefs.set(l,d):this._itemRefs.delete(l)})}>
+              <button type="button" class="thumb" @click=${()=>this._select(l)} aria-label=${`Select frame ${l+1}`} aria-pressed=${String(l===t)}><iledclock-matrix-canvas .frame=${n} .bloom=${!1}></iledclock-matrix-canvas></button>
+              <div class="frame-meta"><span class="frame-label">Frame ${l+1}</span><label class="delay"><input type="number" min=${Yi} max="60000" step="10" aria-label=${`Delay for frame ${l+1} in milliseconds`} .value=${String(n.durationMs)} @change=${d=>this._onDelayInput(l,d)}><span>ms</span></label></div>
+              <div class="frame-actions">
+                <button type="button" class="control drag-handle" ?disabled=${this.disabled} aria-label=${`Drag to reorder frame ${l+1}`} title="Drag to reorder" @pointerdown=${d=>this._onDragStart(l,d)} @pointermove=${this._onDragMove} @pointerup=${this._onDragEnd} @pointercancel=${this._onDragEnd}>↔</button>
+                <button type="button" class="control" ?disabled=${this.disabled||e.length>=we} @click=${()=>this._onDuplicate(l)} aria-label=${`Duplicate frame ${l+1}`}>${y("duplicate")}</button>
+                <span class="move-actions"><button type="button" class="control" ?disabled=${this.disabled||l===0} @click=${()=>this._move(l,-1)} aria-label=${`Move frame ${l+1} earlier`}>‹</button><button type="button" class="control" ?disabled=${this.disabled||l===e.length-1} @click=${()=>this._move(l,1)} aria-label=${`Move frame ${l+1} later`}>›</button></span>
+                ${e.length>1&&kn(n)?o`<iledclock-hold-button class="delete-hold" label="Hold to delete" complete-label="Deleted" danger ?disabled=${this.disabled} @confirmed=${()=>this._onDelete(l)}></iledclock-hold-button>`:o`<button type="button" class="control" ?disabled=${this.disabled||e.length<=1} @click=${()=>this._onDelete(l)} aria-label=${`Delete empty frame ${l+1}`}>${y("delete")}</button>`}
+              </div>
+            </article>
+          `)}
+          <button type="button" class="control add" ?disabled=${this.disabled||e.length>=we} @click=${this._onAdd} aria-label="Add frame">${y("plus")}</button>
+        </div>
+      </section>
+    `}};nt.properties={frames:{attribute:!1},activeIndex:{type:Number,attribute:"active-index"},playing:{type:Boolean},disabled:{type:Boolean},_dragOriginalIndex:{state:!0},_dragTarget:{state:!0}},nt.styles=[g,v`
+    :host { display: block; min-width: 0; }
+    .timeline { display: grid; gap: var(--lu-space-2); min-width: 0; }
+    .toolbar { display: flex; align-items: center; gap: var(--lu-space-2); min-height: var(--lu-target); }
+    .control { display: inline-flex; align-items: center; justify-content: center; flex: none; min-width: var(--lu-target); min-height: var(--lu-target); padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-tile); color: var(--lu-ink); cursor: pointer; font: 500 var(--lu-type-label)/1 var(--lu-font); }
+    .control:disabled { opacity: .45; cursor: default; }
+    .control:active:not(:disabled) { transform: scale(.97); }
+    .counter { color: var(--lu-ink); font: 500 var(--lu-type-label)/1.2 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .fps { margin-left: auto; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .strip { display: flex; align-items: stretch; gap: var(--lu-space-2); min-width: 0; overflow-x: auto; padding: var(--lu-space-1) var(--lu-space-1) var(--lu-space-2); overscroll-behavior-inline: contain; scrollbar-width: thin; }
+    .frame-item { flex: 0 0 144px; display: grid; align-content: start; gap: var(--lu-space-1); min-width: 0; padding: var(--lu-space-1); border: 1px solid transparent; border-radius: var(--lu-radius-tile); background: transparent; outline: none; }
+    .frame-item.active { border-color: var(--lu-accent); background: var(--lu-tile); box-shadow: var(--lu-highlight-raised); }
+    .frame-item.drop-target { border-color: var(--lu-accent); }
+    .frame-item:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .thumb { display: block; width: 100%; aspect-ratio: 2 / 1; overflow: hidden; padding: 0; border: 0; border-radius: var(--lu-radius-control); background: #050607; cursor: pointer; }
+    .thumb iledclock-matrix-canvas { display: block; width: 100%; height: 100%; }
+    .frame-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-1); min-height: var(--lu-target); }
+    .frame-label { color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .delay { display: inline-flex; align-items: center; gap: var(--lu-space-1); color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .delay input { width: 5.5rem; min-height: var(--lu-target); box-sizing: border-box; padding: 0 var(--lu-space-1); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-card); color: var(--lu-ink); text-align: center; font: 500 var(--lu-type-caption)/1 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .frame-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lu-space-1); }
+    .drag-handle { touch-action: none; cursor: grab; }
+    .move-actions { display: inline-flex; gap: var(--lu-space-1); opacity: 0; transition: opacity var(--lu-motion-label) var(--lu-ease); }
+    .frame-item:focus-within .move-actions, .frame-item:hover .move-actions { opacity: 1; }
+    .delete-hold { flex: 1 1 100%; min-width: 0; }
+    .add { align-self: center; border-style: dashed; background: transparent; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) { .move-actions { transition-duration: 0ms; } }
+  `];customElements.define("iledclock-frame-timeline",nt);var $n=10;function Ji(r){throw new Error(`unknown playlist kind: ${String(r)}`)}function er(r){return r.charAt(0).toUpperCase()+r.slice(1)}function Ls(r,i=[]){switch(r.kind){case"clock":case"date":return"clock";case"text":return"text";case"design":return i.find(t=>t.id===r.params.design_id)?.kind==="animation"?"gif":"image";case"timer":return r.params.mode==="stopwatch"?"stopwatch":"countdown";case"scoreboard":return"scoreboard";case"temperature":return"thermometer";case"humidity":return"humidity";default:return Ji(r.kind)}}function Rs(r){let i=r.color;if(!Array.isArray(i)||i.length!==3||i.some(a=>typeof a!="number"))return null;let e=[i[0],i[1],i[2]],t=P(e),s=q.find(a=>P(a.rgb)===t);return s?s.label.toLowerCase():t}function Ms(r,i=[]){switch(r.kind){case"clock":{let e=typeof r.params.style=="number"?r.params.style:null,t=e===null?null:qe.find(n=>n.style===e),s=Rs(r.params),a=[t?t.label:"Custom face",s??"custom colour"];return r.params.h24===!1&&a.push("12-hour"),a.join(", ")}case"date":return Rs(r.params)??"Custom colour";case"text":{let e=typeof r.params.text=="string"?r.params.text.trim():"";if(e.length===0)return"No text yet";let t=typeof r.params.effect=="string"&&r.params.effect.trim()!==""?r.params.effect:null;return t?`\u201C${e}\u201D, ${t.toLowerCase()}`:`\u201C${e}\u201D`}case"design":{let e=i.find(t=>t.id===r.params.design_id);return e?e.name:"No design chosen"}case"timer":return r.params.mode==="stopwatch"?"Stopwatch":"Countdown";case"scoreboard":return"Live scores";case"temperature":return"Live reading";case"humidity":return"Live reading";default:return Ji(r.kind)}}function Sn(r,i=[]){switch(r){case"clock":return{style:qe[0].style,color:[...q[6].rgb]};case"date":return{color:[...q[6].rgb]};case"text":return{text:"Hello"};case"design":return{design_id:i[0]?.id??""};case"timer":return{mode:"countdown"};case"scoreboard":case"temperature":case"humidity":return{};default:return Ji(r)}}function li(r,i=[]){return{kind:r,params:Sn(r,i),duration_s:$n}}var En={with_clock:!0,"with-clock":!0,clock_region:!0,"clock-region":!0,icon_with_clock:!0,"icon-with-clock":!0};function tr(r){let i=r,e=i.clock_region;return i.with_clock===!0||i.icon_with_clock===!0||e===!0||typeof e=="object"&&e!==null?!0:(r.tags??[]).some(t=>En[t.trim().toLowerCase()]===!0)}function Cn(r){let i=r.origin,e=i&&typeof i=="object"?Object.values(i).filter(t=>typeof t=="string").join(" "):typeof i=="string"?i:"";return`${r.name} ${(r.tags??[]).join(" ")} ${e}`.toLocaleLowerCase()}function Ts(r,i={}){let e=(i.query??"").trim().toLocaleLowerCase(),t=i.filter??"all",s=i.sort??"recent",a=r.filter(n=>{if(e&&!Cn(n).includes(e))return!1;switch(t){case"animated":return n.kind==="animation";case"still":return n.kind==="image";case"with-clock":return tr(n);case"from-explore":return n.origin!==void 0&&n.origin!==null;case"all":return!0}});return s==="name"?a.sort((n,l)=>n.name.localeCompare(l.name,void 0,{sensitivity:"base"})):a.sort((n,l)=>(l.updated||l.created||0)-(n.updated||n.created||0)),a}function In(r,i){let e=Object.keys(r).sort(),t=Object.keys(i).sort();return e.length!==t.length||e.some((s,a)=>s!==t[a])?!1:e.every(s=>JSON.stringify(r[s])===JSON.stringify(i[s]))}function Rn(r,i){return r.length===i.length&&r.every((e,t)=>{let s=i[t];return s!==void 0&&e.kind===s.kind&&e.duration_s===s.duration_s&&In(e.params,s.params)})}function As(r,i){return!Rn(r,i)}function di(r,i,e){return Cs(r,i,e)}function Ps(r,i){return i<0||i>=r.length?r.slice():r.filter((e,t)=>t!==i)}function Ds(r,i,e){if(i<0||i>=r.length)return r.slice();let t=r.slice();return t[i]={...t[i],duration_s:Ui(e)},t}function Hs(r,i,e){let t=Math.max(0,e-r.length);if(t===0)return r.slice();let s=[...new Set(i)].filter(Boolean).slice(0,t);return[...r,...s.map(a=>({...li("design"),params:{design_id:a}}))]}function ot(r){return r.map(i=>({...i,params:{...i.params}}))}var lt=class extends m{constructor(){super(),this.title="Nothing here yet",this.message="Choose an action to get started.",this.actionLabel="",this.icon=""}_act(){this.dispatchEvent(new CustomEvent("empty-action",{bubbles:!0,composed:!0}))}render(){return o`<div class="empty" role="status">
+      ${this.icon?o`<ha-icon .icon=${this.icon} aria-hidden="true"></ha-icon>`:""}
+      <h2>${this.title}</h2>
+      <p>${this.message}<slot></slot></p>
+      ${this.actionLabel?o`<lu-pill-button variant="secondary" .label=${this.actionLabel} @lu-press=${this._act}></lu-pill-button>`:""}
+    </div>`}};lt.properties={title:{type:String},message:{type:String},actionLabel:{type:String,attribute:"action-label"},icon:{type:String}},lt.styles=[g,_,v`
+    :host { display: block; min-width: 0; }
+    .empty { display: grid; justify-items: center; gap: var(--lu-space-2); padding: var(--lu-space-7) var(--lu-space-4); text-align: center; color: var(--lu-ink-2); }
+    ha-icon { color: var(--lu-ink-3); }
+    h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.3 var(--lu-font); }
+    p { margin: 0; max-width: 42ch; font: 400 var(--lu-type-body)/1.5 var(--lu-font); }
+  `];customElements.define("lu-empty",lt);var dt=class extends m{constructor(){super(),this.variant="line",this.width="100%",this.height="var(--lu-space-3)",this.label="Loading"}render(){return o`<div class="skeleton ${this.variant}" role="status" aria-label=${this.label} style=${`--skeleton-width:${this.width};--skeleton-height:${this.height}`}><span></span></div>`}};dt.properties={variant:{type:String,reflect:!0},width:{type:String},height:{type:String},label:{type:String}},dt.styles=[g,_,v`
+    :host { display: block; min-width: 0; }
+    .skeleton { width: var(--skeleton-width); height: var(--skeleton-height); overflow: hidden; border-radius: var(--lu-radius-control); background: var(--lu-tile); }
+    .skeleton span { display: block; width: 100%; height: 100%; background: color-mix(in srgb, var(--primary-text-color) 5%, transparent); }
+    .card { border-radius: var(--lu-radius-card); min-height: var(--lu-space-8); }
+    .circle { width: var(--skeleton-height); border-radius: var(--lu-radius-pill); }
+    @media (prefers-reduced-motion: no-preference) { .skeleton span { animation: lu-skeleton var(--lu-motion-scroll) ease-in-out infinite alternate; } }
+    @keyframes lu-skeleton { from { opacity: 0.45; } to { opacity: 0.85; } }
+  `];customElements.define("lu-skeleton",dt);var Ln=[{value:"all",label:"All"},{value:"animated",label:"Animated"},{value:"still",label:"Still"},{value:"with-clock",label:"With clock"},{value:"from-explore",label:"From Explore"}],Os=new WeakMap;function Fs(r){let i=Os.get(r);return i||(i=G(r),Os.set(r,i)),i}var ct=class extends m{constructor(){super();this._routeSeen=!1;this._onTileSelected=e=>{e.stopPropagation();let t=e.detail.itemId;if(this._selectMode){this._toggleSelected(t);return}T({destination:"library",design:t})};this._closeDesignSheet=()=>{this.route.design&&window.history.back()};this.designs=[],this.loading=!1,this.error=null,this.disabled=!1,this.route={destination:"library"},this._query="",this._filter="all",this._sort="recent",this._selectMode=!1,this._selectedIds=[],this._renameValue=""}willUpdate(e){e.has("route")&&(this._routeSeen||(this._routeSeen=!0,this.route.destination==="library"&&this.route.design&&(T({destination:"library"},!0),T(this.route,!1))),this._renameValue="")}get _visibleDesigns(){return Ts(this.designs,{query:this._query,filter:this._filter,sort:this._sort})}get _selectedDesign(){return this.designs.find(e=>e.id===this.route.design)}_dispatch(e,t={}){this.dispatchEvent(new CustomEvent(e,{detail:t,bubbles:!0,composed:!0}))}_toggleSelected(e){this._selectedIds=this._selectedIds.includes(e)?this._selectedIds.filter(t=>t!==e):[...this._selectedIds,e]}_toggleSelectMode(){this._selectMode=!this._selectMode,this._selectMode||(this._selectedIds=[])}_setFilter(e){this._filter=e}_setSort(e){this._sort=e}_requestImport(){this._dispatch("import-requested")}_navigate(e){T({destination:e})}_saveRename(e){let t=this._renameValue.trim();!t||t===e.name||this.disabled||(this._dispatch("design-rename-requested",{id:e.id,name:t}),this._renameValue="")}_duplicate(e){this._dispatch("design-duplicate-requested",{id:e})}_delete(e){this._dispatch("design-delete-requested",{id:e}),this._closeDesignSheet()}_show(e){this._dispatch("design-show-requested",{id:e.id,title:e.name})}_edit(e){this._dispatch("iledclock-open-design",{design_id:e.id})}_addToRotation(e){e.length!==0&&(this._dispatch("designs-add-to-rotation",{ids:e}),this._selectedIds=[],this._selectMode=!1,this._closeDesignSheet())}_deleteSelected(){this._selectedIds.length===0||this.disabled||(this._dispatch("designs-delete-requested",{ids:[...this._selectedIds]}),this._selectedIds=[],this._selectMode=!1)}_renameInput(e){this._renameValue=e.currentTarget.value}_onRenameKeydown(e,t){e.key==="Enter"?(e.preventDefault(),this._saveRename(t)):e.key==="Escape"&&(this._renameValue="",e.currentTarget.value=t.name,e.currentTarget.blur())}render(){let e=this._visibleDesigns,t=this._selectedDesign,s=!!(this.route.destination==="library"&&this.route.design);return o`
+      <section class="library" aria-labelledby="library-title">
+        <header class="section-heading">
+          <div>
+            <h2 id="library-title">My designs</h2>
+            <p class="subtitle">Saved art for your clock</p>
           </div>
-        </div>
-        <div class="timer-display">${this._formatMs(t?.minutes??0,t?.seconds??0)}</div>
-        <div class="button-row">
-          <button type="button" class="secondary-action" @click=${()=>this._command("scoreboard_set_time",{m:10,s:0,count_down:!0})}>Reset time</button>
-          <button type="button" class="primary-action" @click=${()=>this._command("scoreboard_run",{start:!t?.running})}>${t?.running?"Stop":"Start"}</button>
-        </div>
-      </div>
-    `}_formatMs(e,t){return`${String(e).padStart(2,"0")}:${String(t).padStart(2,"0")}`}};we.properties={hass:{attribute:!1},_config:{state:!0},_entities:{state:!0},_entryId:{state:!0},_envelope:{state:!0},_mode:{state:!0},_settingsOpen:{state:!0},_heroFrames:{state:!0},_heroApproximate:{state:!0},_designs:{state:!0},_designsLoading:{state:!0},_clockFaceIndex:{state:!0},_clockColorIndex:{state:!0},_clock24h:{state:!0},_textMessage:{state:!0},_textColorHex:{state:!0},_textEffect:{state:!0},_textSpeed:{state:!0},_selectedDesignId:{state:!0},_timerTab:{state:!0},_countdownDraft:{state:!0},_tomatoDraft:{state:!0},_busy:{state:!0},_error:{state:!0}},we.styles=[y,_`
-    :host {
-      display: block;
-    }
-    .container {
-      container-type: inline-size;
-    }
-    .root {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .hero-wrap {
-      position: relative;
-      aspect-ratio: 2 / 1;
-      border-radius: calc(var(--ha-card-border-radius, 12px) - 2px);
-      overflow: hidden;
-      background: #050607;
-    }
-    .approximate-badge {
-      position: absolute;
-      left: 8px;
-      bottom: 8px;
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: var(--lu-radius-pill);
-      background: rgba(0, 0, 0, 0.55);
-      color: #fff;
-    }
-    .hero-corner {
-      position: absolute;
-      top: 8px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .hero-corner.left {
-      left: 8px;
-    }
-    button.hero-corner.right {
-      right: 8px;
-      top: 8px;
-    }
-    .chip {
-      pointer-events: auto;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 38px;
-      height: 38px;
-      padding: 0;
-      border: none;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.55);
-      color: #fff;
-      cursor: pointer;
-    }
-    .brightness-slider {
-      width: 90px;
-      accent-color: var(--lu-accent);
-    }
-    .status-pills {
-      position: absolute;
-      right: 8px;
-      bottom: 8px;
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 10px;
-      border-radius: var(--lu-radius-pill);
-      background: rgba(0, 0, 0, 0.55);
-      color: #fff;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .pill svg {
-      width: 14px;
-      height: 14px;
-    }
-    .dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--lu-positive);
-    }
-    .pill.warn .dot {
-      background: var(--lu-danger);
-    }
-    .pill.night {
-      color: var(--lu-ink-2);
-    }
-    .controls {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .error {
-      margin: 0;
-      font-size: 13px;
-      color: var(--lu-danger);
-    }
-    .hint {
-      margin: 0;
-      font-size: 13px;
-      color: var(--secondary-text-color);
-    }
-    .mode-panel {
-      min-height: 0;
-    }
-    .panel-section {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .face-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
-      gap: 6px;
-      max-height: 132px;
-      overflow-y: auto;
-      padding: 2px;
-    }
-    .face-btn {
-      min-height: 40px;
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      font-size: 12px;
-      font-variant-numeric: tabular-nums;
-      cursor: pointer;
-    }
-    .face-btn {
-      transition: transform 90ms var(--lu-ease, ease), background-color 150ms ease;
-    }
-    .face-btn:active {
-      transform: scale(0.97);
-    }
-    .face-btn.selected {
-      background: var(--lu-accent);
-      color: var(--lu-accent-ink);
-      border-color: transparent;
-      font-weight: 700;
-      box-shadow: var(--lu-highlight-raised), var(--lu-shadow-raised);
-    }
-    .swatch-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .swatch {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 2px solid transparent;
-      cursor: pointer;
-    }
-    .swatch.selected {
-      border-color: var(--primary-text-color);
-    }
-    .color-input {
-      width: 40px;
-      height: 40px;
-      border: none;
-      border-radius: 50%;
-      overflow: hidden;
-      padding: 0;
-      background: none;
-      cursor: pointer;
-    }
-    .effect-select {
-      flex: 1;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      padding: 0 8px;
-    }
-    .field-label {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      font-size: 13px;
-      color: var(--secondary-text-color);
-    }
-    .field-label input[type="range"] {
-      accent-color: var(--lu-accent);
-    }
-    .text-input {
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      padding: 0 12px;
-      font-size: 15px;
-      box-sizing: border-box;
-    }
-    .primary-action,
-    .secondary-action {
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-pill);
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      flex: 1;
-    }
-    .primary-action {
-      border: none;
-      background: var(--lu-accent);
-      color: var(--lu-accent-ink);
-      transition: transform 90ms var(--lu-ease, ease);
-    }
-    .primary-action:active:not(:disabled) {
-      transform: scale(0.97);
-    }
-    .primary-action:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
-    .secondary-action {
-      border: 1px solid var(--divider-color);
-      background: none;
-      color: var(--primary-text-color);
-    }
-    .button-row {
-      display: flex;
-      gap: 10px;
-    }
-    .carousel {
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      padding: 2px;
-      scroll-snap-type: x proximity;
-    }
-    .carousel-item {
-      flex: none;
-      width: 96px;
-      border: 2px solid transparent;
-      border-radius: var(--lu-radius-tile);
-      background: none;
-      cursor: pointer;
-      scroll-snap-align: start;
-      padding: 4px;
-    }
-    .carousel-item {
-      transition: transform 90ms var(--lu-ease, ease), border-color 150ms ease;
-    }
-    .carousel-item:active {
-      transform: scale(0.97);
-    }
-    .carousel-item.selected {
-      border-color: var(--lu-accent);
-      box-shadow: var(--lu-highlight-raised), var(--lu-shadow-raised);
-    }
-    .carousel-thumb {
-      display: block;
-      aspect-ratio: 2 / 1;
-      border-radius: var(--lu-radius-control);
-      overflow: hidden;
-    }
-    .carousel-label {
-      display: block;
-      margin-top: 4px;
-      font-size: 12px;
-      color: var(--primary-text-color);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .timer-display {
-      font-size: 34px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      text-align: center;
-      color: var(--primary-text-color);
-    }
-    .hms-inputs {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-    }
-    .hms-field {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-size: 12px;
-      color: var(--secondary-text-color);
-      gap: 4px;
-    }
-    .hms-field input {
-      width: 56px;
-      min-height: var(--lu-target, 48px);
-      text-align: center;
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      font-size: 16px;
-    }
-    .tomato-list {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .tomato-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 6px 6px 6px 12px;
-      border-radius: var(--lu-radius-pill);
-      background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
-      font-size: 13px;
-      font-weight: 600;
-    }
-    .chip-remove,
-    .chip-add {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      border: none;
-      background: transparent;
-      color: var(--secondary-text-color);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .chip-add {
-      width: var(--lu-target, 48px);
-      height: var(--lu-target, 48px);
-      border: 1px dashed var(--divider-color);
-      color: var(--primary-text-color);
-    }
-    .score-row {
-      display: flex;
-      gap: 16px;
-    }
-    .score-side {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-    }
-    .score-label {
-      font-size: 13px;
-      color: var(--secondary-text-color);
-    }
-    .score-value {
-      font-size: 40px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-    }
-    .score-buttons {
-      display: flex;
-      gap: 8px;
-    }
-    .step-btn {
-      width: var(--lu-target, 48px);
-      height: var(--lu-target, 48px);
-      border-radius: 50%;
-      border: 2px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      font-size: 22px;
-      cursor: pointer;
-    }
-    @container (min-width: 560px) {
-      .root {
-        flex-direction: row;
-        align-items: flex-start;
-      }
-      .hero-wrap {
-        flex: 1 1 58%;
-      }
-      .controls {
-        flex: 1 1 42%;
-      }
-    }
-  `];customElements.define("iledclock-card",we);window.customCards=window.customCards||[];window.customCards.push({type:"iledclock-card",name:"iLedClock",description:"Control and preview an iLedClock 32x16 RGB BLE pixel clock."});function Fi(r,i,e,t,s=!1){if(!Q(r,i,e))return r;let n=V(r,i,e),o=ee(t);if(n[0]===o[0]&&n[1]===o[1]&&n[2]===o[2])return r;let a=C(r),d=new Uint8Array(r.width*r.height),p=[[i,e]];for(;p.length>0;){let[u,h]=p.pop();if(!Q(r,u,h))continue;let b=h*r.width+u;if(d[b])continue;let f=V(r,u,h);if(f[0]!==n[0]||f[1]!==n[1]||f[2]!==n[2])continue;d[b]=1,k(a,u,h,o);let v=s?[[(u+1)%r.width,h],[(u-1+r.width)%r.width,h],[u,(h+1)%r.height],[u,(h-1+r.height)%r.height]]:[[u+1,h],[u-1,h],[u,h+1],[u,h-1]];for(let x of v)p.push(x)}return a}function Vi(r,i,e,t,s,n,o=ee){let a=C(r),d=o(n),p=Math.abs(t-i),u=-Math.abs(s-e),h=i<t?1:-1,b=e<s?1:-1,f=p+u,v=i,x=e;for(;k(a,v,x,d),!(v===t&&x===s);){let $=2*f;$>=u&&(f+=u,v+=h),$<=p&&(f+=p,x+=b)}return a}function zi(r,i,e,t,s,n,o,a=ee){let d=C(r),p=a(n),u=Math.min(i,t),h=Math.max(i,t),b=Math.min(e,s),f=Math.max(e,s);for(let v=b;v<=f;v++)for(let x=u;x<=h;x++)(o||v===b||v===f||x===u||x===h)&&k(d,x,v,p);return d}function Ni(r,i,e,t,s,n,o,a=ee){let d=C(r),p=a(n),u=Math.min(i,t),h=Math.max(i,t),b=Math.min(e,s),f=Math.max(e,s),v=(u+h)/2,x=(b+f)/2,$=(h-u)/2,A=(f-b)/2;if($<.5||A<.5){for(let w=u;w<=h;w++)for(let S=b;S<=f;S++)k(d,w,S,p);return d}let at=w=>{let S=1-w*w/(A*A);return S<=0?0:$*Math.sqrt(S)};for(let w=-Math.ceil(A);w<=Math.ceil(A);w++){let S=at(w),Z=Math.round(x+w),re=Math.round(v+S),Bt=Math.round(v-S);if(o)for(let lt=Bt;lt<=re;lt++)k(d,lt,Z,p);else k(d,Bt,Z,p),k(d,re,Z,p)}if(!o)for(let w=-Math.ceil($);w<=Math.ceil($);w++){let S=1-w*w/($*$),Z=S<=0?0:A*Math.sqrt(S),re=Math.round(v+w);k(d,re,Math.round(x+Z),p),k(d,re,Math.round(x-Z),p)}return d}var ls=[{tool:"pen",icon:"pen",label:"Pen"},{tool:"eraser",icon:"eraser",label:"Eraser"},{tool:"fill",icon:"fill",label:"Fill"},{tool:"line",icon:"line",label:"Line"},{tool:"rectangle",icon:"rectangle",label:"Rectangle"},{tool:"ellipse",icon:"ellipse",label:"Ellipse"},{tool:"eyedropper",icon:"eyedropper",label:"Eyedropper"},{tool:"text",icon:"textStamp",label:"Text stamp"},{tool:"shift",icon:"shift",label:"Shift"}],Bi=[100,150,200,300,400],$e=class extends g{constructor(){super();this._dragStart=null;this._onMatrixPointer=e=>{if(this.disabled)return;let{x:t,y:s,phase:n}=e.detail;if(n!=="leave"&&!(t<0||s<0))switch(this._tool){case"pen":case"eraser":{let o=this._tool==="eraser"?[0,0,0]:this.activeColor;if(n==="down"){this._draft=qe(this.frame,t,s,o);return}if(!this._draft)return;let a=qe(this._draft,t,s,o);this._draft=a,n==="up"&&(this._emitFrame(a),this._draft=null);return}case"fill":{if(n!=="down")return;this._emitFrame(Fi(this.frame,t,s,this.activeColor,this.wrap));return}case"eyedropper":{if(n!=="down")return;this._pickColor(V(this.frame,t,s));return}case"text":{if(n!=="down")return;this._stampTextAt(t,s);return}case"line":case"rectangle":case"ellipse":{if(n==="down"){this._dragStart=[t,s],this._draft=this.frame;return}if(!this._dragStart)return;let[o,a]=this._dragStart,d=this._tool==="line"?Vi(this.frame,o,a,t,s,this.activeColor):this._tool==="rectangle"?zi(this.frame,o,a,t,s,this.activeColor,this._filled):Ni(this.frame,o,a,t,s,this.activeColor,this._filled);this._draft=d,n==="up"&&(this._emitFrame(d),this._draft=null,this._dragStart=null);return}case"shift":{if(n==="down"){this._dragStart=[t,s],this._draft=this.frame;return}if(!this._dragStart)return;let[o,a]=this._dragStart,d=ui(this.frame,t-o,s-a,this.wrap);this._draft=d,n==="up"&&(this._emitFrame(d),this._draft=null,this._dragStart=null);return}}};this.wrap=!1,this.activeColor=[255,255,255],this.recentColors=[],this.disabled=!1,this._tool="pen",this._filled=!1,this._zoomIndex=0,this._draft=null,this._textArmed=!1,this._textValue="",this._busy=!1}updated(e){e.has("frame")&&(this._draft=null)}_emitFrame(e){this.dispatchEvent(new CustomEvent("frame-changed",{detail:{frame:e},bubbles:!0,composed:!0}))}_pickColor(e){this.dispatchEvent(new CustomEvent("color-picked",{detail:{color:e},bubbles:!0,composed:!0}))}_selectTool(e){this._tool=e,this._textArmed=e==="text"}_onMirror(e){this._emitFrame(pi(this.frame,e))}_onUndo(){this.dispatchEvent(new CustomEvent("undo-requested",{bubbles:!0,composed:!0}))}_onRedo(){this.dispatchEvent(new CustomEvent("redo-requested",{bubbles:!0,composed:!0}))}_zoomIn(){this._zoomIndex=Math.min(Bi.length-1,this._zoomIndex+1)}_zoomOut(){this._zoomIndex=Math.max(0,this._zoomIndex-1)}async _stampTextAt(e,t){let s=this._textValue.trim();if(!s||!this.hass?.callWS||!this.entryId)return;let n=_e(s,this.activeColor);if(n){this._busy=!0;try{let a=(await this.hass.callWS(te(this.entryId,n))).frames[0];if(!a)return;let d=atob(a),p=C(this.frame),u=this.frame.width,h=this.frame.height;for(let b=0;b<h;b++)for(let f=0;f<u;f++){let v=(b*u+f)*3,x=d.charCodeAt(v)||0,$=d.charCodeAt(v+1)||0,A=d.charCodeAt(v+2)||0;if(x===0&&$===0&&A===0)continue;let at=e+f-Math.floor(u/2),w=t+b-Math.floor(h/2);p=qe(p,at,w,[x,$,A])}this._emitFrame(p)}finally{this._busy=!1,this._textArmed=!1}}}render(){let e=Bi[this._zoomIndex],t=this._draft??this.frame;return l`
-      <div class="toolbar">
-        ${ls.map(s=>l`
-            <button
-              type="button"
-              class="tool-btn ${this._tool===s.tool?"selected":""}"
-              ?disabled=${this.disabled||s.tool==="text"&&(!this.hass?.callWS||!this.entryId)}
-              @click=${()=>this._selectTool(s.tool)}
-              aria-label=${s.label}
-              title=${s.label}
-            >
-              ${m(s.icon)}
-            </button>
-          `)}
-        ${this._tool==="rectangle"||this._tool==="ellipse"?l`<button type="button" class="tool-btn ${this._filled?"selected":""}" @click=${()=>this._filled=!this._filled} title="Filled">${m("check")}</button>`:c}
-        <button type="button" class="tool-btn" @click=${()=>this._onMirror("horizontal")} title="Mirror horizontal">${m("flipH")}</button>
-        <button type="button" class="tool-btn" @click=${()=>this._onMirror("vertical")} title="Mirror vertical">${m("flipV")}</button>
-        <button type="button" class="tool-btn" @click=${this._onUndo} title="Undo">${m("undo")}</button>
-        <button type="button" class="tool-btn" @click=${this._onRedo} title="Redo">${m("redo")}</button>
-        <span class="zoom-group">
-          <button type="button" class="tool-btn" @click=${this._zoomOut} title="Zoom out">${m("zoomOut")}</button>
-          <span class="zoom-value">${e}%</span>
-          <button type="button" class="tool-btn" @click=${this._zoomIn} title="Zoom in">${m("zoomIn")}</button>
-        </span>
-      </div>
-      ${this._textArmed?l`<input class="text-stamp-input" type="text" placeholder="Type, then tap the canvas" .value=${this._textValue} @input=${s=>this._textValue=s.target.value} />`:c}
-      <div class="canvas-scroll">
-        <div class="canvas-wrap" style="width: ${e}%">
-          <iledclock-matrix-canvas .frame=${t} interactive show-grid @matrix-pointer=${this._onMatrixPointer}></iledclock-matrix-canvas>
-        </div>
-      </div>
-      <div class="palette">
-        ${this.recentColors.map(s=>l`<button type="button" class="swatch" style="background:${`rgb(${s.join(",")})`}" @click=${()=>this._pickColor(s)} aria-label="Recent colour"></button>`)}
-        <input class="color-input" type="color" .value=${O(this.activeColor)} @input=${s=>this._pickColor(F(s.target.value))} />
-      </div>
-    `}};$e.properties={frame:{attribute:!1},onionSkin:{attribute:!1},wrap:{type:Boolean},activeColor:{attribute:!1},recentColors:{attribute:!1},hass:{attribute:!1},entryId:{attribute:"entry-id"},disabled:{type:Boolean},_tool:{state:!0},_filled:{state:!0},_zoomIndex:{state:!0},_draft:{state:!0},_textArmed:{state:!0},_textValue:{state:!0},_busy:{state:!0}},$e.styles=[y,_`
-    :host {
-      display: block;
-      container-type: inline-size;
-    }
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      margin-bottom: 8px;
-    }
-    .tool-btn {
-      width: var(--lu-target, 48px);
-      height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: none;
-      background: var(--lu-tile);
-      color: var(--lu-ink);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex: none;
-      transition: transform 90ms var(--lu-ease, ease), opacity 90ms var(--lu-ease, ease);
-    }
-    .tool-btn.selected {
-      background: var(--lu-accent);
-      color: var(--lu-accent-ink);
-      box-shadow: var(--lu-highlight-raised), var(--lu-shadow-raised);
-    }
-    .tool-btn:active:not(:disabled) {
-      transform: scale(0.97);
-    }
-    .tool-btn:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-    .zoom-group {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .zoom-value {
-      font-size: 12px;
-      color: var(--lu-ink-2);
-      min-width: 3.5em;
-      text-align: center;
-    }
-    .text-stamp-input {
-      width: 100%;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--lu-accent);
-      background: var(--lu-card);
-      color: var(--lu-ink);
-      padding: 0 12px;
-      box-sizing: border-box;
-      margin-bottom: 8px;
-    }
-    .canvas-scroll {
-      overflow: auto;
-      border-radius: var(--lu-radius-tile);
-      background: #050607;
-    }
-    .canvas-wrap {
-      aspect-ratio: 2 / 1;
-      min-width: 100%;
-    }
-    .palette {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 10px;
-      flex-wrap: wrap;
-    }
-    .swatch {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 2px solid var(--lu-edge);
-      cursor: pointer;
-      padding: 0;
-    }
-    .color-input {
-      width: 40px;
-      height: 40px;
-      border: none;
-      border-radius: 50%;
-      overflow: hidden;
-      padding: 0;
-      background: none;
-      cursor: pointer;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      * {
-        transition: none !important;
-      }
-    }
-  `];customElements.define("iledclock-pixel-editor",$e);var ds=100,Mt=10,cs=6e4;function Gi(r){return Math.max(Mt,Math.min(cs,Math.round(r)))}function At(r,i,e){let t=e?C(e):P(r[0]?.width,r[0]?.height,[0,0,0],ds),s=Math.max(-1,Math.min(r.length-1,i))+1,n=r.slice();return n.splice(s,0,t),n}function ji(r,i){let e=r[i];return e?At(r,i,e):r.slice()}function Ui(r,i){if(r.length<=1||i<0||i>=r.length)return r.slice();let e=r.slice();return e.splice(i,1),e}function qi(r,i,e){if(i===e||i<0||i>=r.length||e<0||e>=r.length)return r.slice();let t=r.slice(),[s]=t.splice(i,1);return t.splice(e,0,s),t}function Xe(r,i,e){if(r.length===0)return 0;let t=i==="x"?e.clientX:e.clientY;for(let s=0;s<r.length;s++){let n=r[s],o=i==="x"?n.left+n.width:n.top+n.height;if(t<o)return s}return r.length-1}function ke(r,i,e){if(i===e||i<0||i>=r.length||e<0||e>=r.length)return r.slice();let t=r.slice(),[s]=t.splice(i,1);return t.splice(e,0,s),t}var Se=class extends g{constructor(){super();this._dragOriginalIndex=null;this._dragTarget=null;this._itemRefs=new Map;this._rafId=null;this._playStartedAt=0;this.frames=[],this.activeIndex=0,this.playing=!1,this.disabled=!1}disconnectedCallback(){super.disconnectedCallback(),this._stopLoop()}updated(e){e.has("playing")&&(this.playing?this._startLoop():this._stopLoop())}_startLoop(){if(this._rafId!==null)return;this._playStartedAt=performance.now();let e=()=>{let t=N(this.frames,performance.now()-this._playStartedAt);t!==this.activeIndex&&this.dispatchEvent(new CustomEvent("frame-selected",{detail:{index:t},bubbles:!0,composed:!0})),this._rafId=requestAnimationFrame(e)};this._rafId=requestAnimationFrame(e)}_stopLoop(){this._rafId!==null&&cancelAnimationFrame(this._rafId),this._rafId=null}_emitFrames(e){this.dispatchEvent(new CustomEvent("frames-changed",{detail:{frames:e},bubbles:!0,composed:!0}))}_select(e){this.dispatchEvent(new CustomEvent("frame-selected",{detail:{index:e},bubbles:!0,composed:!0}))}_togglePlay(){this.dispatchEvent(new CustomEvent("play-toggled",{detail:{playing:!this.playing},bubbles:!0,composed:!0}))}_onDelayInput(e,t){let s=Gi(Number(t.target.value));this.dispatchEvent(new CustomEvent("delay-changed",{detail:{index:e,delayMs:s},bubbles:!0,composed:!0}))}_onHandlePointerDown(e,t){this.disabled||(t.currentTarget.setPointerCapture(t.pointerId),this._dragOriginalIndex=e,this._dragTarget=e)}_onHandlePointerMove(e){if(this._dragOriginalIndex===null)return;let t=[];for(let n=0;n<this.frames.length;n++){let o=this._itemRefs.get(n);o&&t.push(o.getBoundingClientRect())}let s=Xe(t,"x",e);s!==this._dragTarget&&(this._dragTarget=s,this.requestUpdate())}_onHandlePointerUp(){this._dragOriginalIndex!==null&&(this._dragTarget!==null&&this._dragTarget!==this._dragOriginalIndex&&this._emitFrames(qi(this.frames,this._dragOriginalIndex,this._dragTarget)),this._dragOriginalIndex=null,this._dragTarget=null)}render(){let e=this._dragOriginalIndex!==null&&this._dragTarget!==null?ke(this.frames,this._dragOriginalIndex,this._dragTarget):this.frames;return l`
-      <div class="toolbar">
-        <button type="button" class="icon-btn" ?disabled=${this.disabled} @click=${this._togglePlay} aria-label=${this.playing?"Pause preview":"Play preview"}>
-          ${m(this.playing?"pause":"play")}
-        </button>
-        <span class="hint">${e.length} frame${e.length===1?"":"s"}</span>
-      </div>
-      <div class="strip">
-        ${e.map((t,s)=>l`
-            <div
-              class="frame-item ${s===this.activeIndex?"active":""}"
-              @pointerdown=${n=>this._onHandlePointerDown(s,n)}
-              @pointermove=${this._onHandlePointerMove}
-              @pointerup=${this._onHandlePointerUp}
-              @pointercancel=${this._onHandlePointerUp}
-              ${I(n=>n?this._itemRefs.set(s,n):this._itemRefs.delete(s))}
-            >
-              <button type="button" class="thumb" @click=${()=>this._select(s)} aria-label="Frame ${s+1}">
-                <iledclock-matrix-canvas .frame=${t}></iledclock-matrix-canvas>
-              </button>
-              <input
-                class="delay-input"
-                type="number"
-                min=${Mt}
-                max="60000"
-                step="10"
-                .value=${String(t.durationMs)}
-                @change=${n=>this._onDelayInput(s,n)}
-              />
-              <div class="row-actions">
-                <button type="button" class="icon-btn small" ?disabled=${this.disabled} @click=${()=>this._emitFrames(ji(this.frames,s))} aria-label="Duplicate frame">${m("duplicate")}</button>
-                <button type="button" class="icon-btn small" ?disabled=${this.disabled||e.length<=1} @click=${()=>this._emitFrames(Ui(this.frames,s))} aria-label="Delete frame">${m("delete")}</button>
-              </div>
-            </div>
-          `)}
-        <button type="button" class="icon-btn add" ?disabled=${this.disabled} @click=${()=>this._emitFrames(At(this.frames,this.frames.length-1))} aria-label="Add frame">
-          ${m("plus")}
-        </button>
-      </div>
-    `}};Se.properties={frames:{attribute:!1},activeIndex:{type:Number,attribute:"active-index"},playing:{type:Boolean},disabled:{type:Boolean}},Se.styles=[y,_`
-    :host {
-      display: block;
-      container-type: inline-size;
-    }
-    .toolbar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .hint {
-      font-size: 12px;
-      color: var(--lu-ink-2);
-    }
-    .strip {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding: 4px 2px;
-    }
-    .frame-item {
-      flex: none;
-      width: 88px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      border-radius: var(--lu-radius-tile);
-      padding: 4px;
-      border: 1px solid transparent;
-      touch-action: none;
-      transition: opacity 90ms var(--lu-ease, ease);
-    }
-    .frame-item.active {
-      border-color: var(--lu-accent);
-      background: var(--lu-tile);
-      box-shadow: var(--lu-highlight-raised), var(--lu-shadow-raised);
-    }
-    .thumb {
-      display: block;
-      width: 100%;
-      aspect-ratio: 2 / 1;
-      border-radius: var(--lu-radius-control);
-      overflow: hidden;
-      border: none;
-      padding: 0;
-      cursor: pointer;
-      transition: transform 90ms var(--lu-ease, ease);
-    }
-    .thumb:active {
-      transform: scale(0.97);
-    }
-    .delay-input {
-      width: 100%;
-      min-height: 32px;
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--lu-edge);
-      background: var(--lu-card);
-      color: var(--lu-ink);
-      text-align: center;
-      font-size: 12px;
-      box-sizing: border-box;
-    }
-    .row-actions {
-      display: flex;
-      gap: 4px;
-      justify-content: center;
-    }
-    .icon-btn {
-      width: var(--lu-target, 48px);
-      height: var(--lu-target, 48px);
-      border-radius: 50%;
-      border: none;
-      background: var(--lu-tile);
-      color: var(--lu-ink);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex: none;
-      transition: transform 90ms var(--lu-ease, ease);
-    }
-    .icon-btn:active:not(:disabled) {
-      transform: scale(0.97);
-    }
-    .icon-btn.small {
-      width: 32px;
-      height: 32px;
-    }
-    .icon-btn:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-    .icon-btn.add {
-      border: 1px dashed var(--lu-edge);
-      background: none;
-      align-self: center;
-    }
-  `];customElements.define("iledclock-frame-timeline",Se);var Ce=class extends g{constructor(){super(),this.designs=[],this.loading=!1,this.disabled=!1,this._renamingId=null}_select(i){this.dispatchEvent(new CustomEvent("design-selected",{detail:{id:i},bubbles:!0,composed:!0}))}_commitRename(i,e){let t=e.target.value.trim();this._renamingId=null,!(!t||t===i.name)&&this.dispatchEvent(new CustomEvent("design-rename-requested",{detail:{id:i.id,name:t},bubbles:!0,composed:!0}))}_duplicate(i){this.dispatchEvent(new CustomEvent("design-duplicate-requested",{detail:{id:i},bubbles:!0,composed:!0}))}_delete(i){this.dispatchEvent(new CustomEvent("design-delete-requested",{detail:{id:i},bubbles:!0,composed:!0}))}render(){return l`
-      <div class="header">
-        <h2>Library</h2>
-        ${this.loading?l`<span class="hint">Loading…</span>`:c}
-      </div>
-      ${!this.loading&&this.designs.length===0?l`<p class="hint">No saved designs yet. Draw something and save it.</p>`:c}
-      <div class="grid">
-        ${this.designs.map(i=>{let e=T(i)[0],t=this._renamingId===i.id;return l`
-            <div class="tile">
-              <button type="button" class="thumb" ?disabled=${this.disabled} @click=${()=>this._select(i.id)} aria-label="Open ${i.name}">
-                <iledclock-matrix-canvas .frame=${e}></iledclock-matrix-canvas>
-                <span class="kind-badge">${m(i.kind==="animation"?"gif":"image")}</span>
-              </button>
-              ${t?l`<input class="name-input" .value=${i.name} @blur=${s=>this._commitRename(i,s)} @keydown=${s=>s.key==="Enter"&&s.target.blur()} autofocus />`:l`<button type="button" class="name" @click=${()=>this._renamingId=i.id}>${i.name}</button>`}
-              <div class="tile-actions">
-                <button type="button" class="icon-btn" ?disabled=${this.disabled} @click=${()=>this._duplicate(i.id)} aria-label="Duplicate">${m("duplicate")}</button>
-                <iledclock-hold-button label="Hold to delete" complete-label="Deleted" danger ?disabled=${this.disabled} @confirmed=${()=>this._delete(i.id)}></iledclock-hold-button>
-              </div>
-            </div>
-          `})}
-      </div>
-    `}};Ce.properties={designs:{attribute:!1},loading:{type:Boolean},disabled:{type:Boolean},_renamingId:{state:!0}},Ce.styles=[y,_`
-    :host {
-      display: block;
-      container-type: inline-size;
-      background: var(--lu-tile);
-      border-radius: var(--lu-radius-tile);
-      padding: 12px;
-    }
-    .header {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    h2 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--lu-ink);
-    }
-    .hint {
-      font-size: 13px;
-      color: var(--lu-ink-2);
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-    @container (min-width: 420px) {
-      .grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-    @container (min-width: 700px) {
-      .grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
-    }
-    .tile {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .thumb {
-      position: relative;
-      display: block;
-      width: 100%;
-      aspect-ratio: 2 / 1;
-      border-radius: var(--lu-radius-control);
-      overflow: hidden;
-      border: 1px solid var(--lu-edge);
-      padding: 0;
-      cursor: pointer;
-      background: none;
-    }
-    .kind-badge {
-      position: absolute;
-      right: 4px;
-      bottom: 4px;
-      display: inline-flex;
-      color: #fff;
-      background: rgba(0, 0, 0, 0.55);
-      border-radius: 50%;
-      width: 22px;
-      height: 22px;
-      align-items: center;
-      justify-content: center;
-    }
-    .name,
-    .name-input {
-      font-size: 13px;
-      color: var(--lu-ink);
-      background: none;
-      border: none;
-      text-align: left;
-      padding: 4px 0;
-      cursor: pointer;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .name-input {
-      border-bottom: 1px solid var(--lu-accent);
-    }
-    .tile-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .tile-actions iledclock-hold-button {
-      flex: 1;
-    }
-    .icon-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: none;
-      background: var(--lu-glass-raised);
-      color: var(--lu-ink);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex: none;
-    }
-    .icon-btn:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-  `];customElements.define("iledclock-library-panel",Ce);var us=10;function It(r){throw new Error(`unknown playlist kind: ${String(r)}`)}function Tt(r){return r.charAt(0).toUpperCase()+r.slice(1)}function Ki(r,i=[]){switch(r.kind){case"clock":case"date":return"clock";case"text":return"text";case"design":return i.find(t=>t.id===r.params.design_id)?.kind==="animation"?"gif":"image";case"timer":return r.params.mode==="stopwatch"?"stopwatch":"countdown";case"scoreboard":return"scoreboard";case"temperature":return"thermometer";case"humidity":return"humidity";default:return It(r.kind)}}function Wi(r){let i=r.color;if(!Array.isArray(i)||i.length!==3||i.some(n=>typeof n!="number"))return null;let e=[i[0],i[1],i[2]],t=O(e),s=z.find(n=>O(n.rgb)===t);return s?s.label.toLowerCase():t}function Zi(r,i=[]){switch(r.kind){case"clock":{let e=typeof r.params.style=="number"?r.params.style:null,t=e===null?null:ye.find(o=>o.style===e),s=Wi(r.params),n=[t?t.label:"Custom face",s??"custom colour"];return r.params.h24===!1&&n.push("12-hour"),n.join(", ")}case"date":return Wi(r.params)??"Custom colour";case"text":{let e=typeof r.params.text=="string"?r.params.text.trim():"";if(e.length===0)return"No text yet";let t=typeof r.params.effect=="string"&&r.params.effect.trim()!==""?r.params.effect:null;return t?`\u201C${e}\u201D, ${t.toLowerCase()}`:`\u201C${e}\u201D`}case"design":{let e=i.find(t=>t.id===r.params.design_id);return e?e.name:"No design chosen"}case"timer":return r.params.mode==="stopwatch"?"Stopwatch":"Countdown";case"scoreboard":return"Live scores";case"temperature":return"Live reading";case"humidity":return"Live reading";default:return It(r.kind)}}function ps(r,i=[]){switch(r){case"clock":return{style:ye[0].style,color:[...z[6].rgb]};case"date":return{color:[...z[6].rgb]};case"text":return{text:"Hello"};case"design":return{design_id:i[0]?.id??""};case"timer":return{mode:"countdown"};case"scoreboard":case"temperature":case"humidity":return{};default:return It(r)}}function Yi(r,i=[]){return{kind:r,params:ps(r,i),duration_s:us}}var hs=["clock","date","text","design","timer","scoreboard","temperature","humidity"],Ee=class extends g{constructor(){super();this._dragOriginalIndex=null;this._dragTarget=null;this._itemRefs=new Map;this.items=[],this.maxItems=9,this.designs=[],this.disabled=!1,this._addKind="clock"}_emit(e){this.dispatchEvent(new CustomEvent("items-changed",{detail:{items:e},bubbles:!0,composed:!0}))}_updateDuration(e,t){let s=St(Number(t.target.value)),n=this.items.slice();n[e]={...n[e],duration_s:s},this._emit(n)}_remove(e){this._emit(this.items.filter((t,s)=>s!==e))}_addItem(){this.items.length>=this.maxItems||this._emit([...this.items,Yi(this._addKind,this.designs)])}_onPointerDown(e,t){this.disabled||(t.currentTarget.setPointerCapture(t.pointerId),this._dragOriginalIndex=e,this._dragTarget=e)}_onPointerMove(e){if(this._dragOriginalIndex===null)return;let t=[];for(let n=0;n<this.items.length;n++){let o=this._itemRefs.get(n);o&&t.push(o.getBoundingClientRect())}let s=Xe(t,"y",e);s!==this._dragTarget&&(this._dragTarget=s,this.requestUpdate())}_onPointerUp(){this._dragOriginalIndex!==null&&(this._dragTarget!==null&&this._dragTarget!==this._dragOriginalIndex&&this._emit(ke(this.items,this._dragOriginalIndex,this._dragTarget)),this._dragOriginalIndex=null,this._dragTarget=null)}render(){let e=this._dragOriginalIndex!==null&&this._dragTarget!==null?ke(this.items,this._dragOriginalIndex,this._dragTarget):this.items;return l`
-      <div class="header">
-        <h2>Playlist</h2>
-        <span class="hint">${e.length}/${this.maxItems}</span>
-      </div>
-      ${e.length===0?l`<p class="hint">Nothing queued -- the clock will just show its clock face.</p>`:c}
-      <div class="rows">
-        ${e.map((t,s)=>l`
-            <div
-              class="row"
-              @pointerdown=${n=>this._onPointerDown(s,n)}
-              @pointermove=${n=>this._onPointerMove(n)}
-              @pointerup=${()=>this._onPointerUp()}
-              @pointercancel=${()=>this._onPointerUp()}
-              ${I(n=>n?this._itemRefs.set(s,n):this._itemRefs.delete(s))}
-            >
-              <span class="drag-handle">${m("drag")}</span>
-              <span class="row-icon">${m(Ki(t,this.designs))}</span>
-              <div class="row-text">
-                <span class="row-title">${Tt(t.kind)}</span>
-                <span class="row-desc">${Zi(t,this.designs)}</span>
-              </div>
-              <input
-                class="duration-input"
-                type="number"
-                min="1"
-                max="3600"
-                .value=${String(t.duration_s)}
-                @change=${n=>this._updateDuration(s,n)}
-              />
-              <button type="button" class="icon-btn" ?disabled=${this.disabled} @click=${()=>this._remove(s)} aria-label="Remove">${m("close")}</button>
-            </div>
-          `)}
-      </div>
-      <div class="add-row">
-        <select class="kind-select" ?disabled=${this.disabled||e.length>=this.maxItems} @change=${t=>this._addKind=t.target.value}>
-          ${hs.map(t=>l`<option value=${t} ?selected=${t===this._addKind}>${Tt(t)}</option>`)}
-        </select>
-        <button type="button" class="add-btn" ?disabled=${this.disabled||e.length>=this.maxItems} @click=${this._addItem}>${m("plus")} Add</button>
-      </div>
-    `}};Ee.properties={items:{attribute:!1},maxItems:{type:Number,attribute:"max-items"},designs:{attribute:!1},disabled:{type:Boolean},_addKind:{state:!0}},Ee.styles=[y,_`
-    :host {
-      display: block;
-      background: var(--lu-tile);
-      border-radius: var(--lu-radius-tile);
-      padding: 12px;
-    }
-    .header {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    h2 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--lu-ink);
-    }
-    .hint {
-      font-size: 13px;
-      color: var(--lu-ink-2);
-    }
-    .rows {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px;
-      border-radius: var(--lu-radius-row);
-      background: var(--lu-card);
-      touch-action: none;
-    }
-    .drag-handle {
-      color: var(--lu-ink-3);
-      flex: none;
-    }
-    .row-icon {
-      color: var(--lu-ink-2);
-      flex: none;
-    }
-    .row-text {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-    }
-    .row-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--lu-ink);
-    }
-    .row-desc {
-      font-size: 12px;
-      color: var(--lu-ink-2);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .duration-input {
-      width: 60px;
-      min-height: 36px;
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--lu-edge);
-      background: var(--lu-card);
-      color: var(--lu-ink);
-      text-align: center;
-      font-size: 13px;
-    }
-    .icon-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: none;
-      background: none;
-      color: var(--lu-ink-2);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex: none;
-    }
-    .icon-btn:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-    .add-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-    }
-    .kind-select {
-      flex: 1;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--lu-edge);
-      background: var(--lu-card);
-      color: var(--lu-ink);
-      padding: 0 10px;
-    }
-    .add-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-pill);
-      border: none;
-      background: var(--lu-accent);
-      color: var(--lu-accent-ink);
-      cursor: pointer;
-      padding: 0 16px;
-      font-weight: 600;
-    }
-    .add-btn:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
-  `];customElements.define("iledclock-playlist-editor",Ee);function Le(r){return{past:[],present:r,future:[]}}function Xi(r,i,e=100){if(i===r.present)return r;let t=[...r.past,r.present];for(;t.length>e;)t.shift();return{past:t,present:i,future:[]}}function Qi(r){if(r.past.length===0)return r;let i=r.past[r.past.length-1];return{past:r.past.slice(0,-1),present:i,future:[r.present,...r.future]}}function Ji(r){if(r.future.length===0)return r;let i=r.future[0];return{past:[...r.past,r.present],present:i,future:r.future.slice(1)}}var Qe=[{kind:"life",label:"Life",hint:"Conway's game of life, seeded randomly"},{kind:"fire",label:"Fire",hint:"A rising flame simulation"},{kind:"plasma",label:"Plasma",hint:"Smooth shifting colour fields"},{kind:"matrix",label:"Matrix rain",hint:"Falling green code"},{kind:"starfield",label:"Starfield",hint:"Stars drifting past"},{kind:"rainbow",label:"Rainbow",hint:"A cycling rainbow sweep"},{kind:"sparkle",label:"Sparkle",hint:"Random twinkling pixels"}];var er=["nw","ne","se","sw","n","e","s","w"];function et(r,i,e){let t=Math.max(1,Math.round(i)),s=Math.max(1,Math.round(e)),n=Math.max(1,Math.min(Math.round(r.w),t)),o=Math.max(1,Math.min(Math.round(r.h),s)),a=Math.max(0,Math.min(Math.round(r.x),t-n)),d=Math.max(0,Math.min(Math.round(r.y),s-o));return{x:a,y:d,w:n,h:o}}function Pt(r,i,e=2,t=1){let s=e/t,n=r/Math.max(1,i),o,a;return n>s?(a=i,o=a*s):(o=r,a=o/s),et({x:(r-o)/2,y:(i-a)/2,w:o,h:a},r,i)}function tr(r,i,e,t,s,n){let o=e>0?s/e:1,a=t>0?n/t:1;return{dx:r*o,dy:i*a}}function ir(r,i,e,t,s){return et({...r,x:r.x+i,y:r.y+e},t,s)}function rr(r,i,e,t,s,n){let o=r.x,a=r.y,d=r.x+r.w,p=r.y+r.h,u=Math.max(1,s),h=Math.max(1,n);return i.includes("w")&&(o=Je(o+e,0,d-1)),i.includes("e")&&(d=Je(d+e,o+1,u)),i.includes("n")&&(a=Je(a+t,0,p-1)),i.includes("s")&&(p=Je(p+t,a+1,h)),{x:Math.round(o),y:Math.round(a),w:Math.round(d-o),h:Math.round(p-a)}}function Je(r,i,e){return Math.max(i,Math.min(e,r))}var ms={auto:"Auto",center:"Center",fit:"Fit",fill:"Fill",stretch:"Stretch",tile:"Tile",mirror:"Mirror"};function it(r){let i=ms[r];return i||(r.length===0?r:r.split(/[_-]+/).filter(e=>e.length>0).map(e=>e.charAt(0).toUpperCase()+e.slice(1)).join(" "))}function ar(r){let i=[];for(let e of["auto",...r])i.includes(e)||i.push(e);return i}function lr(r){return typeof r.design_id=="string"}function dr(r,i){return r.url??i?.homepage??void 0}function cr(r){return{type:"iledclock/gallery/sources",entry_id:r}}function ur(r,i){let e={type:"iledclock/gallery/search",entry_id:r,source:i.source,sort:i.sort,page:i.page+1};return i.query&&(e.query=i.query),i.size&&(e.size=i.size),i.animatedOnly&&(e.animated_only=!0),e}function pr(r,i,e,t){let s={type:"iledclock/gallery/preview",entry_id:r,source:i,item_id:e};return t&&Object.keys(t).length>0&&(s.options=t),s}function Ht(r,i,e,t,s){let n={type:"iledclock/gallery/import",entry_id:r,source:i,item_id:e};return t&&Object.keys(t).length>0&&(n.options=t),s&&(n.name=s),n}function Rt(r,i){let e={type:"iledclock/import/file",entry_id:r,filename:i.filename,data_b64:i.dataB64};return i.options&&Object.keys(i.options).length>0&&(e.options=i.options),i.save&&(e.save=!0),i.name&&(e.name=i.name),e}var gs=1,fs=16,sr=512;function _s(r){return Math.max(gs,Math.min(fs,Math.round(r)))}function nr(r){return Math.max(-sr,Math.min(sr,Math.round(r)))}function rt(r,i,e){let t={};return r.layout&&(t.layout=r.layout),r.crop&&(t.crop=et(r.crop,i,e)),r.scale!==void 0&&(t.scale=_s(r.scale)),r.offset&&(t.offset={x:nr(r.offset.x),y:nr(r.offset.y)}),r.background&&(t.background=fe(r.background)),r.enhance!==void 0&&(t.enhance=r.enhance),t}var bs=8*1024*1024,hr=["gif","png","jpg","jpeg","webp"],vs=["aseprite","ase","piskel"],ys=[...hr,...vs];function Dt(r){let i=r.lastIndexOf(".");return i===-1?"":r.slice(i+1).toLowerCase()}function Ot(r){return hr.includes(Dt(r))}function xs(r){return ys.includes(Dt(r))}function Ft(r,i){return xs(r)?i>bs?`${r} is too large (max 8 MB).`:null:`${r||"That file"} isn't a supported type (GIF, PNG, JPEG, WebP, .aseprite, or .piskel).`}var ws={"image/gif":"gif","image/png":"png","image/jpeg":"jpg","image/webp":"webp"};function mr(r,i){let e=ws[i.split(";")[0].trim().toLowerCase()]??"png",t="image";try{let s=new URL(r).pathname,n=s.slice(s.lastIndexOf("/")+1);n&&(t=n)}catch{}return Dt(t)?t:`${t}.${e}`}var or=600,$s=15e3;function ks(r,i){return r!==void 0&&r.expiresAtMs-i>$s}var tt=class{constructor(){this._entries=new Map}async sign(i,e){let t=Date.now(),s=this._entries.get(e);if(ks(s,t))return s.signedPath;if(!i.callWS)return e;try{let n=await i.callWS({type:"auth/sign_path",path:e,expires:or});return this._entries.set(e,{signedPath:n.path,expiresAtMs:t+or*1e3}),n.path}catch{return e}}clear(){this._entries.clear()}};function ie(r){let i=r.find(s=>s.startsWith("auto layout chose "));if(!i)return null;let e=i.slice(18),t=/^majority-pool-x(\d+)$/.exec(e);return t?`Auto: scaled down ${t[1]}x, keeping every pixel edge sharp.`:e.startsWith("center-like")?"Auto: shown pixel for pixel, centred on the clock.":e.startsWith("fit-like")?"Auto: fitted as a photo, colours boosted for the LEDs.":`Auto: ${e}.`}function Vt(r,i){return r.source===i.source&&r.sort===i.sort&&r.query===i.query&&r.size===i.size&&r.animatedOnly===i.animatedOnly}function st(r){return{filters:r,items:[],page:0,hasMore:!0,loading:!1,error:null}}function fr(r,i){let e={...r.filters,...i};return Vt(e,r.filters)?r:st(e)}function _r(r){return r.loading||!r.hasMore?r:{...r,loading:!0,error:null}}function K(r){return`${r.source}:${r.id}`}function br(r,i,e,t){if(!Vt(i,r.filters)||e!==r.page)return r;let s=new Set(r.items.map(o=>K(o))),n=r.items.slice();for(let o of t.items){let a=K(o);s.has(a)||(s.add(a),n.push(o))}return{...r,items:n,page:r.page+1,hasMore:t.has_more,loading:!1,error:null}}function zt(r,i,e,t){return!Vt(i,r.filters)||e!==r.page?r:{...r,loading:!1,error:t}}function vr(r,i){let e=i.trim().toLowerCase();return e?r.filter(t=>t.title.toLowerCase().includes(e)):r}function gr(r){let i=e=>e.endsWith(".0")?e.slice(0,-2):e;return r>=1e6?`${i((r/1e6).toFixed(1))}M`:r>=1e3?`${i((r/1e3).toFixed(1))}k`:String(Math.max(0,Math.round(r)))}function yr(r){let i=[];r.author&&i.push(`by ${r.author}`);let e=[];if(r.likes!=null&&e.push(`${gr(r.likes)} likes`),r.downloads!=null&&e.push(`${gr(r.downloads)} downloads`),e.length>0&&i.push(e.join(" and ")),i.length===0)return null;let t=i.join(", ");return t.charAt(0).toUpperCase()+t.slice(1)}var Nt={visible:!1,pending:null};function xr(r,i,e){return i===r.visible?r.pending===null?r:{...r,pending:null}:r.pending?.toVisible===i?r:{...r,pending:{toVisible:i,sinceMs:e}}}function wr(r,i,e){return r.pending===null||i-r.pending.sinceMs<e?r:{visible:r.pending.toVisible,pending:null}}function $r(r,i,e){return r.visible&&i&&!e}var Ss=250,nt=64,Me=class extends g{constructor(){super();this._pixelFrames=[];this._playStartedAt=0;this._rafId=null;this._requestId=0;this._showOnClock=async()=>{if(!(!this.item||!this.entryId||!this.hass.callWS)){this._saving="show",this._actionError=null;try{let e=await this.hass.callWS(Ht(this.entryId,this.item.source,this.item.id,this._buildOptions()));await this.hass.callWS(H(this.entryId,{design_id:e.design_id})),this.dispatchEvent(new CustomEvent("iledclock-designs-changed",{bubbles:!0,composed:!0})),this.dispatchEvent(new CustomEvent("iledclock-open-design",{detail:{design_id:e.design_id},bubbles:!0,composed:!0})),this._close()}catch(e){this._actionError=M(e)}finally{this._saving=null}}};this.open=!1,this.item=null,this._layout="auto",this._adjustOpen=!1,this._adjust={},this._preview=null,this._previewLoading=!1,this._previewError=null,this._saving=null,this._actionError=null}disconnectedCallback(){super.disconnectedCallback(),this._stopLoop(),clearTimeout(this._debounceTimer)}updated(e){(e.has("open")||e.has("item"))&&(this.open&&this.item?(this._layout="auto",this._adjustOpen=!1,this._adjust={},this._preview=null,this._previewError=null,this._actionError=null,this._pixelFrames=[],this._loadPreview(),this._startLoop()):this._stopLoop()),e.has("_preview")&&(this._pixelFrames=this._preview?this._preview.frames.map((t,s)=>xe(t,32,16,this._preview.delays_ms[s]??100)):[],this._playStartedAt=performance.now())}_startLoop(){if(this._rafId!==null)return;this._playStartedAt=performance.now();let e=()=>{this.requestUpdate(),this._rafId=requestAnimationFrame(e)};this._rafId=requestAnimationFrame(e)}_stopLoop(){this._rafId!==null&&cancelAnimationFrame(this._rafId),this._rafId=null}_currentFrame(){return this._pixelFrames.length===0?null:this._pixelFrames[N(this._pixelFrames,performance.now()-this._playStartedAt)]}_buildOptions(){if(!this.item)return{};let e={...this._adjust};return this._layout!=="auto"&&(e.layout=this._layout),rt(e,this.item.width,this.item.height)}async _loadPreview(){if(!this.item||!this.entryId||!this.hass.callWS)return;let e=++this._requestId;this._previewLoading=!0,this._previewError=null;try{let t=await this.hass.callWS(pr(this.entryId,this.item.source,this.item.id,this._buildOptions()));if(e!==this._requestId)return;this._preview=t}catch(t){if(e!==this._requestId)return;this._previewError=M(t),this._preview=null}finally{e===this._requestId&&(this._previewLoading=!1)}}_selectLayout(e){this._layout=e,this._loadPreview()}_updateAdjust(e){this._adjust={...this._adjust,...e},this._debounceTimer!==void 0&&clearTimeout(this._debounceTimer),this._debounceTimer=setTimeout(()=>void this._loadPreview(),Ss)}_clearBackground(){let{background:e,...t}=this._adjust;this._adjust=t,this._loadPreview()}async _saveToLibrary(){if(!(!this.item||!this.entryId||!this.hass.callWS)){this._saving="save",this._actionError=null;try{await this.hass.callWS(Ht(this.entryId,this.item.source,this.item.id,this._buildOptions())),this.dispatchEvent(new CustomEvent("iledclock-designs-changed",{bubbles:!0,composed:!0})),this._close()}catch(e){this._actionError=M(e)}finally{this._saving=null}}}_close(){this.dispatchEvent(new CustomEvent("close-requested",{bubbles:!0,composed:!0}))}_onKeydown(e){e.key==="Escape"&&this._close()}render(){if(!this.open||!this.item)return c;let e=this.item,t=[];for(let s of["auto",...this._preview?.layouts_available??[]])t.includes(s)||t.push(s);return l`
-      <div class="backdrop" @click=${this._close}></div>
-      <div class="panel" role="dialog" aria-modal="true" aria-label=${e.title} @keydown=${this._onKeydown}>
-        <header>
-          <h2>${e.title}</h2>
-          <button type="button" class="icon-button" @click=${this._close} aria-label="Close">${m("close")}</button>
+          <div class="heading-actions">
+            <lu-pill-button variant="secondary" label="Import file" icon="mdi:upload" @lu-press=${this._requestImport}></lu-pill-button>
+            ${this.designs.length>0?o`<lu-pill-button variant=${this._selectMode?"primary":"quiet"} .label=${this._selectMode?"Done selecting":"Select"} @lu-press=${this._toggleSelectMode}></lu-pill-button>`:u}
+          </div>
         </header>
-        <div class="body">
-          ${this._actionError?l`<p class="error">${this._actionError}</p>`:c}
-          <div class="preview-plate">
-            ${this._pixelFrames.length===0&&this._previewLoading?l`<div class="skeleton"></div>`:l`<iledclock-matrix-canvas .frame=${this._currentFrame()} bloom></iledclock-matrix-canvas>`}
+
+        <div class="toolbar">
+          <label class="search">
+            <span class="sr-only">Search designs</span>
+            ${y("zoomIn")}
+            <input type="search" autocomplete="off" placeholder="Search designs" .value=${this._query} @input=${a=>this._query=a.currentTarget.value} />
+          </label>
+          <div class="sort" role="group" aria-label="Sort designs">
+            <span class="sort-label">Sort</span>
+            ${["recent","name"].map(a=>o`
+              <button type="button" class="choice ${this._sort===a?"active":""}" aria-pressed=${this._sort===a} @click=${()=>this._setSort(a)}>${a==="recent"?"Recent":"Name"}</button>
+            `)}
           </div>
-          ${this._previewError?l`<p class="error">${this._previewError}</p>`:c}
-          <iledclock-segmented-picker
-            group-label="Layout"
-            content-fit
-            .options=${t.map(s=>({value:s,label:it(s)}))}
-            .value=${this._layout}
-            @option-selected=${s=>this._selectLayout(s.detail.value)}
-          ></iledclock-segmented-picker>
-          ${this._layout==="auto"&&this._preview&&ie(this._preview.report.notes)?l`<p class="hint">${ie(this._preview.report.notes)}</p>`:c}
-          <button type="button" class="disclosure" @click=${()=>this._adjustOpen=!this._adjustOpen}>
-            ${m(this._adjustOpen?"chevronUp":"chevronDown")} Adjust
+        </div>
+        <div class="filters" role="group" aria-label="Filter designs">
+          ${Ln.map(a=>o`
+            <button type="button" class="choice ${this._filter===a.value?"active":""}" aria-pressed=${this._filter===a.value} @click=${()=>this._setFilter(a.value)}>${a.label}</button>
+          `)}
+        </div>
+
+        ${this.error?o`<lu-error .message=${this.error} @retry=${()=>this._dispatch("retry-designs")}></lu-error>`:u}
+        ${this.loading?o`<div class="loading-grid" role="status" aria-label="Loading designs"><lu-skeleton variant="card" label="Loading design"></lu-skeleton><lu-skeleton variant="card" label="Loading design"></lu-skeleton><lu-skeleton variant="card" label="Loading design"></lu-skeleton></div>`:u}
+        ${!this.loading&&!this.error&&this.designs.length===0?o`
+          <div class="empty-state">
+            <lu-empty title="No designs yet" message="Create a design or bring artwork in from Explore." action-label="Create" icon="mdi:image-plus-outline" @empty-action=${()=>this._navigate("create")}></lu-empty>
+            <lu-pill-button variant="secondary" label="Explore artwork" icon="mdi:compass-outline" @lu-press=${()=>this._navigate("explore")}></lu-pill-button>
+          </div>
+        `:u}
+        ${!this.loading&&!this.error&&this.designs.length>0&&e.length===0?o`<lu-empty title="No matching designs" message="Try a different search or filter." action-label="Clear filters" @empty-action=${()=>{this._query="",this._filter="all"}}></lu-empty>`:u}
+        ${!this.loading&&!this.error&&e.length>0?o`
+          <div class="grid" aria-label="Saved designs">
+            ${e.map(a=>this._renderDesignTile(a))}
+          </div>
+        `:u}
+
+        ${this._selectMode&&this._selectedIds.length>0?o`
+          <div class="selection-bar" role="group" aria-label="Selected design actions">
+            <span class="selection-count" aria-live="polite">${this._selectedIds.length} selected</span>
+            <lu-pill-button variant="secondary" label="Add to rotation" icon="mdi:playlist-plus" ?disabled=${this.disabled} @lu-press=${()=>this._addToRotation([...this._selectedIds])}></lu-pill-button>
+            <iledclock-hold-button label="Hold to delete selected" complete-label="Deleted" danger ?disabled=${this.disabled} @confirmed=${this._deleteSelected}></iledclock-hold-button>
+          </div>
+        `:u}
+
+        <lu-sheet .open=${s} .label=${t?.name??"Design not found"} @closed=${this._closeDesignSheet}>
+          <div slot="header" class="sheet-title">
+            <div>
+              <h2>${t?.name??"Design not found"}</h2>
+              <p>${t?t.kind==="animation"?"Animated design":"Still design":"This design may have been deleted."}</p>
+            </div>
+          </div>
+          ${t?this._renderDesignSheet(t):o`
+            <lu-empty title="Design not found" message="This saved design is no longer available." action-label="Back to Library" @empty-action=${this._closeDesignSheet}></lu-empty>
+          `}
+        </lu-sheet>
+      </section>
+    `}_renderDesignTile(e){let t=Fs(e),s=this._selectedIds.includes(e.id),a=e,n=a.origin!==void 0&&a.origin!==null;return o`
+      <article class="design-tile ${s?"selected":""}">
+        <iledclock-art-tile
+          item-id=${e.id}
+          aspect="design"
+          .frames=${t}
+          .delays=${e.delays}
+          ?animated=${e.kind==="animation"}
+          .title=${e.name}
+          .subtitle=${e.kind==="animation"?"Animated":"Still"}
+          @tile-selected=${this._onTileSelected}
+        >
+          ${e.kind==="animation"?o`<lu-chip slot="badges" label="Animated" kind="neutral"></lu-chip>`:u}
+          ${tr(e)?o`<lu-chip slot="badges" label="With clock" kind="info"></lu-chip>`:u}
+          ${n?o`<lu-chip slot="badges" label="Explore" kind="neutral"></lu-chip>`:u}
+        </iledclock-art-tile>
+        ${this._selectMode?o`
+          <button type="button" class="select-toggle ${s?"selected":""}" aria-pressed=${s} aria-label=${`${s?"Deselect":"Select"} ${e.name}`} @click=${()=>this._toggleSelected(e.id)}>
+            <span aria-hidden="true">${s?y("check"):y("plus")}</span>
+            ${s?"Selected":"Select"}
           </button>
-          ${this._adjustOpen?this._renderAdjust(e):c}
-          ${this._renderCredit(e)}
+        `:u}
+      </article>
+    `}_renderDesignSheet(e){let t=Fs(e),s=this._renameValue.trim().length>0&&this._renameValue.trim()!==e.name;return o`
+      <div class="design-sheet-body">
+        <div class="hero"><iledclock-led-preview context="hero" .frames=${t} .delays=${e.delays} ?playing=${e.kind==="animation"} .label=${e.name}></iledclock-led-preview></div>
+        <label class="rename-field">
+          <span>Design name</span>
+          <input type="text" maxlength="80" autocomplete="off" .value=${this._renameValue||e.name} ?disabled=${this.disabled} @input=${this._renameInput} @keydown=${a=>this._onRenameKeydown(a,e)} />
+        </label>
+        <div class="rename-action"><lu-pill-button variant="secondary" label="Save name" ?disabled=${this.disabled||!s} @lu-press=${()=>this._saveRename(e)}></lu-pill-button></div>
+        <div class="design-actions">
+          <lu-pill-button variant="primary" label="Show on clock" icon="mdi:television-play" ?disabled=${this.disabled} @lu-press=${()=>this._show(e)}></lu-pill-button>
+          <lu-pill-button variant="secondary" label="Edit" icon="mdi:draw" ?disabled=${this.disabled} @lu-press=${()=>this._edit(e)}></lu-pill-button>
+          <lu-pill-button variant="secondary" label="Duplicate" icon="mdi:content-copy" ?disabled=${this.disabled} @lu-press=${()=>this._duplicate(e.id)}></lu-pill-button>
+          <lu-pill-button variant="secondary" label="Add to rotation" icon="mdi:playlist-plus" ?disabled=${this.disabled} @lu-press=${()=>this._addToRotation([e.id])}></lu-pill-button>
         </div>
+        <div class="delete-action"><iledclock-hold-button label="Hold to delete design" complete-label="Deleted" danger ?disabled=${this.disabled} @confirmed=${()=>this._delete(e.id)}></iledclock-hold-button></div>
+      </div>
+    `}};ct.properties={designs:{attribute:!1},loading:{type:Boolean},error:{type:String},disabled:{type:Boolean},route:{attribute:!1},_query:{state:!0},_filter:{state:!0},_sort:{state:!0},_selectMode:{state:!0},_selectedIds:{state:!0},_renameValue:{state:!0}},ct.styles=[g,_,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .library { display: grid; gap: var(--lu-space-4); min-width: 0; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--lu-space-3); }
+    h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); letter-spacing: -.01em; }
+    .subtitle { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .heading-actions { display: flex; flex-wrap: wrap; gap: var(--lu-space-2); }
+    .toolbar { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: var(--lu-space-3); }
+    .search { display: flex; align-items: center; gap: var(--lu-space-2); flex: 1 1 14rem; min-width: 0; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-card); color: var(--lu-ink-2); }
+    .search > svg { width: var(--lu-space-5); height: var(--lu-space-5); flex: none; }
+    .search input { width: 100%; min-width: 0; min-height: var(--lu-target); border: 0; outline: 0; color: var(--lu-ink); background: transparent; font: 400 var(--lu-type-body)/1.2 var(--lu-font); }
+    .search:focus-within { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .sort, .filters { display: flex; align-items: center; flex-wrap: wrap; gap: var(--lu-space-1); min-width: 0; }
+    .sort-label { padding-inline: var(--lu-space-2); color: var(--lu-ink-3); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .choice { display: inline-flex; justify-content: center; align-items: center; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: transparent; font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .choice.active { border-color: transparent; color: var(--lu-accent-ink); background: var(--lu-accent); }
+    .choice:focus-visible, .select-toggle:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 132px), 1fr)); gap: var(--lu-space-3); min-width: 0; }
+    .design-tile { position: relative; min-width: 0; padding: var(--lu-space-1); border-radius: var(--lu-radius-tile); border: 1px solid transparent; }
+    .design-tile.selected { border-color: var(--lu-accent); background: var(--lu-accent-soft); }
+    .select-toggle { display: flex; justify-content: center; align-items: center; gap: var(--lu-space-2); width: 100%; min-height: var(--lu-target); margin-top: var(--lu-space-2); padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: transparent; font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .select-toggle.selected { border-color: var(--lu-edge-raised); color: var(--lu-ink); background: var(--lu-glass-raised); }
+    .loading-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 132px), 1fr)); gap: var(--lu-space-3); }
+    .empty-state { display: grid; justify-items: center; gap: var(--lu-space-3); padding: var(--lu-space-4); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); }
+    .selection-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--lu-space-2); padding: var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); }
+    .selection-count { margin-inline-end: auto; color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.3 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .sheet-title { min-width: 0; }
+    .sheet-title h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sheet-title p { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.35 var(--lu-font); }
+    .design-sheet-body { display: grid; gap: var(--lu-space-3); padding-bottom: var(--lu-space-2); }
+    .hero { display: grid; place-items: center; min-width: 0; overflow: hidden; border-radius: var(--lu-radius-tile); }
+    .hero iledclock-led-preview { width: 100%; }
+    .rename-field { display: grid; gap: var(--lu-space-2); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.25 var(--lu-font); }
+    .rename-field input { box-sizing: border-box; width: 100%; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 400 var(--lu-type-body)/1.2 var(--lu-font); }
+    .rename-field input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .rename-action { display: flex; justify-content: flex-end; }
+    .design-actions { display: flex; flex-wrap: wrap; gap: var(--lu-space-2); }
+    .delete-action { display: flex; justify-content: flex-end; }
+    .delete-action iledclock-hold-button { width: min(100%, 20rem); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @container (min-width: 720px) { .grid, .loading-grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); } }
+    @container (max-width: 420px) { .heading-actions { width: 100%; } .heading-actions > * { flex: 1 1 auto; } .selection-bar { justify-content: stretch; } .selection-bar > * { flex: 1 1 10rem; } .selection-count { flex-basis: 100%; } .delete-action iledclock-hold-button { width: 100%; } }
+  `];customElements.define("iledclock-library-panel",ct);var Mn=["clock","date","text","design","timer","scoreboard","temperature","humidity"],Ns=new WeakMap;function Tn(r){let i=Ns.get(r);return i||(i=G(r),Ns.set(r,i)),i}var ut=class extends m{constructor(){super();this._dragOriginalIndex=null;this._dragTarget=null;this._rowRefs=new Map;this.items=[],this.maxItems=9,this.designs=[],this.disabled=!1,this._addKind="clock",this._designId="",this._timerMode="countdown"}willUpdate(e){e.has("designs")&&(this.designs.some(t=>t.id===this._designId)||(this._designId=this.designs[0]?.id??""))}_emit(e){this.dispatchEvent(new CustomEvent("items-changed",{detail:{items:e},bubbles:!0,composed:!0}))}_updateDuration(e,t){this._emit(Ds(this.items,e,t.detail.value))}_move(e,t){this.disabled||this._emit(di(this.items,e,e+t))}_remove(e){this.disabled||this._emit(Ps(this.items,e))}_addItem(){if(this.disabled||this.items.length>=this.maxItems||this._addKind==="design"&&!this.designs.some(t=>t.id===this._designId))return;let e=li(this._addKind,this.designs);e.kind==="design"&&(e.params={design_id:this._designId}),e.kind==="timer"&&(e.params={mode:this._timerMode}),this._emit([...this.items,e])}_onPointerDown(e,t){this.disabled||(t.preventDefault(),t.currentTarget.setPointerCapture(t.pointerId),this._dragOriginalIndex=e,this._dragTarget=e)}_onPointerMove(e){if(this._dragOriginalIndex===null)return;let t=[];for(let a=0;a<this.items.length;a++){let n=this._rowRefs.get(a);n&&t.push(n.getBoundingClientRect())}let s=oi(t,"y",e);s!==this._dragTarget&&(this._dragTarget=s,this.requestUpdate())}_onPointerUp(){if(this._dragOriginalIndex===null)return;let e=this._dragOriginalIndex,t=this._dragTarget;this._dragOriginalIndex=null,this._dragTarget=null,t!==null&&t!==e&&this._emit(di(this.items,e,t))}_itemDesign(e){if(e.kind==="design")return this.designs.find(t=>t.id===e.params.design_id)}_renderThumbnail(e){let t=this._itemDesign(e);return t?o`<div class="thumbnail design-thumbnail"><iledclock-led-preview context="thumb" .frames=${Tn(t)} .delays=${t.delays} ?playing=${t.kind==="animation"} .label=${t.name}></iledclock-led-preview></div>`:o`<div class="thumbnail" aria-hidden="true">${y(Ls(e,this.designs))}</div>`}render(){let e=this._dragOriginalIndex!==null&&this._dragTarget!==null?di(this.items,this._dragOriginalIndex,this._dragTarget):this.items,t=e.length>=this.maxItems,s=this._addKind==="design"&&!this.designs.some(a=>a.id===this._designId);return o`
+      ${e.length===0?o`<lu-empty title="No rotation yet" message="Add a clock, design, timer, or live reading to choose what the clock shows."></lu-empty>`:o`
+        <ol class="rows" aria-label="Rotation order">
+          ${e.map((a,n)=>{let l=Ms(a,this.designs);return o`<li class="row" ${A(d=>d?this._rowRefs.set(n,d):this._rowRefs.delete(n))}>
+              ${this._renderThumbnail(a)}
+              <div class="row-copy"><span class="row-title">${l}</span><span class="row-kind">${er(a.kind)}</span></div>
+              <span class="icon-button drag-handle ${this.disabled?"disabled":""}" aria-hidden="true" @pointerdown=${d=>this._onPointerDown(n,d)} @pointermove=${this._onPointerMove} @pointerup=${this._onPointerUp} @pointercancel=${this._onPointerUp} @lostpointercapture=${this._onPointerUp}>${y("drag")}</span>
+              <div class="row-controls">
+                <div class="duration"><span>Duration</span><iledclock-stepper .value=${a.duration_s} min="1" max="3600" step="1" .label=${`Duration for ${l} in seconds`} ?disabled=${this.disabled} @value-selected=${d=>this._updateDuration(n,d)}></iledclock-stepper><span class="unit">s</span></div>
+                <button class="icon-button" type="button" aria-label=${`Move ${l} up`} ?disabled=${this.disabled||n===0} @click=${()=>this._move(n,-1)}>${y("chevronUp")}</button>
+                <button class="icon-button" type="button" aria-label=${`Move ${l} down`} ?disabled=${this.disabled||n===e.length-1} @click=${()=>this._move(n,1)}>${y("chevronDown")}</button>
+                <button class="icon-button remove" type="button" aria-label=${`Remove ${l}`} ?disabled=${this.disabled} @click=${()=>this._remove(n)}>${y("close")}</button>
+              </div>
+            </li>`})}
+        </ol>
+      `}
+      <div class="add-panel">
+        <div class="add-count" role="status">${e.length} / ${this.maxItems} programs</div>
+        <div class="add-controls">
+          <label class="add-field">Add menu<select aria-label="Choose a program to add" .value=${this._addKind} ?disabled=${this.disabled||t} @change=${a=>this._addKind=a.currentTarget.value}>
+            ${Mn.map(a=>o`<option value=${a}>${er(a)}</option>`)}
+          </select></label>
+          ${this._addKind==="design"?o`<label class="add-field">Design<select aria-label="Choose a design" .value=${this._designId} ?disabled=${this.disabled||t||this.designs.length===0} @change=${a=>this._designId=a.currentTarget.value}>
+            ${this.designs.length===0?o`<option value="">No designs saved</option>`:this.designs.map(a=>o`<option value=${a.id}>${a.name}</option>`)}
+          </select></label>`:u}
+          ${this._addKind==="timer"?o`<label class="add-field">Timer mode<select aria-label="Choose timer mode" .value=${this._timerMode} ?disabled=${this.disabled||t} @change=${a=>this._timerMode=a.currentTarget.value}><option value="countdown">Countdown</option><option value="stopwatch">Stopwatch</option></select></label>`:u}
+          <button type="button" class="add-button" ?disabled=${this.disabled||t||s} @click=${this._addItem}>${y("plus")} Add</button>
+        </div>
+        ${t?o`<p class="limit-hint">This clock can hold ${this.maxItems} programs. Remove one to add another.</p>`:u}
+      </div>
+    `}};ut.properties={items:{attribute:!1},maxItems:{type:Number,attribute:"max-items"},designs:{attribute:!1},disabled:{type:Boolean},_addKind:{state:!0},_designId:{state:!0},_timerMode:{state:!0}},ut.styles=[g,_,v`
+    :host { display: grid; gap: var(--lu-space-3); min-width: 0; }
+    .rows { display: grid; gap: var(--lu-space-2); margin: 0; padding: 0; list-style: none; }
+    .row { display: grid; grid-template-columns: 64px minmax(0,1fr) 48px; align-items: center; gap: var(--lu-space-2); min-width: 0; padding: var(--lu-space-2); border-radius: var(--lu-radius-row); border-bottom: 1px solid var(--lu-edge); }
+    .thumbnail { display: grid; place-items: center; width: 64px; height: 32px; overflow: hidden; border-radius: var(--lu-radius-control); color: var(--lu-ink-2); background: var(--lu-tile); }
+    .thumbnail.design-thumbnail { background: #050607; }
+    .design-thumbnail iledclock-led-preview { width: 100%; height: 100%; }
+    .row-copy { display: grid; gap: var(--lu-space-1); min-width: 0; }
+    .row-title { overflow: hidden; color: var(--lu-ink); font: 500 var(--lu-type-label)/1.3 var(--lu-font); text-overflow: ellipsis; white-space: nowrap; }
+    .row-kind { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .row-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; grid-column: 1 / -1; gap: var(--lu-space-1); min-width: 0; }
+    .duration { display: inline-flex; align-items: center; gap: var(--lu-space-1); margin-inline-end: auto; color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .duration iledclock-stepper { min-width: 144px; }
+    .unit { color: var(--lu-ink-3); font-variant-numeric: tabular-nums; }
+    .icon-button { display: inline-grid; place-items: center; flex: none; width: var(--lu-target); height: var(--lu-target); padding: 0; border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: transparent; cursor: pointer; touch-action: none; }
+    .icon-button:active:not(:disabled) { background: var(--lu-glass-raised); }
+    .icon-button:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .icon-button:disabled { opacity: .45; cursor: default; }
+    .drag-handle { color: var(--lu-ink-3); cursor: grab; }
+    .drag-handle:active { cursor: grabbing; }
+    .drag-handle.disabled { opacity: .45; cursor: default; pointer-events: none; }
+    .remove { color: var(--lu-ink-2); }
+    .add-panel { display: grid; gap: var(--lu-space-2); padding-top: var(--lu-space-2); }
+    .add-count { color: var(--lu-ink-3); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .add-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--lu-space-2); }
+    .add-field { display: grid; flex: 1 1 10rem; gap: var(--lu-space-1); min-width: min(100%, 9rem); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    select { box-sizing: border-box; width: 100%; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 400 var(--lu-type-label)/1.2 var(--lu-font); }
+    select:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .add-button { display: inline-flex; align-items: center; justify-content: center; gap: var(--lu-space-2); min-width: 7rem; min-height: var(--lu-target); padding: 0 var(--lu-space-4); border: 1px solid var(--lu-edge-raised); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: var(--lu-glass-raised); font: 600 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .add-button:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .add-button:disabled { opacity: .5; cursor: default; }
+    .limit-hint { margin: 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    @container (min-width: 760px) { .row { grid-template-columns: 64px minmax(0,1fr) 48px auto; } .row-controls { grid-column: auto; flex-wrap: nowrap; } .duration { margin-inline-end: var(--lu-space-1); } }
+    @container (max-width: 360px) { .row { grid-template-columns: 56px minmax(0,1fr) 48px; gap: var(--lu-space-1); padding: var(--lu-space-1); } .thumbnail { width: 56px; } .duration { flex-basis: 100%; } .add-button { flex: 1 1 100%; } }
+  `];customElements.define("iledclock-playlist-editor",ut);var pt=class extends m{constructor(){super(),this.value="now",this.options=[],this.label="Studio sections"}_select(i){i!==this.value&&this.dispatchEvent(new CustomEvent("destination-selected",{detail:{value:i},bubbles:!0,composed:!0}))}_onKeydown(i,e){let t=this.options.length-1,s=e;if(i.key==="ArrowRight"||i.key==="ArrowDown")s=(e+1)%this.options.length;else if(i.key==="ArrowLeft"||i.key==="ArrowUp")s=(e+t)%this.options.length;else if(i.key==="Home")s=0;else if(i.key==="End")s=t;else return;i.preventDefault();let a=this.options[s];a&&(this._select(a.value),this.updateComplete.then(()=>this.renderRoot.querySelector(`[data-index="${s}"]`)?.focus()))}render(){return o`<nav aria-label=${this.label}>
+      <div class="tabs" role="tablist" aria-label=${this.label}>${this.options.map((i,e)=>o`
+        <button type="button" role="tab" class="nav-item ${i.value===this.value?"selected":""}" aria-selected=${i.value===this.value?"true":"false"} tabindex=${i.value===this.value?"0":"-1"} data-index=${e} @click=${()=>this._select(i.value)} @keydown=${t=>this._onKeydown(t,e)}>
+          <ha-icon .icon=${i.icon} aria-hidden="true"></ha-icon><span>${i.label}</span>
+        </button>`)}
+      </div>
+    </nav>`}};pt.properties={value:{type:String},options:{attribute:!1},label:{type:String}},pt.styles=[g,_,v`
+    :host { display: block; width: 100%; container-type: inline-size; z-index: 2; }
+    nav { display: flex; justify-content: flex-start; min-width: 0; }
+    .tabs { position: sticky; top: 0; z-index: 2; display: inline-flex; gap: var(--lu-space-1); padding: var(--lu-space-1); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-card); }
+    .nav-item { display: inline-flex; align-items: center; justify-content: center; gap: var(--lu-space-2); min-width: var(--lu-target); min-height: var(--lu-target); padding: 0 var(--lu-space-4); border: 0; border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: transparent; font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .nav-item ha-icon { flex: none; }
+    .nav-item.selected { color: var(--lu-accent-ink); background: var(--lu-accent); }
+    .nav-item:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    @container (max-width: 719px) {
+      nav { justify-content: stretch; }
+      .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 100; display: grid; height: 55px; box-sizing: content-box; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: var(--lu-space-1); padding: var(--lu-space-1) var(--lu-space-2) calc(var(--lu-space-1) + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid var(--lu-edge); border-radius: 0; background: color-mix(in srgb, var(--lu-card) 88%, transparent); backdrop-filter: blur(var(--lu-blur)) saturate(1.2); }
+      .nav-item { flex-direction: column; gap: var(--lu-space-1); min-height: 48px; padding: var(--lu-space-1); font-size: var(--lu-type-caption); }
+      .nav-item span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
+    }
+    @media (prefers-reduced-motion: reduce) { .nav-item { transition: none; } }
+  `];customElements.define("lu-nav",pt);var An=[{value:"now",label:"Now",icon:"mdi:television-play"},{value:"create",label:"Create",icon:"mdi:draw"},{value:"explore",label:"Explore",icon:"mdi:compass-outline"},{value:"library",label:"Library",icon:"mdi:view-grid-outline"}],ht=class extends m{constructor(){super();this._unsubscribe=null;this._onLocationChanged=()=>{let e=Ke(window.location.href);e.destination===this.route.destination&&e.item===this.route.item&&e.design===this.route.design||this._setRoute(e,!1)};this._onDestinationSelected=e=>{let t=e.detail.value;t!=="now"&&t!=="create"&&t!=="explore"&&t!=="library"||this._setRoute({destination:t},!0)};this._onDeviceSelected=e=>{let t=e.currentTarget.value;this.dispatchEvent(new CustomEvent("device-selected",{detail:{deviceId:t},bubbles:!0,composed:!0}))};this._onMenu=()=>{this.dispatchEvent(new CustomEvent("hass-toggle-menu",{bubbles:!0,composed:!0}))};this._openSettings=()=>{this.dispatchEvent(new CustomEvent("settings-requested",{bubbles:!0,composed:!0}))};this._openNow=()=>this._setRoute({destination:"now"},!0);this._onToast=e=>{let t=this.renderRoot.querySelector("lu-toast");e.detail&&typeof e.detail.message=="string"&&t?.enqueue?.(e.detail)};this._onOpenDesign=e=>{let t=e.detail?.design_id;t&&this._setRoute({destination:"create",design:t},!0)};this.route=typeof window>"u"?{destination:"now"}:Ke(window.location.href),this.narrow=!1,this._status=null,this._upload=null}connectedCallback(){super.connectedCallback(),window.addEventListener("popstate",this._onLocationChanged),window.addEventListener("location-changed",this._onLocationChanged),this.addEventListener("lu-toast",this._onToast),this.addEventListener("iledclock-open-design",this._onOpenDesign)}disconnectedCallback(){super.disconnectedCallback(),window.removeEventListener("popstate",this._onLocationChanged),window.removeEventListener("location-changed",this._onLocationChanged),this.removeEventListener("lu-toast",this._onToast),this.removeEventListener("iledclock-open-design",this._onOpenDesign),this._unsubscribe&&this._unsubscribe()}willUpdate(e){(e.has("entryId")||e.has("hass"))&&this.hass&&this.entryId!==this._subscribedEntryId&&this._loadStatus()}_devices(){if(!this.hass)return[];let e=Object.values(this.hass.entities).filter(s=>s.platform==="iledclock"&&s.device_id);return[...new Set(e.map(s=>s.device_id).filter(s=>!!s))].map(s=>{let a=this.hass.devices[s];return{deviceId:s,entryId:le(this.hass.devices,s),name:a?.name_by_user||a?.name||"iLedClock"}})}async _loadStatus(){let e=this.entryId;if(this._unsubscribe&&(this._unsubscribe(),this._unsubscribe=null),this._subscribedEntryId=e,this._status=null,this._upload=null,!(!e||!this.hass.callWS))try{let t=await this.hass.callWS({type:"iledclock/state",entry_id:e});if(e!==this.entryId)return;this._status=t,this._notifyClockStatus(t),this.hass.connection&&(this._unsubscribe=await this.hass.connection.subscribeMessage(s=>{e===this.entryId&&(s.type==="upload"?this._upload=s.upload===null||s.state==="done"||s.state==="error"?null:s:(this._status=s,this._notifyClockStatus(s)))},{type:"iledclock/subscribe",entry_id:e}))}catch{e===this.entryId&&(this._status=null)}}_notifyClockStatus(e){this.dispatchEvent(new CustomEvent("clock-status",{detail:e,bubbles:!0,composed:!0}))}_setRoute(e,t){this.route=e,t&&T(e),this.dispatchEvent(new CustomEvent("route-changed",{detail:{route:e},bubbles:!0,composed:!0}))}_statusLabel(){if(this._upload){let e=this._upload.upload;return e&&e.total>0?"Sending "+Math.round(e.done/e.total*100)+"%":"Sending"}return this._status?this._status.connected?"Connected":"Out of range":this.entryId?"Connecting":"No clock"}render(){let e=this._devices(),t=this._status?.connected?"positive":this._status?"warning":"neutral";return o`<div class="shell">
+      <header class="app-bar">
+        ${this.narrow?o`<lu-icon-button icon="mdi:menu" tooltip="Show sidebar" aria-label="Show sidebar" @lu-press=${this._onMenu}></lu-icon-button>`:u}
+        <h1>Pixel Studio</h1>
+        <button type="button" class="clock-chip ${t}" aria-label=${"Clock status: "+this._statusLabel()} @click=${this._openNow}><span class="dot"></span><span class="status-label">${this._statusLabel()}</span></button>
+        ${e.length>1?o`<select class="device-picker" aria-label="Choose iLedClock" .value=${this.deviceId??e[0]?.deviceId??""} @change=${this._onDeviceSelected}>${e.map(s=>o`<option value=${s.deviceId}>${s.name}</option>`)}</select>`:u}
+        <lu-icon-button icon="mdi:cog-outline" tooltip="Settings" aria-label="Settings" @lu-press=${this._openSettings}></lu-icon-button>
+      </header>
+      <lu-nav .options=${An} .value=${this.route.destination} @destination-selected=${this._onDestinationSelected}></lu-nav>
+      <main class="content"><slot></slot></main>
+      <lu-toast></lu-toast>
+    </div>`}};ht.properties={hass:{attribute:!1},entryId:{attribute:!1},route:{attribute:!1},narrow:{type:Boolean},deviceId:{attribute:!1},_status:{state:!0},_upload:{state:!0}},ht.styles=[g,_,v`
+    :host { display: block; min-height: 100%; color: var(--lu-ink); font-family: var(--lu-font); container-type: inline-size; }
+    .shell { display: flex; min-height: 100%; flex-direction: column; }
+    .app-bar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: var(--lu-space-2); min-height: var(--header-height, 56px); padding: 0 var(--lu-space-3); color: var(--app-header-text-color, var(--lu-ink)); background: var(--app-header-background-color, var(--lu-card)); border-bottom: 1px solid var(--lu-edge); }
+    h1 { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; color: inherit; font: 600 var(--lu-type-title)/1.2 var(--lu-font); letter-spacing: -0.015em; text-overflow: ellipsis; white-space: nowrap; }
+    .clock-chip { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: var(--lu-space-2); min-width: var(--lu-target); min-height: var(--lu-target); padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: var(--lu-tile); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); cursor: pointer; }
+    .clock-chip.positive .dot { background: var(--lu-positive); }
+    .clock-chip.warning .dot { background: var(--lu-warning); }
+    .dot { width: var(--lu-space-2); height: var(--lu-space-2); flex: none; border-radius: var(--lu-radius-pill); background: var(--lu-ink-3); }
+    .status-label { overflow: hidden; max-width: 10ch; text-overflow: ellipsis; white-space: nowrap; }
+    .device-picker { flex: 0 1 9rem; min-width: var(--lu-target); max-width: 9rem; height: var(--lu-target); padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .content { width: min(100%, 1200px); box-sizing: border-box; margin: 0 auto; padding: var(--lu-space-4) var(--lu-space-4) var(--lu-space-6); }
+    @container (min-width: 720px) { .content { padding: var(--lu-space-5) var(--lu-space-6) var(--lu-space-6); } }
+    @container (max-width: 719px) { .content { padding-bottom: calc(64px + var(--lu-space-4) + env(safe-area-inset-bottom)); } }
+    @container (max-width: 380px) { .app-bar { gap: var(--lu-space-1); padding-inline: var(--lu-space-2); } .status-label { max-width: 8ch; } .device-picker { max-width: 5rem; } }
+  `];customElements.define("iledclock-app-shell",ht);function ir(r){let{kind:i,title:e,shown_at:t,unavailable:s,...a}=r;return!i||s?null:i==="design"?typeof a.design_id=="string"?{design_id:a.design_id}:null:(i==="generative"&&typeof a.effect=="string"&&(a.kind=a.effect,delete a.effect),{spec:{type:i,...a}})}var mt=class extends m{constructor(){super(),this.icon="",this.headline="",this.subline="",this.status="",this.statusKind="neutral"}render(){return o`
+      <section class="surface" aria-label=${this.headline||"Device status"}>
+        <div class="hero"><slot name="hero"></slot></div>
+        <div class="summary">
+          <header>
+            <div class="title-row">
+              ${this.icon?o`<ha-icon .icon=${this.icon} aria-hidden="true"></ha-icon>`:""}
+              <h1>${this.headline}</h1>
+            </div>
+            ${this.status?o`<lu-chip label=${this.status} kind=${this.statusKind}></lu-chip>`:""}
+          </header>
+          ${this.subline?o`<p class="subline">${this.subline}</p>`:""}
+          <div class="details"><slot></slot></div>
+          <div class="actions"><slot name="actions"></slot></div>
+        </div>
+      </section>
+    `}};mt.properties={icon:{type:String},headline:{type:String},subline:{type:String},status:{type:String},statusKind:{type:String,attribute:"status-kind"}},mt.styles=[g,_,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .surface { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--lu-space-4); padding: var(--lu-space-4); }
+    .hero { min-width: 0; display: flex; justify-content: center; align-items: center; }
+    .summary { min-width: 0; }
+    header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--lu-space-3); }
+    .title-row { display: flex; align-items: center; gap: var(--lu-space-2); min-width: 0; }
+    .title-row ha-icon { color: var(--lu-ink-2); flex: none; }
+    h1 { margin: 0; min-width: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); letter-spacing: -0.015em; overflow-wrap: anywhere; }
+    .subline { color: var(--lu-ink-2); margin: var(--lu-space-2) 0 0; font: 400 var(--lu-type-body)/1.5 var(--lu-font); }
+    .details:empty, .actions:empty { display: none; }
+    .details { margin-top: var(--lu-space-4); color: var(--lu-ink-2); }
+    .actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--lu-space-2); margin-top: var(--lu-space-4); }
+    @container (min-width: 640px) {
+      .surface { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); align-items: center; padding: var(--lu-space-5); }
+      .summary { padding: var(--lu-space-2) var(--lu-space-3); }
+    }
+  `];customElements.define("lu-status-sheet",mt);var vt=class extends m{constructor(){super(),this.title="",this.icon="",this.description=""}render(){return o`
+      <section class="surface" aria-label=${this.title}>
+        <header class="heading">
+          <div class="heading-main">
+            <slot name="icon">${this.icon?o`<ha-icon .icon=${this.icon} aria-hidden="true"></ha-icon>`:""}</slot>
+            <div class="heading-text">
+              <h2>${this.title}</h2>
+              ${this.description?o`<p>${this.description}</p>`:""}
+            </div>
+          </div>
+          <slot name="trailing"></slot>
+        </header>
+        <div class="content"><slot></slot></div>
+      </section>
+    `}};vt.properties={title:{type:String},icon:{type:String},description:{type:String}},vt.styles=[g,_,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .surface { padding: var(--lu-space-4); }
+    .heading { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-3); margin-bottom: var(--lu-space-4); }
+    .heading-main { display: flex; align-items: center; gap: var(--lu-space-3); min-width: 0; }
+    .heading-main ha-icon, ::slotted([slot="icon"]) { color: var(--lu-ink-2); flex: none; }
+    .heading-text { min-width: 0; }
+    h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); letter-spacing: -0.01em; }
+    p { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .content { min-width: 0; }
+    @container (min-width: 720px) { .surface { padding: var(--lu-space-5); } }
+  `];customElements.define("lu-section",vt);var Pn=$(32,16),ci=[Pn];function Bs(r){return r.frames.map((i,e)=>{let t=atob(i),s=new Uint8Array(32*16*3);for(let a=0;a<Math.min(t.length,s.length);a++)s[a]=t.charCodeAt(a);return{width:32,height:16,pixels:s,durationMs:r.delays[e]??100}})}function rr(r){return r?[r.kind,r.shown_at??"",r.design_id??"",r.style??"",r.text??""].join("|"):"empty"}function Vs(r){let i=r?.night_mode;if(!i?.enabled)return"Night mode off";let e=String(i.start_h).padStart(2,"0")+":"+String(i.start_m).padStart(2,"0"),t=String(i.end_h).padStart(2,"0")+":"+String(i.end_m).padStart(2,"0");return"Night mode "+e+"\u2013"+t}function Dn(r){return r.unavailable?typeof r.reason=="string"?r.reason:"This item is no longer available.":ir(r)?null:"This item cannot be shown again."}var gt=class extends m{constructor(){super();this._unsubscribe=null;this._previewRevision=0;this._subscriptionRevision=0;this._previewKey="";this.narrow=!1,this._envelope=null,this._frames=[],this._delays=[],this._loading=!1,this._error=null,this._previewLoading=!1,this._previewError=null,this._upload=null,this._busy=null}connectedCallback(){super.connectedCallback(),this.entryId&&this.entryId===this._lastEntryId&&!this._unsubscribe&&(this._lastConnection=this.hass?.connection,this._load(this.entryId))}willUpdate(e){let t=e.has("entryId")&&this.entryId!==this._lastEntryId,s=this.hass?.connection,a=e.has("hass")&&s!==this._lastConnection;(t||a)&&(this._lastEntryId=this.entryId,this._lastConnection=s,this._load(this.entryId))}disconnectedCallback(){super.disconnectedCallback(),this._unsubscribe&&this._unsubscribe(),this._unsubscribe=null,this._subscriptionRevision++,this._previewRevision++,this._upload=null}_setFrames(e){this._frames=e.length?e:ci,this._delays=this._frames.map(t=>t.durationMs)}async _load(e){this._unsubscribe&&(this._unsubscribe(),this._unsubscribe=null);let t=++this._previewRevision,s=++this._subscriptionRevision;if(this._loading=!1,this._envelope=null,this._setFrames(ci),this._previewKey="",this._error=null,this._upload=null,!(!e||!this.hass?.callWS)){this._loading=!0;try{let a=await this.hass.callWS({type:"iledclock/state",entry_id:e});if(e!==this.entryId||t!==this._previewRevision)return;if(this._envelope=a,this.hass.connection){let n=await this.hass.connection.subscribeMessage(l=>{if(e!==this.entryId||s!==this._subscriptionRevision)return;if(l.type==="upload"){this._upload=l.upload===null||l.state==="done"||l.state==="error"?null:l;return}let d=rr(this._envelope?.now_showing);this._envelope=l,rr(l.now_showing)!==d&&this._loadPreview(l.now_showing??null)},{type:"iledclock/subscribe",entry_id:e});if(e!==this.entryId||s!==this._subscriptionRevision||t!==this._previewRevision||!this.isConnected){n();return}this._unsubscribe=n}await this._loadPreview(a.now_showing??null)}catch(a){e===this.entryId&&(this._error=a instanceof Error?a.message:"Could not load clock status.")}finally{e===this.entryId&&(this._loading=!1)}}}async _loadPreview(e){let t=rr(e);if(t===this._previewKey)return;this._previewKey=t;let s=++this._previewRevision,a=this.entryId;if(this._previewError=null,!e||!a||!this.hass?.callWS){this._setFrames(ci),this._previewLoading=!1;return}this._previewLoading=!0;try{let n;if(e.kind==="design"&&e.design_id){let l=await this.hass.callWS(z(a));if(s!==this._previewRevision)return;let d=l.find(c=>c.id===e.design_id);if(!d)throw new Error("This saved design is no longer in the library.");n=G(d)}else if(e.kind==="clock"){let l=Array.isArray(e.color)&&e.color.length>=3?e.color.slice(0,3).map(Number):[255,255,255],d=await this.hass.callWS(D(a,{type:"clock",style:Number(e.style)||1,color:l,h24:e.h24??e.hours24!==!1}));n=Bs(d)}else if(e.kind==="text"&&typeof e.text=="string"){let l=Array.isArray(e.color)&&e.color.length>=3?e.color.slice(0,3).map(Number):[255,255,255],d=await this.hass.callWS(D(a,{type:"text",text:e.text,color:l,speed:typeof e.speed=="number"?e.speed:128}));n=Bs(d)}else throw new Error("A live preview is not available for this item; keeping the last known image.");s===this._previewRevision&&this._setFrames(n)}catch(n){s===this._previewRevision&&(this._previewError=n instanceof Error?n.message:"Preview unavailable; keeping the last known image.")}finally{s===this._previewRevision&&(this._previewLoading=!1)}}async _showAgain(e){let t=ir(e);!t||!this.entryId||await F(this,this.hass,this.entryId,t,e.title||e.kind)}async _runCommand(e,t){if(!(!this.entryId||!this.hass?.callWS||this._busy)){this._busy=e;try{await this.hass.callWS(fe(this.entryId,e,t))}catch(s){this.dispatchEvent(new CustomEvent("lu-toast",{detail:{message:s instanceof Error?s.message:"The clock could not be updated."},bubbles:!0,composed:!0}))}finally{this._busy=null}}}_setBrightness(e){this._runCommand("brightness",{value:Number(e.target.value)})}_toggleDisplay(){this._runCommand("power",{on:!this._envelope?.state.power})}_editRotation(){T({destination:"library"})}_openNightMode(){this.dispatchEvent(new CustomEvent("settings-requested",{detail:{section:"night-mode"},bubbles:!0,composed:!0}))}_headline(){let e=this._envelope?.state;if(e&&!e.power)return"Display is off";let t=this._envelope?.now_showing;return t?"Showing "+(t.title||t.kind):e?"Clock is ready":"Clock status unavailable"}_subline(){let e=this._envelope?.state;if(!e)return"Waiting for clock status.";let t=this._envelope?.connected?"Connected":"Out of range",s="Brightness "+Math.round(e.brightness)+"%";return t+" \xB7 "+s+" \xB7 "+Vs(e)}_historyReason(e){return Dn(e)}render(){if(!this.entryId)return o`<lu-empty title="No clock connected" message="Add an iLedClock to see what it is showing."></lu-empty>`;if(this._loading)return o`<div class="loading"><lu-skeleton variant="card" height="16rem"></lu-skeleton><lu-skeleton width="40%" height="var(--lu-space-4)"></lu-skeleton></div>`;if(this._error)return o`<lu-error message=${this._error} @retry=${()=>void this._load(this.entryId)}></lu-error>`;let e=this._envelope,t=e?.state??null,s=!!e?.connected,a=this._upload?.upload,n=a&&a.total>0?Math.max(0,Math.min(100,Math.round(a.done/a.total*100))):null,l=n!==null?"Sending "+n+"%":this._upload?"Sending":s?"Connected":"Out of range",d=this._upload?"info":s?"positive":"warning",c=this._frames.length?this._frames:ci,p=e?.history?.slice(0,8)??[];return o`<div class="destination">
+      <lu-status-sheet icon="mdi:television-play" headline=${this._headline()} subline=${this._subline()} status=${l} status-kind=${d}>
+        <div slot="hero" class="hero-preview ${s?"":"offline"}"><iledclock-led-preview context="hero" .frames=${c} .delays=${this._delays} .playing=${!!(t?.power&&s&&!this._upload)} label="Current clock display"></iledclock-led-preview></div>
+        ${s?u:o`<p class="state-note" role="status">Clock is out of range. The dimmed image is the last known display.</p>`}
+        ${this._previewLoading?o`<p class="state-note" role="status">Updating the display preview…</p>`:u}
+        ${this._previewError?o`<p class="state-note" role="status">${this._previewError}</p>`:u}
+        ${this._upload?o`<p class="upload" role="status">Sending program to the clock${n!==null?"\u2026 "+n+"%":"\u2026"}</p>${n!==null?o`<div class="progress" role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow=${n}><span style=${"width:"+n+"%"}></span></div>`:u}`:u}
+      </lu-status-sheet>
+      <iledclock-mode-deck .hass=${this.hass} .entryId=${this.entryId} .state=${t}></iledclock-mode-deck>
+      <lu-section title="Quick controls" icon="mdi:tune-variant">
+        ${t?o`<div class="quick-controls">
+          <label class="field"><span>Brightness <strong>${Math.round(t.brightness)}%</strong></span><input type="range" min="5" max="100" .value=${String(Math.round(t.brightness))} ?disabled=${!s||this._busy!==null} @input=${this._setBrightness} aria-label="Display brightness"></label>
+          <button type="button" class="quick-row" role="switch" aria-checked=${t.power?"true":"false"} ?disabled=${!s||this._busy!==null} @click=${this._toggleDisplay}><span>Display</span><span class="row-value">${t.power?"On":"Off"}</span><span class="switch ${t.power?"on":""}" aria-hidden="true"></span></button>
+          <button type="button" class="night-row" @click=${this._editRotation}><span><strong>Rotation</strong><small>Designs the clock cycles through · edit in Library</small></span><ha-icon icon="mdi:chevron-right"></ha-icon></button>
+          <button type="button" class="night-row" @click=${this._openNightMode}><span><strong>Night mode</strong><small>${Vs(t)}</small></span><ha-icon icon="mdi:chevron-right"></ha-icon></button>
+          ${s?u:o`<p class="state-note">Controls are unavailable while the clock is out of range.</p>`}
+        </div>`:o`<p class="state-note">Clock controls will appear when status is available.</p>`}
+      </lu-section>
+      ${p.length?o`<lu-section title="Recently shown" icon="mdi:history"><div class="history-list">${p.map(h=>{let f=this._historyReason(h);return o`<button type="button" class="history-item" aria-label=${f?(h.title||h.kind)+": "+f:"Show again "+(h.title||h.kind)} ?disabled=${!!f} title=${f??""} @click=${()=>void this._showAgain(h)}><span class="history-title">${h.title||h.kind}</span><span class="history-kind">${f||h.kind}</span></button>`})}</div></lu-section>`:u}
+    </div>`}};gt.properties={hass:{attribute:!1},entryId:{attribute:!1},route:{attribute:!1},narrow:{type:Boolean},_envelope:{state:!0},_frames:{state:!0},_delays:{state:!0},_loading:{state:!0},_error:{state:!0},_previewLoading:{state:!0},_previewError:{state:!0},_upload:{state:!0},_busy:{state:!0}},gt.styles=[g,_,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .destination { display: grid; gap: var(--lu-space-4); min-width: 0; }
+    .loading { display: grid; gap: var(--lu-space-3); }
+    .hero-preview { width: 100%; max-width: 384px; }
+    .hero-preview.offline { opacity: .56; filter: grayscale(.45) brightness(.72); }
+    .hero-preview iledclock-led-preview { width: 100%; }
+    .state-note { margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.45 var(--lu-font); }
+    .upload { margin: var(--lu-space-3) 0 var(--lu-space-1); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.4 var(--lu-font); }
+    .progress { height: var(--lu-space-1); overflow: hidden; border-radius: var(--lu-radius-pill); background: var(--lu-track-off); }
+    .progress span { display: block; height: 100%; border-radius: inherit; background: var(--lu-accent); transition: width var(--lu-motion-label) var(--lu-ease); }
+    .quick-controls { display: grid; gap: var(--lu-space-2); }
+    .field { display: grid; gap: var(--lu-space-2); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.3 var(--lu-font); }
+    .field span { display: flex; justify-content: space-between; }
+    .field strong { color: var(--lu-ink); font-variant-numeric: tabular-nums; }
+    .field input[type="range"] { width: 100%; min-height: var(--lu-target); margin: 0; accent-color: var(--lu-accent); }
+    .quick-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--lu-space-3); min-height: var(--lu-target); padding: 0; border: 0; border-bottom: 1px solid var(--lu-edge); color: var(--lu-ink); background: transparent; text-align: left; font: 500 var(--lu-type-label)/1.3 var(--lu-font); cursor: pointer; }
+    .quick-row:disabled { opacity: .55; cursor: default; }
+    .row-value { color: var(--lu-ink-2); font-weight: 400; }
+    .switch { position: relative; width: 48px; height: 28px; border-radius: var(--lu-radius-pill); background: var(--lu-track-off); transition: background-color var(--lu-motion-label) var(--lu-ease); }
+    .switch::after { position: absolute; inset: 4px auto auto 4px; width: 20px; height: 20px; border-radius: var(--lu-radius-pill); background: var(--lu-card); content: ""; transition: transform var(--lu-motion-label) var(--lu-ease); }
+    .switch.on { background: var(--lu-accent); }
+    .switch.on::after { transform: translateX(20px); }
+    .text-link { justify-self: start; min-height: var(--lu-target); padding: 0 var(--lu-space-2); border: 0; border-radius: var(--lu-radius-control); color: var(--lu-accent); background: transparent; font: 500 var(--lu-type-label)/1.2 var(--lu-font); text-decoration: underline; cursor: pointer; }
+    .night-row { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-3); min-height: var(--lu-target); padding: var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-row); color: var(--lu-ink); background: var(--lu-glass-raised); text-align: left; cursor: pointer; }
+    .night-row span { display: grid; gap: var(--lu-space-1); }
+    .night-row strong { font: 500 var(--lu-type-label)/1.3 var(--lu-font); }
+    .night-row small { color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .night-row ha-icon { color: var(--lu-ink-3); }
+    .history-list { display: flex; gap: var(--lu-space-2); overflow-x: auto; padding-bottom: var(--lu-space-1); }
+    .history-item { display: flex; flex: 0 0 min(12rem, 70vw); min-width: 0; min-height: var(--lu-target); flex-direction: column; justify-content: center; gap: var(--lu-space-1); padding: var(--lu-space-2) var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-tile); color: var(--lu-ink); background: var(--lu-glass-raised); text-align: left; cursor: pointer; }
+    .history-item:disabled { opacity: .55; cursor: not-allowed; }
+    .history-item:focus-visible, .quick-row:focus-visible, .night-row:focus-visible, .text-link:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .history-title { overflow: hidden; font: 500 var(--lu-type-label)/1.3 var(--lu-font); text-overflow: ellipsis; white-space: nowrap; }
+    .history-kind { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); text-transform: capitalize; }
+    @media (prefers-reduced-motion: reduce) { .progress span, .switch, .switch::after { transition: none; } }
+  `];customElements.define("iledclock-dest-now",gt);function xe(r){return{past:[],present:r,future:[]}}function Gs(r,i,e=100){if(i===r.present)return r;let t=[...r.past,r.present];for(;t.length>e;)t.shift();return{past:t,present:i,future:[]}}function Us(r){if(r.past.length===0)return r;let i=r.past[r.past.length-1];return{past:r.past.slice(0,-1),present:i,future:[r.present,...r.future]}}function qs(r){if(r.future.length===0)return r;let i=r.future[0];return{past:[...r.past,r.present],present:i,future:r.future.slice(1)}}var j=[{kind:"life",label:"Life",hint:"Conway's game of life, seeded randomly"},{kind:"fire",label:"Fire",hint:"A rising flame simulation"},{kind:"plasma",label:"Plasma",hint:"Smooth shifting colour fields"},{kind:"matrix",label:"Matrix rain",hint:"Falling green code"},{kind:"starfield",label:"Starfield",hint:"Stars drifting past"},{kind:"rainbow",label:"Rainbow",hint:"A cycling rainbow sweep"},{kind:"sparkle",label:"Sparkle",hint:"Random twinkling pixels"}];var sr=1,Hn=64;function W(r){let i=2166136261,e=2654435769,t=s=>{i=Math.imul(i^s,16777619)>>>0,e=Math.imul(e^s+2135587861,2246822507)>>>0};for(let s=0;s<r.name.length;s++)t(r.name.charCodeAt(s));t(r.clockRegion?1:0),t(r.frames.length);for(let s of r.frames){t(s.width),t(s.height),t(s.durationMs);for(let a of s.pixels)t(a)}return i.toString(16).padStart(8,"0")+e.toString(16).padStart(8,"0")}function ar(r,i,e,t=Date.now()){return{entryId:r,name:i.name,frames:i.frames,clockRegion:i.clockRegion,designId:i.designId??null,savedFingerprint:e,savedAt:t}}function zs(r){return W(r)!==r.savedFingerprint}function On(r){let i=r.frames[0],e={version:sr,entryId:r.entryId,name:r.name,clockRegion:r.clockRegion,designId:r.designId??null,savedFingerprint:r.savedFingerprint,savedAt:r.savedAt,width:i?.width??32,height:i?.height??16,frames:r.frames.map(qi),delays:r.frames.map(t=>t.durationMs)};return JSON.stringify(e)}function Fn(r,i){try{let e=JSON.parse(r);if(e.version!==sr||typeof e.entryId!="string"||!e.entryId||i!==void 0&&e.entryId!==i||typeof e.name!="string"||typeof e.clockRegion!="boolean"||typeof e.savedFingerprint!="string"||!Array.isArray(e.frames)||e.frames.length<1||e.frames.length>Hn||!Array.isArray(e.delays)||!Number.isInteger(e.width)||!Number.isInteger(e.height)||e.width<1||e.height<1)return null;let t=e.width,s=e.height,a=e.frames.map((n,l)=>{if(typeof n!="string")throw new TypeError("Invalid frame data");let d=e.delays[l];if(typeof d!="number"||!Number.isFinite(d))throw new TypeError("Invalid frame delay");return V(n,t,s,Math.max(10,Math.round(d)))});return{entryId:e.entryId,name:e.name,clockRegion:e.clockRegion,frames:a,designId:typeof e.designId=="string"?e.designId:null,savedFingerprint:e.savedFingerprint,savedAt:typeof e.savedAt=="number"&&Number.isFinite(e.savedAt)?e.savedAt:0}}catch{return null}}function nr(r){return`iledclock:editor-draft:v${sr}:${encodeURIComponent(r)}`}function js(r,i){try{let e=r.getItem(nr(i));return e?Fn(e,i):null}catch{return null}}function or(r,i){try{return r.setItem(nr(i.entryId),On(i)),!0}catch{return!1}}function ee(r,i){try{return r.removeItem(nr(i)),!0}catch{return!1}}var ui=class{constructor(){this.bytes=[];this.bitBuffer=0;this.bitCount=0}byte(i){this.bytes.push(i&255)}word(i){this.byte(i),this.byte(i>>>8)}ascii(i){for(let e=0;e<i.length;e++)this.byte(i.charCodeAt(e))}block(i){for(let e=0;e<i.length;e+=255){let t=Math.min(255,i.length-e);this.byte(t);for(let s=0;s<t;s++)this.byte(i[e+s])}this.byte(0)}code(i,e){for(this.bitBuffer|=i<<this.bitCount,this.bitCount+=e;this.bitCount>=8;)this.byte(this.bitBuffer),this.bitBuffer>>>=8,this.bitCount-=8}flushBits(){this.bitCount>0&&this.byte(this.bitBuffer),this.bitBuffer=0,this.bitCount=0}finish(){return Uint8Array.from(this.bytes)}};function Nn(r){let i=new ui,e=256,t=257,s=new Map,a=258,n=9;if(i.code(e,n),r.length===0)return i.code(t,n),i.flushBits(),i.finish();let l=r[0];for(let d=1;d<r.length;d++){let c=r[d],p=l<<8|c,h=s.get(p);if(h!==void 0){l=h;continue}i.code(l,n),a<4096?(s.set(p,a++),a===1<<n&&n<12&&n++):(i.code(e,n),s.clear(),a=258,n=9),l=c}return i.code(l,n),i.code(t,n),i.flushBits(),i.finish()}function Bn(r){let i=new Uint8Array(r.width*r.height);for(let e=0;e<i.length;e++){let t=e*3;i[e]=r.pixels[t]>>>5<<5|r.pixels[t+1]>>>5<<2|r.pixels[t+2]>>>6}return i}function Ws(r){if(r.length===0)throw new RangeError("At least one frame is required to export a GIF.");let i=r[0].width,e=r[0].height;if(i<1||e<1||i>65535||e>65535)throw new RangeError("GIF dimensions are out of range.");for(let s of r)if(s.width!==i||s.height!==e||s.pixels.length!==i*e*3)throw new RangeError("All GIF frames must have the same valid dimensions.");let t=new ui;t.ascii("GIF89a"),t.word(i),t.word(e),t.byte(247),t.byte(0),t.byte(0);for(let s=0;s<256;s++)t.byte(Math.round((s>>>5&7)*255/7)),t.byte(Math.round((s>>>2&7)*255/7)),t.byte(Math.round((s&3)*255/3));t.byte(33),t.byte(255),t.byte(11),t.ascii("NETSCAPE2.0"),t.byte(3),t.byte(1),t.word(0),t.byte(0);for(let s of r){let a=Math.max(1,Math.min(65535,Math.round(s.durationMs/10)));t.byte(33),t.byte(249),t.byte(4),t.byte(4),t.word(a),t.byte(0),t.byte(0),t.byte(44),t.word(0),t.word(0),t.word(i),t.word(e),t.byte(0),t.byte(8),t.block(Array.from(Nn(Bn(s))))}return t.byte(59),t.finish()}var Ks=["nw","ne","se","sw","n","e","s","w"];function ue(r,i,e){let t=Math.max(1,Math.round(i)),s=Math.max(1,Math.round(e)),a=Math.max(1,Math.min(Math.round(r.w),t)),n=Math.max(1,Math.min(Math.round(r.h),s)),l=Math.max(0,Math.min(Math.round(r.x),t-a)),d=Math.max(0,Math.min(Math.round(r.y),s-n));return{x:l,y:d,w:a,h:n}}function hi(r,i,e=2,t=1){let s=e/t,a=r/Math.max(1,i),n,l;return a>s?(l=i,n=l*s):(n=r,l=n/s),ue({x:(r-n)/2,y:(i-l)/2,w:n,h:l},r,i)}function Ys(r,i,e,t,s,a){let n=e>0?s/e:1,l=t>0?a/t:1;return{dx:r*n,dy:i*l}}function Xs(r,i,e,t,s){return ue({...r,x:r.x+i,y:r.y+e},t,s)}function Zs(r,i,e,t,s,a){let n=r.x,l=r.y,d=r.x+r.w,c=r.y+r.h,p=Math.max(1,s),h=Math.max(1,a);return i.includes("w")&&(n=pi(n+e,0,d-1)),i.includes("e")&&(d=pi(d+e,n+1,p)),i.includes("n")&&(l=pi(l+t,0,c-1)),i.includes("s")&&(c=pi(c+t,l+1,h)),{x:Math.round(n),y:Math.round(l),w:Math.round(d-n),h:Math.round(c-l)}}function pi(r,i,e){return Math.max(i,Math.min(e,r))}var Vn={auto:"Auto",center:"Center",fit:"Fit",fill:"Fill",stretch:"Stretch",tile:"Tile",mirror:"Mirror",icon_with_clock:"With clock"};function vi(r){let i=Vn[r];return i||(r.length===0?r:r.split(/[_-]+/).filter(e=>e.length>0).map(e=>e.charAt(0).toUpperCase()+e.slice(1)).join(" "))}function ta(r){let i=[];for(let e of["auto",...r])i.includes(e)||i.push(e);return i}function ia(r){return typeof r.design_id=="string"}function ra(r){return{type:"iledclock/gallery/sources",entry_id:r}}function sa(r,i,e,t){let s={type:"iledclock/gallery/preview",entry_id:r,source:i,item_id:e};return t&&Object.keys(t).length>0&&(s.options=t),s}function aa(r,i,e,t,s){let a={type:"iledclock/gallery/import",entry_id:r,source:i,item_id:e};return t&&Object.keys(t).length>0&&(a.options=t),s&&(a.name=s),a}function lr(r,i){let e={type:"iledclock/import/file",entry_id:r,filename:i.filename,data_b64:i.dataB64};return i.options&&Object.keys(i.options).length>0&&(e.options=i.options),i.save&&(e.save=!0),i.name&&(e.name=i.name),e}var Gn=1,Un=16,Qs=512;function qn(r){return Math.max(Gn,Math.min(Un,Math.round(r)))}function Js(r){return Math.max(-Qs,Math.min(Qs,Math.round(r)))}function gi(r,i,e){let t={};return r.layout&&(t.layout=r.layout),r.crop&&(t.crop=ue(r.crop,i,e)),r.scale!==void 0&&(t.scale=qn(r.scale)),r.offset&&(t.offset={x:Js(r.offset.x),y:Js(r.offset.y)}),r.background&&(t.background=Oe(r.background)),r.enhance!==void 0&&(t.enhance=r.enhance),t}var fi=8*1024*1024,na=["gif","png","jpg","jpeg","webp"],zn=["aseprite","ase","piskel"],jn=[...na,...zn];function dr(r){let i=r.lastIndexOf(".");return i===-1?"":r.slice(i+1).toLowerCase()}function cr(r){return na.includes(dr(r))}function Wn(r){return jn.includes(dr(r))}function ft(r,i){return Wn(r)?i>fi?`${r} is too large (max 8 MB).`:null:`${r||"That file"} isn't a supported type (GIF, PNG, JPEG, WebP, .aseprite, .ase, or .piskel).`}var Kn={"image/gif":"gif","image/png":"png","image/jpeg":"jpg","image/webp":"webp"};function oa(r,i){let e=Kn[i.split(";")[0].trim().toLowerCase()]??"png",t="image";try{let s=new URL(r).pathname,a=s.slice(s.lastIndexOf("/")+1);a&&(t=a)}catch{}return dr(t)?t:`${t}.${e}`}var ea=600,Yn=6e4;function Xn(r,i){return r!==void 0&&r.expiresAtMs-i>=Yn}var mi=class{constructor(){this._entries=new Map}async sign(i,e){return this._sign(i,e,!1)}async signFresh(i,e){return this._sign(i,e,!0)}async _sign(i,e,t){let s=Date.now(),a=this._entries.get(e);if(!t&&Xn(a,s))return a.signedPath;if(!i.callWS)return e;try{let n=await i.callWS({type:"auth/sign_path",path:e,expires:ea});return this._entries.set(e,{signedPath:n.path,expiresAtMs:s+ea*1e3}),n.path}catch{return e}}clear(){this._entries.clear()}};function _t(r){let i=r.find(s=>s.startsWith("auto layout chose "));if(!i)return null;let e=i.slice(18),t=/^majority-pool-x(\d+)$/.exec(e);return t?`Auto: scaled down ${t[1]}x, keeping every pixel edge sharp.`:e.startsWith("center-like")?"Auto: shown pixel for pixel, centred on the clock.":e.startsWith("fit-like")?"Auto: fitted as a photo, colours boosted for the LEDs.":`Auto: ${e}.`}var Zn=250,_i=64,la=new WeakMap;function Qn(r){let i=la.get(r);return i||(i=r.frames.map((e,t)=>V(e,32,16,r.delays_ms[t]??100)),la.set(r,i)),i}var bt=class extends m{constructor(){super();this._filename="";this._dataB64="";this._requestId=0;this._sourceImgRef=B();this._dragMode=null;this._dragStartX=0;this._dragStartY=0;this._dragStartBox=null;this._dragImageWidth=0;this._dragImageHeight=0;this._onFileInputChange=async e=>{let t=e.currentTarget,s=t.files?.[0];t.value="",s&&await this._acceptFile(s)};this._onDrop=async e=>{e.preventDefault();let t=e.dataTransfer?.files?.[0];t&&await this._acceptFile(t)};this._fetchUrl=async()=>{let e=this._urlInput.trim();if(e){this._fetchingUrl=!0,this._pickError=null;try{let t=await fetch(e);if(!t.ok)throw new Error(`Server responded ${t.status}`);let s=t.headers.get("content-type")??"",a=oa(e,s),n=Number(t.headers.get("content-length"));if(Number.isFinite(n)&&n>fi){this._pickError=ft(a,n);return}let l=[],d=0,c=t.body?.getReader();if(c)for(;;){let b=await c.read();if(b.done)break;if(b.value){if(d+=b.value.byteLength,d>fi){await c.cancel(),this._pickError=ft(a,d);return}l.push(b.value)}}let p;if(c){let b=new ArrayBuffer(d),k=new Uint8Array(b),S=0;for(let R of l)k.set(R,S),S+=R.byteLength;p=new Blob([b],{type:s})}else p=await t.blob();let h=ft(a,p.size);if(h){this._pickError=h;return}let f=await this._readAsDataUrl(p);this._beginPreviewStage(a,f.slice(f.indexOf(",")+1),cr(a)?f:null)}catch{this._pickError="Couldn't load that image directly. Many sites block image imports; save it to your device and pick the file instead."}finally{this._fetchingUrl=!1}}};this._onSourceImageLoad=()=>{let e=this._sourceImgRef.value;if(!e)return;this._naturalWidth=e.naturalWidth,this._naturalHeight=e.naturalHeight;let t=this._cropTouched&&this._cropBox?this._cropBox:hi(e.naturalWidth,e.naturalHeight);this._cropBox=ue(t,e.naturalWidth,e.naturalHeight)};this._clearBackground=()=>{let{background:e,...t}=this._adjust;this._adjust=t,this._loadPreview()};this._resetCrop=()=>{this._cropTouched=!1,this._naturalWidth>0&&(this._cropBox=hi(this._naturalWidth,this._naturalHeight));let e={...this._adjust};delete e.crop,this._adjust=e,window.clearTimeout(this._debounceTimer),this._debounceTimer=void 0,this._loadPreview()};this._onCropDragMove=e=>{if(!this._dragMode||!this._dragStartBox)return;let t=Ys(e.clientX-this._dragStartX,e.clientY-this._dragStartY,this._dragImageWidth,this._dragImageHeight,this._naturalWidth,this._naturalHeight);this._cropBox=this._dragMode==="move"?Xs(this._dragStartBox,t.dx,t.dy,this._naturalWidth,this._naturalHeight):Zs(this._dragStartBox,this._dragMode,t.dx,t.dy,this._naturalWidth,this._naturalHeight),this._cropTouched=!0};this._onCropDragEnd=()=>{this._dragMode&&(this._teardownCropDrag(),this._loadPreview())};this._save=()=>this._finishImport(!1);this._show=()=>this._finishImport(!0);this._onSheetClosed=()=>{this.open=!1,this._notifyClosed()};this.open=!1,this._stage="pick",this._sourceDataUrl=null,this._naturalWidth=0,this._naturalHeight=0,this._cropBox=null,this._cropTouched=!1,this._urlInput="",this._fetchingUrl=!1,this._pickError=null,this._layout="auto",this._adjustOpen=!1,this._adjust={},this._preview=null,this._previewLoading=!1,this._previewError=null,this._saving=null,this._actionError=null}disconnectedCallback(){super.disconnectedCallback(),window.clearTimeout(this._debounceTimer),this._debounceTimer=void 0,this._teardownCropDrag()}updated(e){e.has("open")&&this.open&&this._resetState()}_resetState(){window.clearTimeout(this._debounceTimer),this._debounceTimer=void 0,this._stage="pick",this._filename="",this._dataB64="",this._sourceDataUrl=null,this._naturalWidth=0,this._naturalHeight=0,this._cropBox=null,this._cropTouched=!1,this._urlInput="",this._fetchingUrl=!1,this._pickError=null,this._layout="auto",this._adjustOpen=!1,this._adjust={},this._preview=null,this._previewLoading=!1,this._previewError=null,this._actionError=null,this._requestId++}_onDragOver(e){e.preventDefault()}async _acceptFile(e){let t=ft(e.name,e.size);if(t){this._pickError=t;return}try{let s=await this._readAsDataUrl(e);this._beginPreviewStage(e.name,s.slice(s.indexOf(",")+1),cr(e.name)?s:null)}catch{this._pickError="That file couldn't be read. Try choosing it again."}}_readAsDataUrl(e){return new Promise((t,s)=>{let a=new FileReader;a.onload=()=>t(String(a.result)),a.onerror=()=>s(a.error),a.readAsDataURL(e)})}_beginPreviewStage(e,t,s){this._filename=e,this._dataB64=t,this._sourceDataUrl=s,this._naturalWidth=0,this._naturalHeight=0,this._cropBox=null,this._cropTouched=!1,this._layout="auto",this._adjust={},this._adjustOpen=!1,this._pickError=null,this._stage="preview",this._loadPreview()}_backToPick(){window.clearTimeout(this._debounceTimer),this._debounceTimer=void 0,this._requestId++,this._stage="pick",this._sourceDataUrl=null,this._preview=null,this._previewError=null,this._actionError=null}_sourceDimensions(){if(this._naturalWidth>0&&this._naturalHeight>0)return{width:this._naturalWidth,height:this._naturalHeight};let e=this._preview?.report.native_size;return e?{width:e[0],height:e[1]}:{width:32,height:16}}_buildOptions(){let e={...this._adjust};this._layout!=="auto"&&(e.layout=this._layout),this._sourceDataUrl&&this._cropTouched&&this._cropBox&&(e.crop=this._cropBox);let t=this._sourceDimensions();return gi(e,t.width,t.height)}async _loadPreview(){if(!this.entryId||!this.hass?.callWS||!this._filename)return;let e=++this._requestId;this._previewLoading=!0,this._previewError=null;try{let t=await this.hass.callWS(lr(this.entryId,{filename:this._filename,dataB64:this._dataB64,options:this._buildOptions()}));e===this._requestId&&(this._preview=t)}catch(t){if(e!==this._requestId)return;this._previewError=L(t),this._preview=null}finally{e===this._requestId&&(this._previewLoading=!1)}}_selectLayout(e){this._layout=e,this._loadPreview()}_updateAdjust(e){this._adjust={...this._adjust,...e},window.clearTimeout(this._debounceTimer),this._debounceTimer=window.setTimeout(()=>void this._loadPreview(),Zn)}_startCropDrag(e,t){if(!this._cropBox)return;e.preventDefault(),e.stopPropagation();let s=this._sourceImgRef.value;if(!s)return;let a=s.getBoundingClientRect();this._dragMode=t,this._dragStartX=e.clientX,this._dragStartY=e.clientY,this._dragStartBox=this._cropBox,this._dragImageWidth=a.width,this._dragImageHeight=a.height,e.currentTarget.setPointerCapture(e.pointerId),window.addEventListener("pointermove",this._onCropDragMove),window.addEventListener("pointerup",this._onCropDragEnd),window.addEventListener("pointercancel",this._onCropDragEnd)}_teardownCropDrag(){this._dragMode=null,this._dragStartBox=null,window.removeEventListener("pointermove",this._onCropDragMove),window.removeEventListener("pointerup",this._onCropDragEnd),window.removeEventListener("pointercancel",this._onCropDragEnd)}async _finishImport(e){if(!(!this.entryId||!this.hass?.callWS||!this._preview||this._previewLoading)){this._saving=e?"show":"save",this._actionError=null;try{let t=await this.hass.callWS(lr(this.entryId,{filename:this._filename,dataB64:this._dataB64,options:this._buildOptions(),save:!0}));if(!ia(t))throw new Error("The save did not return a design id.");let s=this._filename.replace(/\.[^.]+$/,"")||"Imported design";this.dispatchEvent(new CustomEvent("iledclock-designs-changed",{bubbles:!0,composed:!0})),e?await F(this,this.hass,this.entryId,{design_id:t.design_id},s):this._toast({message:`${s} saved to Library`,actionLabel:"Open",action:()=>{this.dispatchEvent(new CustomEvent("iledclock-open-design",{detail:{design_id:t.design_id},bubbles:!0,composed:!0}))}}),this._close()}catch(t){this._actionError=L(t)}finally{this._saving=null}}}_toast(e){this.dispatchEvent(new CustomEvent("lu-toast",{detail:e,bubbles:!0,composed:!0}))}_close(){this.open=!1,this._notifyClosed()}_notifyClosed(){this.dispatchEvent(new CustomEvent("close-requested",{bubbles:!0,composed:!0}))}render(){return o`<lu-sheet .open=${this.open} label="Import file" @closed=${this._onSheetClosed}>
+      <div slot="header" class="sheet-heading">
+        <div><h2>Import file</h2><p>Adapt artwork for the 32 × 16 clock.</p></div>
+      </div>
+      ${this._stage==="pick"?this._renderPick():this._renderPreviewStage()}
+    </lu-sheet>`}_renderPick(){return o`
+      <section class="pick-content" aria-label="Choose artwork">
+        <div class="drop-zone" @dragover=${this._onDragOver} @drop=${this._onDrop}>
+          <span class="drop-icon" aria-hidden="true">${y("upload")}</span>
+          <p>Drop a file here, or choose one. Supported: GIF, PNG, JPEG, WebP, .aseprite, .ase, .piskel. Maximum size: 8 MB.</p>
+          <label class="file-picker">Choose a file<input type="file" accept=".gif,.png,.jpg,.jpeg,.webp,.aseprite,.ase,.piskel" @change=${this._onFileInputChange} /></label>
+        </div>
+        <div class="url-row">
+          <label class="url-label">Or paste an image URL<input class="url-input" type="url" autocomplete="url" placeholder="https://example.com/art.gif" .value=${this._urlInput} @input=${e=>this._urlInput=e.currentTarget.value} /></label>
+          <lu-pill-button variant="secondary" .label=${this._fetchingUrl?"Fetching\u2026":"Fetch"} ?loading=${this._fetchingUrl} ?disabled=${this._fetchingUrl||!this._urlInput.trim()} @lu-press=${this._fetchUrl}></lu-pill-button>
+        </div>
+        ${this._pickError?o`<p class="error" role="alert">${this._pickError}</p>`:u}
+      </section>
+    `}_renderPreviewStage(){let e=this._sourceDimensions(),t=this._preview?Qn(this._preview):[],s=ta(this._preview?.layouts_available??[]).map(a=>({value:a,label:vi(a)}));return o`
+      <section class="preview-content" aria-label="Preview imported artwork">
+        ${this._actionError?o`<p class="error" role="alert">${this._actionError}</p>`:u}
+        ${this._sourceDataUrl?o`
+          <div class="crop-wrap">
+            <div class="crop-stage">
+              <img class="source-image" ${A(this._sourceImgRef)} src=${this._sourceDataUrl} @load=${this._onSourceImageLoad} alt="Original artwork to crop" />
+              ${this._cropBox?this._renderCropOverlay(this._cropBox):u}
+            </div>
+            <div class="crop-tools"><p>Use the crop fields below, or drag the box and its corners.</p></div>
+          </div>
+        `:o`<p class="hint">${this._filename} is decoded on the clock server. The preview below shows the adapted result.</p>`}
+        <div class="adapted-preview" aria-label="Adapted clock preview">
+          ${t.length>0?o`<iledclock-led-preview context="hero" .frames=${t} .delays=${this._preview?.delays_ms??[]} ?playing=${t.length>1} label="Adapted preview"></iledclock-led-preview>`:this._previewError?u:o`<lu-skeleton variant="card" label="Loading adapted preview"></lu-skeleton>`}
+        </div>
+        ${this._previewError?o`<lu-error title="Preview unavailable" .message=${this._previewError} @retry=${()=>void this._loadPreview()}></lu-error>`:u}
+        <iledclock-segmented-picker group-label="Layout" content-fit .options=${s} .value=${this._layout} @option-selected=${a=>this._selectLayout(a.detail.value)}></iledclock-segmented-picker>
+        ${this._layout==="auto"&&this._preview?o`<p class="hint">${_t(this._preview.report.notes)??"Auto keeps pixel artwork crisp and adapts photos for the LEDs."}</p>`:u}
+        <button type="button" class="disclosure" aria-expanded=${this._adjustOpen} @click=${()=>this._adjustOpen=!this._adjustOpen}>${y(this._adjustOpen?"chevronUp":"chevronDown")} Adjust</button>
+        ${this._adjustOpen?this._renderAdjust(e):u}
+        <button type="button" class="text-button choose-again" @click=${()=>this._backToPick()}>${y("chevronLeft")} Choose a different file</button>
         <div class="actions">
-          <button type="button" class="secondary-action" ?disabled=${this._saving!==null} @click=${this._saveToLibrary}>
-            ${m("save")} ${this._saving==="save"?"Saving\u2026":"Save to library"}
-          </button>
-          <iledclock-hold-button label="Hold to show on clock" complete-label="Showing" ?disabled=${this._saving!==null} @confirmed=${this._showOnClock}></iledclock-hold-button>
+          <lu-pill-button variant="secondary" label="Save" icon="mdi:content-save-outline" ?loading=${this._saving==="save"} ?disabled=${this._saving!==null||!this._preview||this._previewLoading} @lu-press=${this._save}></lu-pill-button>
+          <lu-pill-button variant="primary" label="Show on clock" icon="mdi:television-play" ?loading=${this._saving==="show"} ?disabled=${this._saving!==null||!this._preview||this._previewLoading} @lu-press=${this._show}></lu-pill-button>
         </div>
+      </section>
+    `}_renderCropOverlay(e){let t=this._naturalWidth||1,s=this._naturalHeight||1,a=`left:${e.x/t*100}%;top:${e.y/s*100}%;width:${e.w/t*100}%;height:${e.h/s*100}%;`;return o`<div class="crop-box" style=${a} aria-hidden="true" @pointerdown=${n=>this._startCropDrag(n,"move")}>
+      ${Ks.map(n=>o`<span class="crop-handle handle-${n}" aria-hidden="true" @pointerdown=${l=>this._startCropDrag(l,n)}></span>`)}
+    </div>`}_renderAdjust(e){let t=this._adjust.scale??1,s=this._adjust.offset??{x:0,y:0},a=this._adjust.enhance??!1;return o`<div class="adjust-panel">
+      ${this._renderNumericCrop(e)}
+      <label class="stepper-field">Scale <iledclock-stepper .value=${t} min="1" max="16" step="1" label="scale" @value-selected=${n=>this._updateAdjust({scale:n.detail.value})}></iledclock-stepper></label>
+      <div class="offset-grid">
+        <label class="stepper-field">Offset X <iledclock-stepper .value=${s.x} min=${-_i} max=${_i} step="1" label="offset X" @value-selected=${n=>this._updateAdjust({offset:{...s,x:n.detail.value}})}></iledclock-stepper></label>
+        <label class="stepper-field">Offset Y <iledclock-stepper .value=${s.y} min=${-_i} max=${_i} step="1" label="offset Y" @value-selected=${n=>this._updateAdjust({offset:{...s,y:n.detail.value}})}></iledclock-stepper></label>
       </div>
-    `}_renderCredit(e){let t=dr(e,this.source),s=e.author?`By ${e.author} on ${this.source?.name??e.source}.`:`From ${this.source?.name??e.source}.`;return l`<p class="credit">${s} ${t?l`<a href=${t} target="_blank" rel="noopener noreferrer">View original</a>`:c}</p>`}_renderAdjust(e){let t=this._adjust.crop??{x:0,y:0,w:e.width,h:e.height},s=this._adjust.scale??1,n=this._adjust.offset??{x:0,y:0},o=this._adjust.enhance??!1;return l`
-      <div class="adjust">
-        <span class="adjust-label">Crop (source pixels)</span>
-        <div class="crop-grid">
-          <label class="stepper-field">X<iledclock-stepper .value=${t.x} min="0" .max=${e.width} step="1" @value-selected=${a=>this._updateAdjust({crop:{...t,x:a.detail.value}})}></iledclock-stepper></label>
-          <label class="stepper-field">Y<iledclock-stepper .value=${t.y} min="0" .max=${e.height} step="1" @value-selected=${a=>this._updateAdjust({crop:{...t,y:a.detail.value}})}></iledclock-stepper></label>
-          <label class="stepper-field">Width<iledclock-stepper .value=${t.w} min="1" .max=${e.width} step="1" @value-selected=${a=>this._updateAdjust({crop:{...t,w:a.detail.value}})}></iledclock-stepper></label>
-          <label class="stepper-field">Height<iledclock-stepper .value=${t.h} min="1" .max=${e.height} step="1" @value-selected=${a=>this._updateAdjust({crop:{...t,h:a.detail.value}})}></iledclock-stepper></label>
+      <div class="background-row"><label for="import-background">Background</label><input id="import-background" type="color" .value=${P(this._adjust.background??[0,0,0])} @input=${n=>this._updateAdjust({background:O(n.currentTarget.value)})}>${this._adjust.background?o`<button type="button" class="text-button" @click=${this._clearBackground}>Clear</button>`:u}</div>
+      <label class="enhance-row"><input type="checkbox" .checked=${a} @change=${n=>this._updateAdjust({enhance:n.currentTarget.checked})}><span>Enhance colours for the LEDs</span></label>
+    </div>`}_renderNumericCrop(e){let t=this._sourceDataUrl?this._cropBox??hi(e.width,e.height):this._adjust.crop??{x:0,y:0,w:e.width,h:e.height},s=Math.max(0,e.width-t.w),a=Math.max(0,e.height-t.h),n=Math.max(1,e.width-t.x),l=Math.max(1,e.height-t.y),d=c=>{let p=this._sourceDataUrl?this._cropBox??t:this._adjust.crop??t,h=ue({x:c.x??p.x,y:c.y??p.y,w:c.w??p.w,h:c.h??p.h},e.width,e.height);this._sourceDataUrl&&(this._cropBox=h,this._cropTouched=!0),this._updateAdjust({crop:h})};return o`<fieldset class="crop-fields"><legend>Crop (source pixels)</legend>
+      <label class="stepper-field">X <iledclock-stepper .value=${t.x} min="0" .max=${s} step="1" label="crop X" @value-selected=${c=>d({x:c.detail.value})}></iledclock-stepper></label>
+      <label class="stepper-field">Y <iledclock-stepper .value=${t.y} min="0" .max=${a} step="1" label="crop Y" @value-selected=${c=>d({y:c.detail.value})}></iledclock-stepper></label>
+      <label class="stepper-field">Width <iledclock-stepper .value=${t.w} min="1" .max=${n} step="1" label="crop width" @value-selected=${c=>d({w:c.detail.value})}></iledclock-stepper></label>
+      <label class="stepper-field">Height <iledclock-stepper .value=${t.h} min="1" .max=${l} step="1" label="crop height" @value-selected=${c=>d({h:c.detail.value})}></iledclock-stepper></label>
+      ${this._cropTouched||this._adjust.crop?o`<button type="button" class="text-button reset-crop" @click=${this._resetCrop}>Reset crop</button>`:u}
+    </fieldset>`}};bt.properties={hass:{attribute:!1},entryId:{attribute:!1},open:{type:Boolean,reflect:!0},_stage:{state:!0},_sourceDataUrl:{state:!0},_naturalWidth:{state:!0},_naturalHeight:{state:!0},_cropBox:{state:!0},_cropTouched:{state:!0},_urlInput:{state:!0},_fetchingUrl:{state:!0},_pickError:{state:!0},_layout:{state:!0},_adjustOpen:{state:!0},_adjust:{state:!0},_preview:{state:!0},_previewLoading:{state:!0},_previewError:{state:!0},_saving:{state:!0},_actionError:{state:!0}},bt.styles=[g,_,v`
+    :host { display: block; min-width: 0; }
+    :host(:not([open])) { display: none; }
+    .sheet-heading h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); }
+    .sheet-heading p { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .pick-content, .preview-content { display: grid; gap: var(--lu-space-3); min-width: 0; padding-bottom: var(--lu-space-2); }
+    .drop-zone { display: grid; justify-items: center; gap: var(--lu-space-3); padding: var(--lu-space-6) var(--lu-space-4); border: 1px dashed var(--lu-edge-raised); border-radius: var(--lu-radius-tile); text-align: center; }
+    .drop-zone p { max-width: 48ch; margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-body)/1.5 var(--lu-font); }
+    .drop-icon { color: var(--lu-ink-3); font: 400 var(--lu-type-display)/1 var(--lu-font); }
+    .drop-icon svg { display: block; width: var(--lu-space-8); height: var(--lu-space-8); }
+    .file-picker { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: var(--lu-target); padding: 0 var(--lu-space-5); overflow: hidden; border: 1px solid var(--lu-edge-raised); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: var(--lu-glass-raised); font: 600 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .file-picker input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .file-picker:focus-within { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .url-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--lu-space-2); }
+    .url-label { display: grid; flex: 1 1 12rem; gap: var(--lu-space-1); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .url-input { box-sizing: border-box; width: 100%; min-width: 0; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 400 var(--lu-type-body)/1.2 var(--lu-font); }
+    .url-input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .error { margin: 0; color: var(--lu-danger); font: 500 var(--lu-type-label)/1.4 var(--lu-font); }
+    .hint { margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.45 var(--lu-font); }
+    .crop-wrap { display: grid; gap: var(--lu-space-2); }
+    .crop-stage { position: relative; display: grid; place-items: center; min-width: 0; max-height: 280px; overflow: hidden; border-radius: var(--lu-radius-tile); background: var(--lu-tile); }
+    .source-image { display: block; width: 100%; height: auto; max-height: 280px; object-fit: contain; image-rendering: pixelated; }
+    .crop-box { position: absolute; box-sizing: border-box; border: 2px solid var(--lu-accent); background: color-mix(in srgb, var(--lu-accent) 12%, transparent); touch-action: none; cursor: move; }
+    .crop-handle { position: absolute; width: var(--lu-target); height: var(--lu-target); border: 0; border-radius: var(--lu-radius-pill); background: transparent; touch-action: none; }
+    .crop-handle::before { content: ""; position: absolute; display: block; left: 50%; top: 50%; width: var(--lu-space-5); height: var(--lu-space-5); box-sizing: border-box; transform: translate(-50%,-50%); border: 2px solid var(--lu-accent-ink); border-radius: var(--lu-radius-pill); background: var(--lu-accent); }
+    .handle-nw { left: 0; top: 0; transform: translate(-50%,-50%); cursor: nwse-resize; }
+    .handle-ne { right: 0; top: 0; transform: translate(50%,-50%); cursor: nesw-resize; }
+    .handle-sw { left: 0; bottom: 0; transform: translate(-50%,50%); cursor: nesw-resize; }
+    .handle-se { right: 0; bottom: 0; transform: translate(50%,50%); cursor: nwse-resize; }
+    .handle-n { left: 50%; top: 0; transform: translate(-50%,-50%); cursor: ns-resize; }
+    .handle-e { right: 0; top: 50%; transform: translate(50%,-50%); cursor: ew-resize; }
+    .handle-s { left: 50%; bottom: 0; transform: translate(-50%,50%); cursor: ns-resize; }
+    .handle-w { left: 0; top: 50%; transform: translate(-50%,-50%); cursor: ew-resize; }
+    .crop-tools { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--lu-space-2); }
+    .crop-tools p { margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .adapted-preview { display: grid; place-items: center; min-width: 0; border-radius: var(--lu-radius-tile); overflow: hidden; }
+    .adapted-preview iledclock-led-preview { width: 100%; }
+    .disclosure, .text-button { display: inline-flex; align-items: center; justify-content: center; gap: var(--lu-space-2); min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 0; border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: transparent; font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .disclosure { justify-content: flex-start; border: 1px solid var(--lu-edge); }
+    .disclosure:focus-visible, .text-button:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .adjust-panel { display: grid; gap: var(--lu-space-3); padding: var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-tile); }
+    .stepper-field { display: grid; justify-items: center; gap: var(--lu-space-2); min-width: 0; color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .offset-grid, .crop-fields { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: var(--lu-space-3); }
+    .crop-fields { margin: 0; padding: var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); }
+    .crop-fields .reset-crop { grid-column: 1 / -1; justify-self: start; }
+    .crop-fields legend { padding-inline: var(--lu-space-2); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .background-row { display: flex; align-items: center; gap: var(--lu-space-2); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.2 var(--lu-font); }
+    .background-row input { width: var(--lu-target); height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: transparent; }
+    .enhance-row { display: flex; align-items: center; gap: var(--lu-space-2); min-height: var(--lu-target); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.3 var(--lu-font); }
+    .enhance-row input { width: var(--lu-space-5); height: var(--lu-space-5); accent-color: var(--lu-accent); }
+    .choose-again { justify-self: start; }
+    .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--lu-space-2); padding-top: var(--lu-space-2); }
+    .actions > * { flex: 1 1 10rem; }
+    @container (max-width: 420px) { .actions { justify-content: stretch; } .offset-grid, .crop-fields { grid-template-columns: 1fr; } }
+    @media (prefers-reduced-motion: reduce) { .crop-box { transition: none; } }
+  `];customElements.define("iledclock-import-sheet",bt);var Jn=[[15,15,15],[10,10,10],[5,5,5],[0,0,0],[15,0,0],[15,5,0],[15,10,0],[10,5,0],[15,15,0],[10,15,0],[5,15,0],[0,15,0],[0,15,10],[0,15,15],[0,10,15],[0,5,15],[0,0,15],[5,0,15],[10,0,15],[15,0,15],[15,0,10],[15,5,5],[10,10,15],[5,10,15]];function ur(r){return r===0?0:r===15?238:47+(r-1)*14+7}var pr=Jn.map(([r,i,e])=>[ur(r),ur(i),ur(e)]),yt=class extends m{constructor(){super(),this.open=!1,this.color=[255,255,255],this.recent=[]}_pick(i){this.dispatchEvent(new CustomEvent("color-selected",{detail:{color:i},bubbles:!0,composed:!0}))}render(){let i=this.recent.filter((e,t,s)=>s.findIndex(a=>a.join(",")===e.join(","))===t);return o`<lu-sheet .open=${this.open} label="Choose drawing colour" @closed=${()=>{this.open=!1,this.dispatchEvent(new CustomEvent("close-requested",{bubbles:!0,composed:!0}))}}>
+      <div class="body">
+        <label class="picker-row">
+          <span>Custom colour</span>
+          <input type="color" aria-label="Custom drawing colour" .value=${P(this.color)} @input=${e=>this._pick(O(e.target.value))}>
+        </label>
+        <section aria-labelledby="palette-title">
+          <h3 id="palette-title">LED-safe palette</h3>
+          <div class="swatches" role="group" aria-label="RGB444 colour palette">
+            ${pr.map(e=>o`<button type="button" class="swatch" style=${`--swatch: ${J(I(e))}`} aria-label=${P(I(e))} aria-pressed=${String(e.join(",")===this.color.join(","))} @click=${()=>this._pick(e)}></button>`)}
+          </div>
+        </section>
+        ${i.length?o`<section aria-labelledby="recent-title"><h3 id="recent-title">Recent colours</h3><div class="swatches" role="group" aria-label="Recent colours">${i.map(e=>o`<button type="button" class="swatch" style=${`--swatch: ${J(I(e))}`} aria-label=${`Recent ${P(I(e))}`} @click=${()=>this._pick(e)}></button>`)}</div></section>`:o`<p class="hint">Your selected colours will appear here.</p>`}
+      </div>
+    </lu-sheet>`}};yt.properties={open:{type:Boolean},color:{attribute:!1},recent:{attribute:!1}},yt.styles=[g,_,v`
+    :host { display: block; }
+    .body { display: grid; gap: var(--lu-space-4); }
+    section { display: grid; gap: var(--lu-space-2); }
+    h3 { margin: 0; color: var(--lu-ink-2); font: 600 var(--lu-type-label)/1.2 var(--lu-font); }
+    .picker-row { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-3); min-height: var(--lu-target); color: var(--lu-ink); font: 500 var(--lu-type-body)/1.3 var(--lu-font); }
+    input[type=color] { width: var(--lu-target); height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); padding: var(--lu-space-1); background: var(--lu-card); cursor: pointer; }
+    .swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--lu-space-1); }
+    .swatch { min-width: var(--lu-target); min-height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--swatch); cursor: pointer; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lu-ink) 18%, transparent); }
+    .swatch[aria-pressed="true"] { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .hint { margin: 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+  `];customElements.define("iledclock-editor-color-sheet",yt);var wt=class extends m{constructor(){super(),this.activeColor=[255,255,255],this.recentColors=[],this.brushSize=1,this.onionSkin=!0,this.frameDelay=100,this.clockRegion=!1}_send(i,e){this.dispatchEvent(new CustomEvent(i,{detail:e,bubbles:!0,composed:!0}))}_pick(i){this._send("inspector-color-picked",{color:i})}_renderSwatch(i,e){let t=I(i),s=t.join(",")===I(this.activeColor).join(",");return o`<button type="button" class="swatch" style=${`--swatch: ${J(t)}`} aria-label=${e} aria-pressed=${String(s)} @click=${()=>this._pick(i)}></button>`}render(){let i=this.recentColors.slice(0,10);return o`<aside class="panel" aria-label="Editor inspector">
+      <h2>Inspector</h2>
+      <section aria-labelledby="colour-heading">
+        <div class="section-heading"><h3 id="colour-heading">Colour</h3><button type="button" class="current-color" style=${`--swatch: ${J(I(this.activeColor))}`} aria-label="Open colour sheet" @click=${()=>this._send("inspector-color-requested",{})}></button></div>
+        <div class="swatches" role="group" aria-label="RGB444-safe colour palette">${pr.map(e=>this._renderSwatch(e,`Colour ${P(I(e))}`))}</div>
+        ${i.length?o`<h4>Recent</h4><div class="swatches recent" role="group" aria-label="Recent colours">${i.map((e,t)=>this._renderSwatch(e,`Recent colour ${t+1}`))}</div>`:u}
+        <label class="native-picker"><span>Custom colour</span><input type="color" aria-label="Custom drawing colour" .value=${P(I(this.activeColor))} @input=${e=>this._pick(O(e.target.value))}></label>
+      </section>
+      <section aria-labelledby="brush-heading"><h3 id="brush-heading">Brush size</h3><div class="segmented" role="group" aria-label="Brush size">${[1,2,3].map(e=>o`<button type="button" aria-pressed=${String(this.brushSize===e)} @click=${()=>this._send("inspector-brush-changed",{size:e})}>${e}px</button>`)}</div></section>
+      <section aria-labelledby="frame-heading"><h3 id="frame-heading">Frame</h3><label class="delay-label"><span>Delay</span><span class="delay-control"><input type="number" min="10" max="60000" step="10" aria-label="Frame delay in milliseconds" .value=${String(this.frameDelay)} @change=${e=>this._send("inspector-delay-changed",{delayMs:Number(e.target.value)})}><span>ms</span></span></label><button type="button" class="toggle-row" aria-pressed=${String(this.onionSkin)} @click=${()=>this._send("inspector-onion-changed",{enabled:!this.onionSkin})}><span class="toggle-mark" aria-hidden="true">◉</span><span>Onion skin</span><span class="toggle-state">${this.onionSkin?"On":"Off"}</span></button></section>
+      <section aria-labelledby="composition-heading"><h3 id="composition-heading">Composition</h3><label class="toggle-row"><span class="toggle-mark" aria-hidden="true">◧</span><span>Clock region</span><input type="checkbox" aria-label="Reserve right half for live clock" .checked=${this.clockRegion} @change=${e=>this._send("inspector-clock-region-changed",{enabled:e.target.checked})}></label><p class="hint">Reserves the right half for the live clock.</p></section>
+    </aside>`}};wt.properties={activeColor:{attribute:!1},recentColors:{attribute:!1},brushSize:{type:Number,attribute:"brush-size"},onionSkin:{type:Boolean,attribute:"onion-skin"},frameDelay:{type:Number,attribute:"frame-delay"},clockRegion:{type:Boolean,attribute:"clock-region"}},wt.styles=[g,_,v`
+    :host { display: block; min-width: 0; }
+    .panel { display: grid; gap: var(--lu-space-4); align-content: start; min-width: 0; padding: var(--lu-space-4); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); background: var(--lu-card); box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest); }
+    h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.2 var(--lu-font); letter-spacing: -0.01em; }
+    section { display: grid; gap: var(--lu-space-2); min-width: 0; }
+    h3 { margin: 0; color: var(--lu-ink-2); font: 600 var(--lu-type-label)/1.2 var(--lu-font); }
+    h4 { margin: var(--lu-space-2) 0 0; color: var(--lu-ink-3); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-2); }
+    .current-color { width: var(--lu-target); height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--swatch); cursor: pointer; }
+    .swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--lu-space-1); }
+    .swatch { width: 100%; min-width: 48px; min-height: 48px; border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--swatch); cursor: pointer; }
+    .swatch[aria-pressed="true"] { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .native-picker, .delay-label, .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-2); min-height: var(--lu-target); color: var(--lu-ink); font: 500 var(--lu-type-label)/1.3 var(--lu-font); }
+    input[type=color] { width: var(--lu-target); height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); padding: var(--lu-space-1); background: var(--lu-card); cursor: pointer; }
+    .segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--lu-space-1); }
+    .segmented button { min-height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-tile); color: var(--lu-ink); font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .segmented button[aria-pressed="true"] { border-color: var(--lu-accent); background: var(--lu-accent-soft); color: var(--lu-accent); }
+    .delay-control { display: inline-flex; align-items: center; gap: var(--lu-space-1); color: var(--lu-ink-2); font-variant-numeric: tabular-nums; }
+    .delay-control input { width: 6rem; min-height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-card); color: var(--lu-ink); padding: 0 var(--lu-space-2); text-align: center; font: 500 var(--lu-type-numeral)/1 var(--lu-font); font-variant-numeric: tabular-nums; }
+    .toggle-row { width: 100%; padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-tile); text-align: left; cursor: pointer; }
+    .toggle-row input { width: 24px; height: 24px; accent-color: var(--lu-accent); }
+    .toggle-mark { color: var(--lu-accent); font-size: var(--lu-type-numeral); }
+    .toggle-state { margin-left: auto; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .hint { margin: 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+  `];customElements.define("iledclock-editor-inspector",wt);function eo(r){return r.frames.map((i,e)=>V(i,32,16,r.delays[e]??100))}var xt=class extends m{constructor(){super();this._previewRun=0;this.open=!1,this._seconds=8,this._previews={},this._previewLoading=!1,this._previewError=!1}updated(e){e.has("open")&&this.open&&this._loadPreviews()}disconnectedCallback(){super.disconnectedCallback(),this._previewRun++}async _loadPreviews(){let e=this.hass?.callWS?.bind(this.hass),t=this.entryId,s=++this._previewRun;if(!e||!t)return;this._previewLoading=!0,this._previewError=!1;let a={};await Promise.all(j.map(async n=>{try{let l=await e(D(t,{type:"generative",kind:n.kind,seconds:2,seed:17}));s===this._previewRun&&(a[n.kind]=eo(l))}catch{s===this._previewRun&&(this._previewError=!0)}})),s===this._previewRun&&(this._previews=a,this.dispatchEvent(new CustomEvent("effect-previews-ready",{detail:{previews:a},bubbles:!0,composed:!0})),this._previewLoading=!1)}_choose(e){this.dispatchEvent(new CustomEvent("new-option-selected",{detail:{option:e,seconds:this._seconds},bubbles:!0,composed:!0}))}_step(e){this._seconds=Math.max(2,Math.min(16,this._seconds+e))}_effectTile(e){let t=this._previews[e.kind]??[];return o`<button type="button" class="effect-tile" @click=${()=>this._choose("effect")} aria-label=${`${e.label}: ${e.hint}`}>
+      ${t.length?o`<iledclock-led-preview .frames=${t} .delays=${t.map(s=>s.durationMs)} context="thumb" max-pitch="3" playing label=${`${e.label} animation preview`}></iledclock-led-preview>`:o`<div class="preview-placeholder" role="img" aria-label=${this._previewLoading?`${e.label} preview loading`:`${e.label} preview unavailable`}>${this._previewLoading?o`<lu-skeleton variant="card" height="3rem" label=${`Loading ${e.label} preview`}></lu-skeleton>`:y("generative")}</div>`}
+      <span class="tile-copy"><strong>${e.label}</strong><small>${e.hint}</small></span>
+    </button>`}render(){let e=[{width:32,height:16,pixels:new Uint8Array(32*16*3),durationMs:100}];return o`<lu-sheet .open=${this.open} label="New design" @closed=${()=>{this.open=!1,this.dispatchEvent(new CustomEvent("close-requested",{bubbles:!0,composed:!0}))}}>
+      <div class="sheet-content">
+        <p class="intro">Choose a starting point. Your current drawing stays safe until you replace it.</p>
+        <label class="duration"><span>Effect duration</span><span class="stepper"><button type="button" aria-label="Shorter duration" ?disabled=${this._seconds<=2} @click=${()=>this._step(-1)}>−</button><output>${this._seconds} s</output><button type="button" aria-label="Longer duration" ?disabled=${this._seconds>=16} @click=${()=>this._step(1)}>+</button></span></label>
+        <div class="start-grid">
+          <button type="button" class="start-tile" @click=${()=>this._choose("blank")}><div class="blank-preview"><iledclock-led-preview .frames=${e} context="thumb" max-pitch="3" .playing=${!1} label="Blank LED canvas"></iledclock-led-preview></div><span class="tile-copy"><strong>Blank</strong><small>Start with an empty 32 × 16 canvas.</small></span></button>
+          <button type="button" class="start-tile" @click=${()=>this._choose("text")}><div class="icon-preview">${y("textStamp")}</div><span class="tile-copy"><strong>Text</strong><small>Make a message, then stamp or animate it.</small></span></button>
+          <button type="button" class="start-tile" @click=${()=>this._choose("effect")}><div class="icon-preview">${y("generative")}</div><span class="tile-copy"><strong>Effect</strong><small>Build a 2–16 second animation.</small></span></button>
+          <button type="button" class="start-tile" @click=${()=>this._choose("import")}><div class="icon-preview">${y("image")}</div><span class="tile-copy"><strong>Import file</strong><small>Adapt an image or animation for the clock.</small></span></button>
+          <button type="button" class="start-tile" @click=${()=>this._choose("explore")}><div class="icon-preview">${y("library")}</div><span class="tile-copy"><strong>From Explore</strong><small>Browse artwork and open it in the editor.</small></span></button>
+          <button type="button" class="start-tile" @click=${()=>this._choose("clock-art")}><div class="icon-preview clock-preview">${y("clock")}</div><span class="tile-copy"><strong>Art + clock</strong><small>Keep the right half clear for the live clock.</small></span></button>
         </div>
-        <label class="stepper-field">Scale<iledclock-stepper .value=${s} min="1" max="16" step="1" @value-selected=${a=>this._updateAdjust({scale:a.detail.value})}></iledclock-stepper></label>
-        <div class="two-up">
-          <label class="stepper-field">Offset X<iledclock-stepper .value=${n.x} min=${-nt} max=${nt} step="1" @value-selected=${a=>this._updateAdjust({offset:{...n,x:a.detail.value}})}></iledclock-stepper></label>
-          <label class="stepper-field">Offset Y<iledclock-stepper .value=${n.y} min=${-nt} max=${nt} step="1" @value-selected=${a=>this._updateAdjust({offset:{...n,y:a.detail.value}})}></iledclock-stepper></label>
+        <section class="effect-previews" aria-labelledby="effect-previews-heading"><div class="effect-heading"><h3 id="effect-previews-heading">Effect previews</h3>${this._previewLoading?o`<span class="hint" role="status">Preparing previews…</span>`:this._previewError?o`<span class="hint" role="status">Some previews are unavailable.</span>`:u}</div><div class="effect-grid">${j.map(t=>this._effectTile(t))}</div></section>
+      </div>
+    </lu-sheet>`}};xt.properties={open:{type:Boolean},hass:{attribute:!1},entryId:{attribute:!1},_seconds:{state:!0},_previews:{state:!0},_previewLoading:{state:!0},_previewError:{state:!0}},xt.styles=[g,_,v`
+    :host { display: block; }
+    .sheet-content { display: grid; gap: var(--lu-space-4); }
+    .intro { margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-body)/1.45 var(--lu-font); }
+    .duration { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-3); min-height: var(--lu-target); color: var(--lu-ink); font: 500 var(--lu-type-label)/1.2 var(--lu-font); }
+    .stepper { display: inline-flex; align-items: center; gap: var(--lu-space-2); font-variant-numeric: tabular-nums; }
+    .stepper button { width: var(--lu-target); height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-tile); color: var(--lu-ink); font-size: var(--lu-type-title); cursor: pointer; }
+    .stepper output { min-width: 3ch; text-align: center; color: var(--lu-ink); }
+    .start-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--lu-space-2); }
+    .start-tile, .effect-tile { display: grid; grid-template-rows: auto 1fr; min-width: 0; min-height: 132px; padding: var(--lu-space-2); gap: var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); background: var(--lu-tile); color: var(--lu-ink); text-align: left; cursor: pointer; }
+    .start-tile:hover, .effect-tile:hover, .start-tile:focus-visible, .effect-tile:focus-visible { background: var(--lu-glass-raised); outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .blank-preview, .icon-preview, .preview-placeholder { display: grid; place-items: center; min-height: 64px; border-radius: var(--lu-radius-control); background: var(--lu-card); color: var(--lu-accent); }
+    .icon-preview { font-size: var(--lu-type-display); }
+    .clock-preview { color: var(--lu-ink-2); }
+    .tile-copy { display: grid; gap: var(--lu-space-1); }
+    .tile-copy strong { color: var(--lu-ink); font: 600 var(--lu-type-label)/1.2 var(--lu-font); }
+    .tile-copy small { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.35 var(--lu-font); }
+    .effect-previews { display: grid; gap: var(--lu-space-2); }
+    .effect-heading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--lu-space-2); }
+    .effect-heading h3 { margin: 0; color: var(--lu-ink-2); font: 600 var(--lu-type-label)/1.2 var(--lu-font); }
+    .hint { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .effect-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--lu-space-2); }
+    .effect-tile { min-height: 112px; }
+    iledclock-led-preview { display: block; width: 100%; aspect-ratio: 2 / 1; overflow: hidden; border-radius: var(--lu-radius-control); }
+    @container (max-width: 380px) { .start-grid, .effect-grid { grid-template-columns: 1fr; } .start-tile { grid-template-columns: 4.5rem minmax(0, 1fr); grid-template-rows: auto; min-height: 80px; align-items: center; } .start-tile .icon-preview, .start-tile .blank-preview { min-height: 64px; } }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  `];customElements.define("iledclock-editor-new-sheet",xt);var kt=class extends m{constructor(){super(),this.open=!1,this.durationSeconds=8,this.previews={},this._kind=j[0].kind}_step(i){this.durationSeconds=Math.max(2,Math.min(16,this.durationSeconds+i))}_generate(){this.dispatchEvent(new CustomEvent("effect-selected",{detail:{kind:this._kind,seconds:this.durationSeconds},bubbles:!0,composed:!0}))}render(){let i=j.find(t=>t.kind===this._kind)??j[0],e=this.previews[this._kind]??[];return o`<lu-sheet .open=${this.open} label="Create an effect" @closed=${()=>{this.open=!1,this.dispatchEvent(new CustomEvent("close-requested",{bubbles:!0,composed:!0}))}}>
+      <div class="content">
+        ${e.length?o`<iledclock-led-preview .frames=${e} .delays=${e.map(t=>t.durationMs)} context="thumb" max-pitch="3" playing label=${`${i.label} preview`}></iledclock-led-preview>`:o`<div class="preview-placeholder" role="img" aria-label="Effect preview unavailable">${y("generative")}<span>Preview unavailable</span></div>`}
+        <div class="preset-list" role="group" aria-label="Generative effects">
+          ${j.map(t=>o`<button type="button" class="preset ${t.kind===this._kind?"selected":""}" aria-pressed=${String(t.kind===this._kind)} @click=${()=>this._kind=t.kind}><span><strong>${t.label}</strong><small>${t.hint}</small></span>${y("check")}</button>`)}
         </div>
-        <div class="background-row">
-          <span class="adjust-label">Background</span>
-          <input type="color" .value=${O(this._adjust.background??[0,0,0])} @input=${a=>this._updateAdjust({background:F(a.target.value)})} />
-          ${this._adjust.background?l`<button type="button" class="link-button" @click=${this._clearBackground}>Clear</button>`:c}
+        <label class="duration"><span>Animation duration</span><span class="stepper"><button type="button" aria-label="Shorter duration" ?disabled=${this.durationSeconds<=2} @click=${()=>this._step(-1)}>−</button><output>${this.durationSeconds} s</output><button type="button" aria-label="Longer duration" ?disabled=${this.durationSeconds>=16} @click=${()=>this._step(1)}>+</button></span></label>
+        <p class="hint">The clock renders the full animation before it is added.</p>
+      </div>
+      <div slot="footer"><button type="button" class="generate" @click=${this._generate}><span>${y("generative")}</span>Generate ${i.label}</button></div>
+    </lu-sheet>`}};kt.properties={open:{type:Boolean},durationSeconds:{type:Number,attribute:"duration-seconds"},previews:{attribute:!1},_kind:{state:!0}},kt.styles=[g,_,v`
+    :host { display: block; }
+    .content { display: grid; gap: var(--lu-space-3); }
+    iledclock-led-preview { display: block; width: 100%; aspect-ratio: 2 / 1; border-radius: var(--lu-radius-tile); overflow: hidden; }
+    .preview-placeholder { display: flex; align-items: center; justify-content: center; gap: var(--lu-space-2); min-height: 7rem; border-radius: var(--lu-radius-tile); background: var(--lu-tile); color: var(--lu-ink-3); }
+    .preset-list { display: grid; gap: var(--lu-space-1); }
+    .preset { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-2); min-height: var(--lu-target); padding: var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-tile); color: var(--lu-ink); text-align: left; cursor: pointer; }
+    .preset > span { display: grid; gap: var(--lu-space-1); }
+    .preset strong { font: 500 var(--lu-type-label)/1.2 var(--lu-font); }
+    .preset small { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .preset > svg { opacity: 0; color: var(--lu-accent); }
+    .preset.selected { border-color: var(--lu-accent); background: var(--lu-accent-soft); }
+    .preset.selected > svg { opacity: 1; }
+    .duration { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-2); min-height: var(--lu-target); color: var(--lu-ink); font: 500 var(--lu-type-label)/1.2 var(--lu-font); }
+    .stepper { display: inline-flex; align-items: center; gap: var(--lu-space-2); font-variant-numeric: tabular-nums; }
+    .stepper button { width: var(--lu-target); height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-tile); color: var(--lu-ink); font-size: var(--lu-type-title); cursor: pointer; }
+    .stepper output { min-width: 3ch; text-align: center; }
+    .hint { margin: 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .generate { display: flex; align-items: center; justify-content: center; gap: var(--lu-space-2); width: 100%; min-height: var(--lu-target); border: 0; border-radius: var(--lu-radius-pill); background: var(--lu-accent); color: var(--lu-accent-ink); font: 600 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    button:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  `];customElements.define("iledclock-editor-effects-sheet",kt);var $t=class extends m{constructor(){super(),this.open=!1,this.mode="stamp",this.color=[255,255,255],this._text="",this._color=this.color}updated(i){i.has("open")&&this.open&&(this._text="",this._color=this.color)}_submit(){let i=this._text.trim();i&&this.dispatchEvent(new CustomEvent("text-ready",{detail:{text:i,color:this._color,mode:this.mode},bubbles:!0,composed:!0}))}render(){let i=this.mode==="new"?"Create text design":"Set text stamp";return o`<lu-sheet .open=${this.open} label=${this.mode==="new"?"New text design":"Text stamp"} @closed=${()=>{this.open=!1,this.dispatchEvent(new CustomEvent("close-requested",{bubbles:!0,composed:!0}))}}>
+      <div class="content">
+        <label class="field"><span>Message</span><input type="text" maxlength="80" aria-label="Text to draw" placeholder="Type a short message" .value=${this._text} @input=${e=>this._text=e.target.value} @keydown=${e=>{e.key==="Enter"&&this._submit()}}></label>
+        <p class="hint">${this.mode==="new"?"The clock will render this as a new design.":"Choose the text, then tap the canvas where it should begin."}</p>
+        <label class="colour-row"><span>Text colour <span class="colour-dot" style=${`--swatch: ${J(this._color)}`}></span></span><input type="color" aria-label="Text colour" .value=${P(this._color)} @input=${e=>this._color=O(e.target.value)}></label>
+        <lu-pill-button variant="primary" label=${i} icon="mdi:text" ?disabled=${!this._text.trim()} @lu-press=${this._submit}></lu-pill-button>
+      </div>
+    </lu-sheet>`}};$t.properties={open:{type:Boolean},mode:{type:String},color:{attribute:!1},_text:{state:!0},_color:{state:!0}},$t.styles=[g,_,v`
+    :host { display: block; }
+    .content { display: grid; gap: var(--lu-space-3); }
+    .field, .colour-row { display: grid; gap: var(--lu-space-2); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.3 var(--lu-font); }
+    input[type=text] { width: 100%; min-height: var(--lu-target); box-sizing: border-box; padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-card); color: var(--lu-ink); font: 400 var(--lu-type-body)/1.3 var(--lu-font); }
+    .hint { margin: 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .colour-row { display: flex; align-items: center; justify-content: space-between; min-height: var(--lu-target); }
+    .colour-row > span { display: inline-flex; align-items: center; gap: var(--lu-space-2); }
+    .colour-dot { display: inline-block; width: var(--lu-space-5); height: var(--lu-space-5); border-radius: var(--lu-radius-pill); background: var(--swatch); border: 1px solid var(--lu-edge); }
+    input[type=color] { width: var(--lu-target); height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); padding: var(--lu-space-1); background: var(--lu-card); cursor: pointer; }
+    lu-pill-button { width: 100%; }
+    input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+  `];customElements.define("iledclock-editor-text-sheet",$t);var Z="Untitled design",to=400,io=10,ro=$(32,16);function so(){return"local-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8)}function ao(r,i){if(r.length!==i.length)return!1;for(let e=0;e<r.length;e++)if(r[e]!==i[e]&&!Gr(r[e],i[e]))return!1;return!0}function da(r){return r.trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"iledclock-design"}function ca(r,i){let e=URL.createObjectURL(r),t=document.createElement("a");t.href=e,t.download=i,t.hidden=!0,document.body.append(t),t.click(),t.remove(),window.setTimeout(()=>URL.revokeObjectURL(e),1e3)}var St=class extends m{constructor(){super();this._lastRouteDesign="";this._openedEntryId=null;this._savedFingerprint="";this._pendingReplacement=null;this._designLoadToken=0;this._resizeObserver=null;this._retryAction=null;this._onDesignsChanged=()=>{this.entryId&&this._loadDesigns(this.entryId)};this._onOpenDesign=async e=>{let t=e.detail?.design_id,s=this.entryId;if(!t||!s)return;this._lastRouteDesign=t,this._designs.length||await this._loadDesigns(s);let a=this._designs.find(n=>n.id===t);a&&this._currentDesignId!==a.id&&this._requestReplacement(()=>this._applyDesign(a))};this._onFrameChanged=e=>{let t=this._frames.slice();t[this._activeFrameIndex]=e.detail.frame,this._pushFrames(t)};this._onFramesChanged=e=>{let t=e.detail.frames.slice(0,64);this._pushFrames(t),this._activeFrameIndex=Math.max(0,Math.min(e.detail.activeIndex??this._activeFrameIndex,t.length-1))};this._onColorPicked=e=>{this._rememberColor(e.detail.color)};this._onUndoRequested=()=>{this._history=Us(this._history),this._activeFrameIndex=Math.min(this._activeFrameIndex,this._frames.length-1)};this._onRedoRequested=()=>{this._history=qs(this._history),this._activeFrameIndex=Math.min(this._activeFrameIndex,this._frames.length-1)};this._onFrameSelected=e=>{this._activeFrameIndex=e.detail.index};this._onPlayToggled=e=>{this._playing=e.detail.playing};this._onInspectorDelay=e=>{this._pushFrames(ni(this._frames,this._activeFrameIndex,e.detail.delayMs))};this._onClockRegionChanged=e=>{this._clockRegion=e.detail.enabled};this._onOnionChanged=e=>{this._onionEnabled=e.detail.enabled};this._onBrushChanged=e=>{this._brushSize=Math.max(1,Math.min(3,Math.round(e.detail.size)))};this._onWrapChanged=e=>{this._wrap=e.detail.wrap};this._keepEditing=()=>{this._pendingReplacement=null,this._replacementSheetOpen=!1};this._saveClick=async()=>{this._busy||(this._busy="save",this._error=null,await this._saveDesign(),this._busy=null)};this._showClick=async()=>{if(!(!this.entryId||this._busy)){this._busy="show",this._error=null;try{let e=await this._saveDesign();e&&await F(this,this.hass,this.entryId,{design_id:e.id},e.name)}finally{this._busy=null}}};this._onNewOption=e=>{let{option:t,seconds:s}=e.detail;this._newSheetOpen=!1,t==="blank"?this._requestReplacement(()=>this._replaceDesign([$()],Z)):t==="clock-art"?this._requestReplacement(()=>this._replaceDesign([$()],Z,!0)):t==="text"?(this._textSheetMode="new",this._textSheetOpen=!0):t==="effect"?(this._generativeSeconds=s,this._effectsSheetOpen=!0):t==="import"?this._importSheetOpen=!0:t==="explore"&&T({destination:"explore"})};this._onEffectPreviewReady=e=>{this._effectPreviews=e.detail.previews};this._onEffectSelected=e=>{let s=j.find(a=>a.kind===e.detail.kind)?.label??"Generative";this._effectsSheetOpen=!1,this._requestReplacement(()=>this._renderInto({type:"generative",kind:e.detail.kind,seconds:e.detail.seconds},s))};this._onTextConfigRequested=()=>this._openTextSheet("stamp");this._onTextReady=e=>{let{text:t,color:s,mode:a}=e.detail;if(this._textSheetOpen=!1,a==="stamp"){this._stampText={text:t,color:s},this._rememberColor(s);return}let n=oe(t,s);n&&this._requestReplacement(()=>this._renderInto(n,`Text \xB7 ${t.slice(0,24)}`))};this._onTextPlaceRequested=async e=>{let t=this._stampText,s=this.entryId,a=this.hass?.callWS?.bind(this.hass);if(!t||!s||!a||this._busy)return;let n=oe(t.text,t.color);if(n){this._busy="stamp";try{let l=await a(D(s,n)),d=l.frames[0];if(!d)return;let c=V(d,32,16,l.delays[0]??100),p=H(this._activeFrame);for(let h=0;h<c.height;h++)for(let f=0;f<c.width;f++){let b=(h*c.width+f)*3,k=[c.pixels[b],c.pixels[b+1],c.pixels[b+2]];if(k[0]===0&&k[1]===0&&k[2]===0)continue;let S=e.detail.x+f-Math.floor(c.width/2),R=e.detail.y+h-Math.floor(c.height/2);si(S,32,this._clockRegion)&&C(p,S,R,k)}this._onFrameChanged({detail:{frame:p}})}catch(l){this._error=l instanceof Error?l.message:"Could not stamp the text.",this._retryAction=()=>{this._onTextPlaceRequested(e)}}finally{this._busy=null}}};this._duplicate=()=>{this._overflowOpen=!1;let e=`${this._designName.trim()||Z} copy`,t=[$(this._frames[0]?.width??32,this._frames[0]?.height??16)];this._currentDesignId=null,this._designName=e,this._savedFingerprint=W({name:e,frames:t,clockRegion:this._clockRegion}),this._saveState="unsaved"};this._clearCanvas=()=>{this._overflowOpen=!1;let e=$(this._activeFrame.width,this._activeFrame.height,[0,0,0],this._activeFrame.durationMs);this._pushFrames([e]),this._activeFrameIndex=0,this._playing=!1};this._exportGif=()=>{this._overflowOpen=!1;try{let e=Ws(this._frames);ca(new Blob([e],{type:"image/gif"}),`${da(this._designName)}.gif`)}catch(e){this._error=e instanceof Error?e.message:"Could not create a GIF file."}};this._openNew=()=>{this._overflowOpen=!1,this._newSheetOpen=!0};this._openImport=()=>{this._overflowOpen=!1,this._importSheetOpen=!0};this._openEffects=()=>{this._overflowOpen=!1,this._effectsSheetOpen=!0};this._onImportClosed=()=>{this._importSheetOpen=!1};this._onColorClose=()=>{this._colorSheetOpen=!1};this._onNewClose=()=>{this._newSheetOpen=!1};this._onEffectsClose=()=>{this._effectsSheetOpen=!1};this._onTextClose=()=>{this._textSheetOpen=!1};this._onReplacementClose=()=>{this._replacementSheetOpen=!1,this._pendingReplacement=null};this._onRetry=()=>{this._error=null,this._retryAction?.()};let e=[$(32,16)];this.narrow=!1,this._history=xe(e),this._activeFrameIndex=0,this._activeColor=[255,255,255],this._recentColors=[],this._wrap=!1,this._designs=[],this._designsLoading=!1,this._designName=Z,this._currentDesignId=null,this._playing=!1,this._newSheetOpen=!1,this._importSheetOpen=!1,this._colorSheetOpen=!1,this._effectsSheetOpen=!1,this._textSheetOpen=!1,this._textSheetMode="stamp",this._replacementSheetOpen=!1,this._overflowOpen=!1,this._generativeSeconds=8,this._effectPreviews={},this._stampText=null,this._brushSize=1,this._onionEnabled=!0,this._clockRegion=!1,this._wideLayout=!1,this._saveState="draft",this._busy=null,this._error=null,this._savedFingerprint=W({name:this._designName,frames:e,clockRegion:!1})}connectedCallback(){super.connectedCallback(),this.addEventListener("iledclock-designs-changed",this._onDesignsChanged),this.addEventListener("iledclock-open-design",this._onOpenDesign)}disconnectedCallback(){super.disconnectedCallback(),this.removeEventListener("iledclock-designs-changed",this._onDesignsChanged),this.removeEventListener("iledclock-open-design",this._onOpenDesign),clearTimeout(this._autosaveTimer),this._resizeObserver?.disconnect(),this._resizeObserver=null}firstUpdated(){this._resizeObserver=new ResizeObserver(e=>{let s=(e[0]?.contentRect.width??this.getBoundingClientRect().width)>=900;s!==this._wideLayout&&(this._wideLayout=s)}),this._resizeObserver.observe(this),this.entryId&&this._openEntry(this.entryId),this._resolveRouteDesign()}updated(e){e.has("entryId")&&this.entryId&&this._openEntry(this.entryId),e.has("route")&&this._resolveRouteDesign(),(e.has("_history")||e.has("_designName")||e.has("_clockRegion"))&&this._scheduleDraftSave()}get _frames(){return this._history.present}get _activeFrame(){return this._frames[this._activeFrameIndex]??this._frames[0]??ro}get _isDirty(){return W({name:this._designName,frames:this._frames,clockRegion:this._clockRegion})!==this._savedFingerprint}_storage(){try{return window.localStorage}catch{return null}}_draftState(){return{name:this._designName,frames:this._frames,clockRegion:this._clockRegion,designId:this._currentDesignId}}_openEntry(e){if(this._openedEntryId===e)return;this._flushDraftSave(this._openedEntryId),this._openedEntryId=e;let t=[$()];this._history=xe(t),this._activeFrameIndex=0,this._currentDesignId=null,this._designName=Z,this._clockRegion=!1,this._savedFingerprint=W({name:Z,frames:t,clockRegion:!1}),this._saveState="draft",this._playing=!1,this._stampText=null,this._designs=[],this._designsLoading=!1,this._error=null,this._retryAction=null,this._lastRouteDesign="",this._restoreDraft(e),this.route?.design?this._resolveRouteDesign():this._loadDesigns(e)}_flushDraftSave(e){if(clearTimeout(this._autosaveTimer),this._autosaveTimer=void 0,!e||!this._isDirty)return;let t=this._storage();t&&or(t,ar(e,this._draftState(),this._savedFingerprint))}_restoreDraft(e){let t=this._storage();if(!t)return;let s=js(t,e);if(!s){ee(t,e);return}if(!zs(s)){ee(t,e);return}this._history=xe(s.frames.slice()),this._activeFrameIndex=0,this._currentDesignId=s.designId,this._designName=s.name,this._clockRegion=s.clockRegion,this._savedFingerprint=s.savedFingerprint,this._saveState="draft",this.dispatchEvent(new CustomEvent("lu-toast",{detail:{message:"Restored your unsaved drawing",actionLabel:"Discard",timeoutMs:8e3,action:()=>void this._discardRestoredDraft(e)},bubbles:!0,composed:!0}))}async _discardRestoredDraft(e){let t=this._storage();if(t&&ee(t,e),this._currentDesignId){this._designs.length||await this._loadDesigns(e);let s=this._designs.find(a=>a.id===this._currentDesignId);if(s){this._applyDesign(s);return}}this._replaceDesign([$()],Z,!1)}_resolveRouteDesign(){let e=this.route?.design??"";if(!e){this._lastRouteDesign="";return}e!==this._lastRouteDesign&&(this._lastRouteDesign=e,this._loadRouteDesign(e))}async _loadRouteDesign(e){let t=this.entryId;if(!t||this._currentDesignId===e||(this._designs.length||await this._loadDesigns(t),this.route?.design!==e))return;let s=this._designs.find(a=>a.id===e);if(!s){this._error="That design is no longer in the library.",this._retryAction=()=>{this._designs=[],this._loadRouteDesign(e)};return}this._requestReplacement(()=>this._applyDesign(s))}async _loadDesigns(e){let t=this.hass?.callWS?.bind(this.hass);if(!t)return;let s=++this._designLoadToken;this._designsLoading=!0,this._error=null;try{let a=await t(z(e));if(s!==this._designLoadToken||this.entryId!==e)return;this._designs=a}catch(a){if(s!==this._designLoadToken||this.entryId!==e)return;this._error=a instanceof Error?a.message:"Could not load the design library.",this._retryAction=()=>{this._loadDesigns(e)}}finally{s===this._designLoadToken&&this.entryId===e&&(this._designsLoading=!1)}}_applyDesign(e){let t=G(e).slice(0,64);this._history=xe(t.length?t:[$(e.width,e.height)]),this._activeFrameIndex=0,this._currentDesignId=e.id,this._designName=e.name,this._clockRegion=bs(e),this._savedFingerprint=W({name:this._designName,frames:this._frames,clockRegion:this._clockRegion}),this._saveState="saved",this._stampText=null,this._playing=!1;let s=this._storage();s&&this.entryId&&ee(s,this.entryId)}_pushFrames(e){ao(this._frames,e)||(this._history=Gs(this._history,e))}_rememberColor(e){this._activeColor=e;let t=e.join(",");this._recentColors=[e,...this._recentColors.filter(s=>s.join(",")!==t)].slice(0,io)}_scheduleDraftSave(){clearTimeout(this._autosaveTimer);let e=this.entryId;if(!e)return;if(!this._isDirty){let s=this._storage();s&&ee(s,e),this._saveState=this._currentDesignId?"saved":"draft";return}this._saveState="unsaved";let t=ar(e,this._draftState(),this._savedFingerprint);this._autosaveTimer=setTimeout(()=>{let s=this._storage();this._saveState=s&&or(s,t)?"draft":"unsaved"},to)}_replaceDesign(e,t,s=!1){let a=[$(e[0]?.width??32,e[0]?.height??16)];this._history=xe(e.length?e:a),this._activeFrameIndex=0,this._currentDesignId=null,this._designName=t,this._clockRegion=s,this._savedFingerprint=W({name:t,frames:a,clockRegion:s}),this._saveState="unsaved",this._playing=!1,this._stampText=null}_requestReplacement(e){if(!this._isDirty){e();return}this._pendingReplacement=e,this._replacementSheetOpen=!0}async _saveBeforeReplacement(){let e=this._pendingReplacement;this._pendingReplacement=null,this._replacementSheetOpen=!1,this._busy="save";let t=await this._saveDesign();this._busy=null,t&&e&&await e()}async _discardAndReplace(){let e=this._pendingReplacement;this._pendingReplacement=null,this._replacementSheetOpen=!1;let t=this._storage();t&&this.entryId&&ee(t,this.entryId),e&&await e()}async _saveDesign(){let e=this.entryId,t=this.hass?.callWS?.bind(this.hass);if(!e||!t)return null;let s=this._frames.slice(),a=this._designName.trim()||Z,n=this._clockRegion,l=W({name:a,frames:s,clockRegion:n}),d=Date.now(),c=this._currentDesignId?this._designs.find(f=>f.id===this._currentDesignId):void 0,p=(c?.tags??[]).filter(f=>f!==ri&&f!=="with-clock"&&f!=="clock_region");n&&p.push(ri);let h=ls(s,{id:this._currentDesignId??so(),name:a,kind:s.length>1?"animation":"image",created:c?.created??d,updated:d,tags:p});h.clock_region=_s(n);try{let b=(await t(Fe(h))).id||h.id;if(this._currentDesignId=b,this._savedFingerprint=l,this._loadDesigns(e),W({name:this._designName.trim()||Z,frames:this._frames,clockRegion:this._clockRegion})===l){this._designName=a;let k=this._storage();k&&ee(k,e),this._saveState="saved"}else this._scheduleDraftSave();return this._error=null,{id:b,name:a}}catch(f){return this._error=f instanceof Error?f.message:"Could not save the design.",this._retryAction=()=>{this._saveClick()},this._saveState="unsaved",this._scheduleDraftSave(),null}}async _renderInto(e,t,s=!1){let a=this.entryId,n=this.hass?.callWS?.bind(this.hass);if(!(!a||!n)){this._busy="render",this._error=null;try{let l=await n(D(a,e)),d=l.frames.slice(0,64).map((c,p)=>V(c,32,16,l.delays[p]??100));d.length&&this._replaceDesign(d,t,s)}catch(l){this._error=l instanceof Error?l.message:"Could not generate the design.",this._retryAction=()=>{this._renderInto(e,t,s)},this._scheduleDraftSave()}finally{this._busy=null}}}_openTextSheet(e){this._textSheetMode=e,this._textSheetOpen=!0,this._overflowOpen=!1}async _exportPng(){this._overflowOpen=!1;let e=this._activeFrame,t=document.createElement("canvas");t.width=e.width,t.height=e.height;let s=t.getContext("2d");if(!s){this._error="PNG export is unavailable in this browser.";return}let a=s.createImageData(e.width,e.height);for(let l=0;l<e.width*e.height;l++){let d=l*3,c=l*4;a.data[c]=e.pixels[d],a.data[c+1]=e.pixels[d+1],a.data[c+2]=e.pixels[d+2],a.data[c+3]=255}s.putImageData(a,0,0);let n=await new Promise(l=>t.toBlob(l,"image/png"));if(!n){this._error="Could not create a PNG file.";return}ca(n,`${da(this._designName)}.png`)}_scheduleMenuAction(e){this._overflowOpen=!1,e()}_statusLabel(){return this._saveState==="saved"?"Saved to library":this._saveState==="draft"?"Draft saved":"Unsaved"}render(){let e=this._frames,t=this._onionEnabled&&this._activeFrameIndex>0?e[this._activeFrameIndex-1]??null:null;return o`<div class="destination" aria-label="Create a pixel design">
+      ${this._error?o`<lu-error message=${this._error} retry-label="Retry" @retry=${this._onRetry}></lu-error>`:u}
+      <header class="editor-header">
+        <div class="identity-row">
+          <label class="name-field"><span>Design name</span><input type="text" aria-label="Design name" maxlength="80" .value=${this._designName} @input=${s=>{this._designName=s.target.value}}></label>
+          <lu-chip class="save-chip" label=${this._statusLabel()} kind=${this._saveState==="saved"?"positive":this._saveState==="draft"?"neutral":"warning"}></lu-chip>
+          <div class="icon-actions" role="group" aria-label="Edit history">
+            <lu-icon-button icon="mdi:undo" tooltip="Undo" aria-label="Undo" ?disabled=${this._history.past.length===0||this._busy==="render"} @lu-press=${this._onUndoRequested}></lu-icon-button>
+            <lu-icon-button icon="mdi:redo" tooltip="Redo" aria-label="Redo" ?disabled=${this._history.future.length===0||this._busy==="render"} @lu-press=${this._onRedoRequested}></lu-icon-button>
+          </div>
+          <div class="overflow-wrap">
+            <button type="button" class="overflow-button" aria-label="More editor actions" aria-expanded=${String(this._overflowOpen)} @click=${()=>this._overflowOpen=!this._overflowOpen}>${y("menu")}</button>
+            ${this._overflowOpen?o`<div class="overflow-menu" role="menu" aria-label="Editor actions">
+              <button type="button" role="menuitem" class="menu-action" @click=${this._openNew}>${y("plus")}<span>New…</span></button>
+              <button type="button" role="menuitem" class="menu-action" @click=${()=>this._scheduleMenuAction(this._duplicate)}>${y("duplicate")}<span>Duplicate</span></button>
+              <button type="button" role="menuitem" class="menu-action" @click=${this._openImport}>${y("image")}<span>Import file…</span></button>
+              <button type="button" role="menuitem" class="menu-action" @click=${()=>this._scheduleMenuAction(()=>this._openTextSheet("stamp"))}>${y("textStamp")}<span>Text stamp…</span></button>
+              <button type="button" role="menuitem" class="menu-action" @click=${this._openEffects}>${y("generative")}<span>Effects…</span></button>
+              <iledclock-hold-button class="clear-hold" label="Hold to clear canvas" complete-label="Canvas cleared" ?disabled=${this._busy!==null} @confirmed=${this._clearCanvas}></iledclock-hold-button>
+              <button type="button" role="menuitem" class="menu-action" @click=${this._exportPng}>${y("image")}<span>Export PNG</span></button>
+              <button type="button" role="menuitem" class="menu-action" @click=${this._exportGif}>${y("gif")}<span>Export GIF</span></button>
+            </div>`:u}
+          </div>
         </div>
-        <button type="button" class="toggle-row" @click=${()=>this._updateAdjust({enhance:!o})}>
-          <span class="toggle-label">Enhance colours</span>
-          <span class="toggle-pill ${o?"on":""}"><span class="toggle-knob"></span></span>
+        <div class="primary-actions">
+          <lu-pill-button variant="secondary" label="Save" icon="mdi:content-save" ?loading=${this._busy==="save"} ?disabled=${!this.entryId||this._busy!==null} @lu-press=${this._saveClick}></lu-pill-button>
+          <lu-pill-button variant="primary" label="Show on clock" icon="mdi:television-play" ?loading=${this._busy==="show"} ?disabled=${!this.entryId||this._busy!==null} @lu-press=${this._showClick}></lu-pill-button>
+        </div>
+      </header>
+      <div class="workspace">
+        ${this.entryId?o`<div class="editor-center">
+          <iledclock-pixel-editor .frame=${this._activeFrame} .onionSkin=${t} .wrap=${this._wrap} .activeColor=${this._activeColor} .recentColors=${this._recentColors} .brushSize=${this._brushSize} .clockRegion=${this._clockRegion} .stampText=${this._stampText} .narrow=${!this._wideLayout} .disabled=${this._busy==="render"||this._busy==="stamp"} @frame-changed=${this._onFrameChanged} @color-picked=${this._onColorPicked} @color-requested=${()=>this._colorSheetOpen=!0} @text-config-requested=${this._onTextConfigRequested} @text-place-requested=${this._onTextPlaceRequested} @wrap-changed=${this._onWrapChanged} @undo-requested=${this._onUndoRequested} @redo-requested=${this._onRedoRequested}></iledclock-pixel-editor>
+          <lu-section class="timeline-section" title="Frames" icon="mdi:animation" description=${`${e.length} frame${e.length===1?"":"s"} \xB7 max 64`}>
+            <iledclock-frame-timeline .frames=${e} .activeIndex=${this._activeFrameIndex} .playing=${this._playing} @frames-changed=${this._onFramesChanged} @frame-selected=${this._onFrameSelected} @play-toggled=${this._onPlayToggled}></iledclock-frame-timeline>
+          </lu-section>
+        </div>`:o`<lu-empty title="Clock not found" message="Connect an iLedClock to create and save designs."></lu-empty>`}
+        <iledclock-editor-inspector class="inspector" .activeColor=${this._activeColor} .recentColors=${this._recentColors} .brushSize=${this._brushSize} .onionSkin=${this._onionEnabled} .frameDelay=${this._activeFrame.durationMs} .clockRegion=${this._clockRegion} @inspector-color-picked=${this._onColorPicked} @inspector-color-requested=${()=>this._colorSheetOpen=!0} @inspector-brush-changed=${this._onBrushChanged} @inspector-delay-changed=${this._onInspectorDelay} @inspector-onion-changed=${this._onOnionChanged} @inspector-clock-region-changed=${this._onClockRegionChanged}></iledclock-editor-inspector>
+      </div>
+      <iledclock-editor-color-sheet .open=${this._colorSheetOpen} .color=${this._activeColor} .recent=${this._recentColors} @color-selected=${this._onColorPicked} @close-requested=${this._onColorClose} @closed=${this._onColorClose}></iledclock-editor-color-sheet>
+      <iledclock-editor-new-sheet .open=${this._newSheetOpen} .hass=${this.hass} .entryId=${this.entryId} @new-option-selected=${this._onNewOption} @effect-previews-ready=${this._onEffectPreviewReady} @close-requested=${this._onNewClose} @closed=${this._onNewClose}></iledclock-editor-new-sheet>
+      <iledclock-editor-effects-sheet .open=${this._effectsSheetOpen} .durationSeconds=${this._generativeSeconds} .previews=${this._effectPreviews} @effect-selected=${this._onEffectSelected} @close-requested=${this._onEffectsClose} @closed=${this._onEffectsClose}></iledclock-editor-effects-sheet>
+      <iledclock-editor-text-sheet .open=${this._textSheetOpen} .mode=${this._textSheetMode} .color=${this._activeColor} @text-ready=${this._onTextReady} @close-requested=${this._onTextClose} @closed=${this._onTextClose}></iledclock-editor-text-sheet>
+      <iledclock-import-sheet .hass=${this.hass} .entryId=${this.entryId} .open=${this._importSheetOpen} @close-requested=${this._onImportClosed} @closed=${this._onImportClosed}></iledclock-import-sheet>
+      <lu-sheet .open=${this._replacementSheetOpen} label="Replace the current drawing" ?close-on-scrim=${!1} @closed=${this._onReplacementClose}>
+        <div class="replace-copy"><h2>Replace this drawing?</h2><p>Your current work is not saved to the library yet.</p></div>
+        <div class="replace-actions"><button type="button" class="replace-button" @click=${this._keepEditing}>Keep editing</button><button type="button" class="replace-button" ?disabled=${!this.entryId||this._busy!==null} @click=${this._saveBeforeReplacement}>Save first</button><iledclock-hold-button class="replace-discard" label="Hold to discard" complete-label="Discarded" danger ?disabled=${this._busy!==null} @confirmed=${this._discardAndReplace}></iledclock-hold-button></div>
+      </lu-sheet>
+    </div>`}};St.properties={hass:{attribute:!1},entryId:{attribute:!1},route:{attribute:!1},narrow:{type:Boolean},_history:{state:!0},_activeFrameIndex:{state:!0},_activeColor:{state:!0},_recentColors:{state:!0},_wrap:{state:!0},_designs:{state:!0},_designsLoading:{state:!0},_designName:{state:!0},_currentDesignId:{state:!0},_playing:{state:!0},_newSheetOpen:{state:!0},_importSheetOpen:{state:!0},_colorSheetOpen:{state:!0},_effectsSheetOpen:{state:!0},_textSheetOpen:{state:!0},_textSheetMode:{state:!0},_replacementSheetOpen:{state:!0},_overflowOpen:{state:!0},_generativeSeconds:{state:!0},_effectPreviews:{state:!0},_stampText:{state:!0},_brushSize:{state:!0},_onionEnabled:{state:!0},_clockRegion:{state:!0},_wideLayout:{state:!0},_saveState:{state:!0},_busy:{state:!0},_error:{state:!0}},St.styles=[g,_,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .destination { display: grid; gap: var(--lu-space-4); min-width: 0; width: 100%; }
+    .editor-header { display: grid; gap: var(--lu-space-3); min-width: 0; }
+    .identity-row { display: flex; align-items: center; gap: var(--lu-space-2); min-width: 0; flex-wrap: wrap; }
+    .name-field { display: grid; gap: var(--lu-space-1); flex: 1 1 14rem; min-width: 9rem; max-width: 28rem; color: var(--lu-ink-3); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .name-field input { width: 100%; min-width: 0; min-height: var(--lu-target); box-sizing: border-box; padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-card); color: var(--lu-ink); font: 500 var(--lu-type-body)/1.2 var(--lu-font); }
+    .save-chip { flex: none; }
+    .icon-actions { display: inline-flex; gap: var(--lu-space-1); }
+    .overflow-wrap { position: relative; flex: none; }
+    .overflow-button { display: inline-flex; align-items: center; justify-content: center; width: var(--lu-target); height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-tile); color: var(--lu-ink); cursor: pointer; }
+    .overflow-menu { position: absolute; z-index: 20; inset-block-start: calc(100% + var(--lu-space-1)); inset-inline-end: 0; display: grid; gap: var(--lu-space-1); width: min(18rem, calc(100vw - 2rem)); max-height: min(70vh, 34rem); overflow: auto; padding: var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); background: var(--lu-card); box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest); }
+    .menu-action { display: flex; align-items: center; gap: var(--lu-space-2); min-height: var(--lu-target); padding: 0 var(--lu-space-2); border: 0; border-radius: var(--lu-radius-control); background: transparent; color: var(--lu-ink); text-align: left; font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .menu-action:hover, .menu-action:focus-visible { background: var(--lu-glass-raised); }
+    .clear-hold { display: block; min-width: 0; }
+    .primary-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--lu-space-2); min-width: 0; }
+    .primary-actions lu-pill-button:last-child { min-width: min(100%, 13rem); }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; gap: var(--lu-space-4); min-width: 0; }
+    .editor-center { display: grid; align-content: start; gap: var(--lu-space-3); min-width: 0; }
+    .timeline-section { min-width: 0; }
+    .inspector { min-width: 0; }
+    .replace-copy h2 { margin: 0 0 var(--lu-space-2); color: var(--lu-ink); font: 600 var(--lu-type-title)/1.2 var(--lu-font); }
+    .replace-copy p { margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-body)/1.45 var(--lu-font); }
+    .replace-actions { display: grid; gap: var(--lu-space-2); padding-top: var(--lu-space-3); }
+    .replace-button { min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-tile); color: var(--lu-ink); font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .replace-button:disabled { opacity: .45; cursor: default; }
+    .replace-discard { display: block; width: 100%; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    @container (max-width: 899px) { .workspace { grid-template-columns: minmax(0, 1fr); } .inspector { display: none; } .editor-header { gap: var(--lu-space-2); } }
+    @container (max-width: 380px) { .identity-row { gap: var(--lu-space-1); } .name-field { flex: 1 1 100%; max-width: none; } .primary-actions { justify-content: stretch; } .primary-actions lu-pill-button { flex: 1 1 0; min-width: 0 !important; } }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  `];customElements.define("iledclock-dest-create",St);function hr(r,i){return r.source===i.source&&r.sort===i.sort&&r.query===i.query&&r.size===i.size&&r.animatedOnly===i.animatedOnly&&r.category===i.category}function pe(r){return{filters:r,items:[],page:0,hasMore:!0,loading:!1,error:null}}function pa(r,i){let e={...r.filters,...i};return hr(e,r.filters)?r:pe(e)}function ha(r){return r.loading||!r.hasMore?r:{...r,loading:!0,error:null}}function E(r){return`${r.source}:${r.id}`}function ma(r,i,e,t){if(!hr(i,r.filters)||e!==r.page)return r;let s=new Set(r.items.map(n=>E(n))),a=r.items.slice();for(let n of t.items){let l=E(n);s.has(l)||(s.add(l),a.push(n))}return{...r,items:a,page:r.page+1,hasMore:t.has_more,loading:!1,error:null}}function mr(r,i,e,t){return!hr(i,r.filters)||e!==r.page?r:{...r,loading:!1,error:t}}function vr(r,i){let e=i.trim().toLowerCase();return e?r.filter(t=>t.title.toLowerCase().includes(e)):r}function va(r,i,e){return r.some(t=>t.id===e)?e:i}function ua(r){let i=e=>e.endsWith(".0")?e.slice(0,-2):e;return r>=1e6?`${i((r/1e6).toFixed(1))}M`:r>=1e3?`${i((r/1e3).toFixed(1))}k`:String(Math.max(0,Math.round(r)))}function bi(r){let i=[];r.author&&i.push(`by ${r.author}`);let e=[];if(r.likes!=null&&e.push(`${ua(r.likes)} likes`),r.downloads!=null&&e.push(`${ua(r.downloads)} downloads`),e.length>0&&i.push(e.join(" and ")),i.length===0)return null;let t=i.join(", ");return t.charAt(0).toUpperCase()+t.slice(1)}function gr(r,i){let e={type:"iledclock/gallery/search",entry_id:r,source:i.source,sort:i.sort,page:i.page+1},t=i.query?.trim();return t&&(e.query=t),i.category&&(e.category=i.category),i.size&&(e.size=i.size),i.animatedOnly&&(e.animated_only=!0),e}var ga=["iledclock","iledclock_anim","lametric","awtrix","divoom"];function Et(r){switch(r.id){case"iledclock":return"iLedClock";case"iledclock_anim":return"Animations";case"lametric":return"LaMetric";case"awtrix":return"AWTRIX";case"divoom":return"Divoom";default:return r.name}}var no=["auto","fit","fill","tile","icon_with_clock"];function fa(r){let i=new Set(r);return no.filter(e=>e==="auto"||i.has(e))}function _a(r){return r==="icon_with_clock"?"With clock":vi(r)}function fr(r){let i=r.filter(t=>t.configured),e=[];for(let t of ga){let s=i.find(a=>a.id===t);s&&e.push(s)}for(let t of i)ga.includes(t.id)||e.push(t);return e}function yi(r){return r.native_fit===!0||r.native_fit===void 0&&r.width===32&&r.height===16}function oo(r){if(!r)return null;let i=/^(\d+)x(\d+)$/i.exec(r);if(!i)return null;let e=Number(i[1]),t=Number(i[2]);return e>0&&t>0?[e,t]:null}function ba(r,i,e){let t=oo(r?.sizes[0]),a=(e.split("/").pop()||e).replace(/\.[^.]+$/,"").replace(/[-_]+/g," ")||"Pixel art",n=e.split("/").map(l=>encodeURIComponent(l)).join("/");return{source:i,id:e,title:a,width:t?.[0]??32,height:t?.[1]??16,animated:!1,media_path:`/api/iledclock/gallery/media/${encodeURIComponent(i)}/${n}`,url:r?.homepage}}var lo={status:"idle",items:[],error:null,requestId:0};function ya(r){return Object.fromEntries(r.map(i=>[i.id,{...lo}]))}function wa(r,i){let e=r[i];if(!e)return null;let t=e.requestId+1;return{requestId:t,states:{...r,[i]:{status:"loading",items:[],error:null,requestId:t}}}}function xa(r,i,e,t){let s=r[i];return!s||s.requestId!==e||s.status!=="loading"?r:{...r,[i]:{...s,status:"ready",items:t.slice(),error:null}}}function ka(r,i,e,t){let s=r[i];return!s||s.requestId!==e||s.status!=="loading"?r:{...r,[i]:{...s,status:"error",items:[],error:t}}}function wi(r,i){return`${r}:${i}`}function $a(r){if(!r)return null;let i=r.indexOf(":");if(i<=0||i===r.length-1)return null;let e=r.slice(0,i),t=r.slice(i+1);return!e.trim()||!t.trim()?null:{source:e,id:t}}function _r(r){return Array.isArray(r)?r.map(_r):r&&typeof r=="object"?Object.fromEntries(Object.entries(r).filter(([,i])=>i!==void 0).sort(([i],[e])=>i.localeCompare(e)).map(([i,e])=>[i,_r(e)])):r}function co(r,i,e){return JSON.stringify([r,i,_r(e)])}var ke=class{constructor(){this._pending=new Map}getOrImport(i,e,t,s){let a=co(i,e,t),n=this._pending.get(a);if(n)return n;let l=Promise.resolve().then(s).catch(d=>{throw this._pending.get(a)===l&&this._pending.delete(a),d});return this._pending.set(a,l),l}clear(){this._pending.clear()}};var Ct=class extends m{constructor(){super();this._row=null;this.shelf={id:"",title:"",source:""},this.sourceName="",this.items=[],this.signedPaths={},this.status="idle"}_scroll(e){this._row?.scrollBy({left:e*Math.max(240,this._row.clientWidth*.72),behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"})}_open(e){this.dispatchEvent(new CustomEvent("explore-item-open",{detail:{item:e,items:this.items},bubbles:!0,composed:!0}))}_seeAll(){this.dispatchEvent(new CustomEvent("explore-shelf-open",{detail:{shelf:this.shelf},bubbles:!0,composed:!0}))}_retry(){this.dispatchEvent(new CustomEvent("shelf-retry",{detail:{shelfId:this.shelf.id},bubbles:!0,composed:!0}))}render(){let e=t=>bi(t);return o`<section class="shelf" aria-labelledby="shelf-title">
+      <header class="heading">
+        <div class="heading-copy">
+          <h2 id="shelf-title">${this.shelf.title}</h2>
+          <p>${this.sourceName}</p>
+        </div>
+        <button class="see-all" type="button" @click=${this._seeAll} aria-label=${`See all ${this.shelf.title}`}>
+          See all <span aria-hidden="true">›</span>
         </button>
+        <div class="arrows" aria-label=${`${this.shelf.title} scroll controls`}>
+          <lu-icon-button icon="mdi:chevron-left" tooltip="Scroll left" aria-label=${`Scroll ${this.shelf.title} left`} @lu-press=${()=>this._scroll(-1)}></lu-icon-button>
+          <lu-icon-button icon="mdi:chevron-right" tooltip="Scroll right" aria-label=${`Scroll ${this.shelf.title} right`} @lu-press=${()=>this._scroll(1)}></lu-icon-button>
+        </div>
+      </header>
+      ${this.status==="loading"&&this.items.length===0?o`<div class="rail skeleton-rail" aria-label=${`Loading ${this.shelf.title}`} aria-busy="true">
+            ${Array.from({length:4},()=>o`<div class="skeleton-card"><lu-skeleton variant="card" label="Loading artwork"></lu-skeleton></div>`)}
+          </div>`:this.status==="error"?o`<lu-error title="This shelf couldn’t load" .message=${this.error??"Try again in a moment."} retry-label="Retry shelf" @retry=${this._retry}></lu-error>`:this.items.length===0?o`<p class="empty">${this.status==="loading"?"Looking for designs\u2026":"No designs here yet."}</p>`:o`<div class="rail" role="list" aria-label=${this.shelf.title}>
+                ${this.items.map(t=>{let s=`${t.width}\xD7${t.height}`,a=yi(t);return o`<div class="tile-wrap" role="listitem">
+                    <iledclock-art-tile
+                      .itemId=${E(t)}
+                      .imageUrl=${this.signedPaths[E(t)]??""}
+                      .mediaPath=${t.media_path}
+                      .animated=${t.animated}
+                      .title=${t.title}
+                      .subtitle=${e(t)??""}
+                      @tile-selected=${()=>this._open(t)}
+                    >
+                      ${a?o`<span class="badge exact">Fits exactly</span>`:u}
+                      ${t.animated?o`<span class="badge">${t.frames&&t.frames>1?`${t.frames} frames`:"Animated"}</span>`:u}
+                      <span class="badge size">${s}</span>
+                    </iledclock-art-tile>
+                  </div>`})}
+              </div>`}
+    </section>`}updated(){this._row=this.renderRoot.querySelector(".rail:not(.skeleton-rail)")}};Ct.properties={shelf:{attribute:!1},source:{attribute:!1},sourceName:{type:String,attribute:"source-name"},items:{attribute:!1},signedPaths:{attribute:!1},status:{type:String},error:{type:String}},Ct.styles=[g,v`
+    :host { display: block; min-width: 0; container-type: inline-size; color: var(--lu-ink); }
+    .shelf { min-width: 0; }
+    .heading { display: flex; align-items: center; gap: var(--lu-space-2); margin-bottom: var(--lu-space-3); }
+    .heading-copy { min-width: 0; flex: 1; }
+    h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); letter-spacing: -.01em; }
+    .heading p { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .see-all { min-height: var(--lu-target, 48px); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-tile); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1 var(--lu-font); cursor: pointer; white-space: nowrap; }
+    .see-all span { padding-left: var(--lu-space-1); color: var(--lu-accent); font-size: 20px; }
+    .arrows { display: none; }
+    .rail { display: flex; gap: var(--lu-space-3); min-width: 0; overflow-x: auto; padding: 2px 2px var(--lu-space-2); scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: thin; }
+    .tile-wrap { flex: 0 0 clamp(148px, 32cqi, 208px); scroll-snap-align: start; }
+    .badge { display: inline-flex; min-height: 24px; align-items: center; padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-glass-raised, var(--lu-tile)); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1 var(--lu-font); }
+    .badge.exact { color: var(--lu-positive); }
+    .badge.size { color: var(--lu-ink-3); }
+    .empty { margin: 0; padding: var(--lu-space-3) 0; color: var(--lu-ink-3); font: 400 var(--lu-type-body)/1.4 var(--lu-font); }
+    .skeleton-card { flex: 0 0 clamp(148px, 32cqi, 208px); aspect-ratio: .78; }
+    .skeleton-card lu-skeleton { display: block; height: 100%; }
+    @container (min-width: 720px) {
+      .arrows { display: flex; gap: var(--lu-space-1); }
+      .see-all { margin-left: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) { .rail { scroll-behavior: auto; } }
+  `];customElements.define("iledclock-explore-shelf",Ct);var uo=250,xi=64,It=class extends m{constructor(){super();this._pixelFrames=[];this._requestId=0;this._swipeStartX=null;this.open=!1,this.item=null,this.imageUrl="",this.items=[],this.importCache=new ke,this._layout="auto",this._adjustOpen=!1,this._adjust={},this._preview=null,this._previewLoading=!1,this._previewError=null,this._saving=null,this._actionError=null,this._originalFailed=!1}disconnectedCallback(){super.disconnectedCallback(),clearTimeout(this._debounceTimer),this._requestId++}updated(e){(e.has("imageUrl")||e.has("item"))&&(this._originalFailed=!1),(e.has("open")||e.has("item"))&&(clearTimeout(this._debounceTimer),this._requestId++,this.open&&this.item&&(this._layout="auto",this._adjustOpen=!1,this._adjust={},this._preview=null,this._previewError=null,this._actionError=null,this._pixelFrames=[],this._loadPreview())),e.has("_preview")&&(this._pixelFrames=this._preview?this._preview.frames.map((t,s)=>V(t,32,16,this._preview.delays_ms[s]??100)):[])}_updateAdjust(e){this._adjust={...this._adjust,...e},this._requestId++,this._preview=null,this._previewLoading=!0,this._previewError=null,clearTimeout(this._debounceTimer),this._debounceTimer=setTimeout(()=>void this._loadPreview(),uo)}_buildOptions(){if(!this.item)return{};let e={...this._adjust};return this._layout!=="auto"&&(e.layout=this._layout),gi(e,this.item.width,this.item.height)}async _loadPreview(){if(!this.item||!this.entryId||!this.hass.callWS)return;let e=++this._requestId;this._previewLoading=!0,this._previewError=null;try{let t=await this.hass.callWS(sa(this.entryId,this.item.source,this.item.id,this._buildOptions()));if(e!==this._requestId)return;this._preview=t}catch(t){if(e!==this._requestId)return;this._previewError=L(t),this._preview=null}finally{e===this._requestId&&(this._previewLoading=!1)}}_selectLayout(e){this._layout=e,this._loadPreview()}_clearBackground(){let{background:e,...t}=this._adjust;this._adjust=t,this._loadPreview()}_canUseAction(){return!!this._preview&&!this._previewLoading&&this._saving===null}async _importDesign(){let e=this.item,t=this.entryId,s=this.hass.callWS?.bind(this.hass);if(!e||!t||!s)throw new Error("The gallery item is no longer available.");let a=this._buildOptions();return this.importCache.getOrImport(e.source,e.id,a,async()=>(await s(aa(t,e.source,e.id,a))).design_id)}async _saveToLibrary(){if(!this.item||!this._canUseAction())return;let e=this.item;this._saving="save",this._actionError=null;try{let t=await this._importDesign();this.dispatchEvent(new CustomEvent("iledclock-designs-changed",{bubbles:!0,composed:!0})),this.dispatchEvent(new CustomEvent("lu-toast",{detail:{message:`Saved ${e.title} to your library`,actionLabel:"Open",action:()=>this._openDesign(t),timeoutMs:5e3},bubbles:!0,composed:!0})),this._close()}catch(t){this._actionError=L(t)}finally{this._saving=null}}async _showOnClock(){if(!this.item||!this.entryId||!this._canUseAction())return;let e=this.item;this._saving="show",this._actionError=null;try{let t=await this._importDesign();await F(this,this.hass,this.entryId,{design_id:t},e.title)&&(this.dispatchEvent(new CustomEvent("iledclock-designs-changed",{bubbles:!0,composed:!0})),this._close())}catch(t){this._actionError=L(t)}finally{this._saving=null}}async _editDesign(){if(!(!this.item||!this._canUseAction())){this._saving="edit",this._actionError=null;try{let e=await this._importDesign();this.dispatchEvent(new CustomEvent("iledclock-designs-changed",{bubbles:!0,composed:!0})),this._openDesign(e),this._close()}catch(e){this._actionError=L(e)}finally{this._saving=null}}}_openDesign(e){this.dispatchEvent(new CustomEvent("iledclock-open-design",{detail:{design_id:e},bubbles:!0,composed:!0}))}_close(){this.dispatchEvent(new CustomEvent("close-requested",{bubbles:!0,composed:!0}))}_retryOriginal(){this.item&&this.dispatchEvent(new CustomEvent("media-retry-request",{detail:{itemId:E(this.item),mediaPath:this.item.media_path},bubbles:!0,composed:!0}))}_navigate(e){this.dispatchEvent(new CustomEvent("item-navigate",{detail:{delta:e},bubbles:!0,composed:!0}))}_onKeydown(e){let t=e.target;t instanceof HTMLInputElement||t instanceof HTMLSelectElement||t instanceof HTMLTextAreaElement||t instanceof HTMLElement&&t.isContentEditable||(e.key==="ArrowLeft"&&this._hasPrevious()?(e.preventDefault(),this._navigate(-1)):e.key==="ArrowRight"&&this._hasNext()&&(e.preventDefault(),this._navigate(1)))}_hasPrevious(){return this.items.findIndex(e=>E(e)===(this.item?E(this.item):""))>0}_hasNext(){let e=this.items.findIndex(t=>E(t)===(this.item?E(this.item):""));return e>=0&&e<this.items.length-1}_onSwipeStart(e){this._swipeStartX=e.clientX}_onSwipeEnd(e){if(this._swipeStartX===null)return;let t=e.clientX-this._swipeStartX;this._swipeStartX=null,t>72&&this._hasPrevious()?this._navigate(-1):t<-72&&this._hasNext()&&this._navigate(1)}render(){if(!this.open||!this.item)return u;let e=this.item,s=fa(this._preview?.layouts_available??[]).map(f=>({value:f,label:_a(f)})),a=this._canUseAction(),n=this._adjust.scale??1,l=this._adjust.offset??{x:0,y:0},d=this._adjust.enhance??!1,c=this._preview?.delays_ms??[],p=e.url??this.source?.homepage,h=e.author?`By ${e.author} on ${this.source?.name??e.source}.`:`From ${this.source?.name??e.source}.`;return o`<lu-sheet ?open=${this.open} .label=${e.title} @closed=${this._close} @keydown=${f=>this._onKeydown(f)}>
+      <div slot="header" class="sheet-heading">
+        <div class="heading-text"><h2>${e.title}</h2><p>${this.source?.name??e.source}</p></div>
+        <div class="item-nav">
+          <lu-icon-button icon="mdi:chevron-left" tooltip="Previous design" aria-label="Previous design" ?disabled=${!this._hasPrevious()} @lu-press=${()=>this._navigate(-1)}></lu-icon-button>
+          <lu-icon-button icon="mdi:chevron-right" tooltip="Next design" aria-label="Next design" ?disabled=${!this._hasNext()} @lu-press=${()=>this._navigate(1)}></lu-icon-button>
+        </div>
       </div>
-    `}};Me.properties={hass:{attribute:!1},entryId:{attribute:!1},open:{type:Boolean,reflect:!0},item:{attribute:!1},source:{attribute:!1},_layout:{state:!0},_adjustOpen:{state:!0},_adjust:{state:!0},_preview:{state:!0},_previewLoading:{state:!0},_previewError:{state:!0},_saving:{state:!0},_actionError:{state:!0}},Me.styles=[y,_`
-    :host(:not([open])) {
-      display: none;
-    }
-    :host {
-      position: fixed;
-      inset: 0;
-      z-index: 110;
-    }
-    .backdrop {
-      position: absolute;
-      inset: 0;
-      background: var(--lu-scrim, rgba(0, 0, 0, 0.5));
-    }
-    .panel {
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: min(480px, 100vw);
-      background: var(--lu-card);
-      color: var(--lu-ink);
-      box-shadow: var(--lu-shadow-raised);
-      border-left: 1px solid var(--lu-edge);
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      container-type: inline-size;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 16px;
-      border-bottom: 1px solid var(--lu-edge);
-      position: sticky;
-      top: 0;
-      background: inherit;
-      z-index: 1;
-    }
-    h2 {
-      margin: 0;
-      font-size: 17px;
-      font-weight: 600;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .icon-button {
-      flex: none;
-      width: var(--lu-target, 48px);
-      height: var(--lu-target, 48px);
-      border-radius: 50%;
-      border: none;
-      background: transparent;
-      color: var(--lu-ink);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .icon-button:hover {
-      background: var(--lu-tile);
-    }
-    .body {
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .error {
-      margin: 0;
-      font-size: 13px;
-      color: var(--lu-danger);
-    }
-    .hint {
-      margin: 0;
-      font-size: 13px;
-      color: var(--lu-ink-2);
-    }
-    .preview-plate {
-      aspect-ratio: 2 / 1;
-      width: 100%;
-      border-radius: var(--lu-radius-tile);
-      overflow: hidden;
-      background: #050607;
-      border: 1px solid var(--lu-edge);
-    }
-    .skeleton {
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, #0a0b0c 25%, #16181a 37%, #0a0b0c 63%);
-      background-size: 400% 100%;
-      animation: shimmer 1.4s ease infinite;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .skeleton {
-        animation: none;
-        background: #0f1112;
-      }
-    }
-    @keyframes shimmer {
-      0% { background-position: 100% 0; }
-      100% { background-position: 0 0; }
-    }
-    .disclosure {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      align-self: flex-start;
-      min-height: var(--lu-target, 48px);
-      padding: 0 14px;
-      border-radius: var(--lu-radius-pill);
-      border: 1px solid var(--lu-edge);
-      background: var(--lu-tile);
-      color: var(--lu-ink);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .adjust {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      padding: 12px;
-      border-radius: var(--lu-radius-tile);
-      background: var(--lu-tile);
-    }
-    .adjust-label {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--lu-ink-2);
-    }
-    .crop-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-    @container (min-width: 360px) {
-      .crop-grid,
-      .two-up {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-    .two-up {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-    .stepper-field {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--lu-ink-2);
-    }
-    .background-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .background-row input[type="color"] {
-      width: 40px;
-      height: 40px;
-      border: none;
-      border-radius: 50%;
-      overflow: hidden;
-      padding: 0;
-      background: none;
-      cursor: pointer;
-    }
-    .link-button {
-      background: none;
-      border: none;
-      color: var(--lu-accent);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 0;
-    }
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: none;
-      border: none;
-      padding: 6px 0;
-      min-height: var(--lu-target, 48px);
-      color: var(--lu-ink);
-      cursor: pointer;
-      text-align: left;
-      font-size: 14px;
-    }
-    .toggle-label {
-      flex: 1;
-    }
-    .toggle-pill {
-      flex: none;
-      width: 40px;
-      height: 24px;
-      border-radius: var(--lu-radius-pill);
-      background: var(--lu-track-off);
-      position: relative;
-    }
-    .toggle-pill.on {
-      background: var(--lu-accent);
-    }
-    .toggle-knob {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #fff;
-      transition: transform var(--lu-motion-focus) var(--lu-ease);
-    }
-    .toggle-pill.on .toggle-knob {
-      transform: translateX(16px);
-    }
-    .credit {
-      margin: 0;
-      font-size: 13px;
-      color: var(--lu-ink-2);
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-    .credit a {
-      color: var(--lu-accent);
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .credit a:hover {
-      text-decoration: underline;
-    }
-    .actions {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 12px 16px 20px;
-      border-top: 1px solid var(--lu-edge);
-      position: sticky;
-      bottom: 0;
-      background: inherit;
-    }
-    .secondary-action {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-pill);
-      border: 1px solid var(--lu-edge);
-      background: var(--lu-tile);
-      color: var(--lu-ink);
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-    }
-    .secondary-action:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      * {
-        transition: none !important;
-      }
-    }
-    `];customElements.define("iledclock-gallery-item-sheet",Me);var Cs=200,Es=100,Ls=300,Ms=6,As="iledclock";function Is(){return{source:"",sort:"",query:"",size:void 0,animatedOnly:!1}}function Ts(r){return r.id==="divoom"?"Add a free Divoom account to browse 700k+ designs.":`Add a free ${r.name} account to browse its gallery.`}var Ae=class extends g{constructor(){super();this._signedCache=new tt;this._tileSchedules=new Map;this._tileObserver=null;this._tileTickInterval=null;this._sentinelObserver=null;this._sentinelRef=X();this._sources=[],this._sourcesLoading=!1,this._sourcesError=null,this._browse=st(Is()),this._signedPaths={},this._selectedItem=null,this._itemSheetOpen=!1}connectedCallback(){super.connectedCallback(),this._sentinelObserver=new IntersectionObserver(e=>{e.some(t=>t.isIntersecting)&&this._loadMore()},{rootMargin:"400px"})}disconnectedCallback(){super.disconnectedCallback(),this._tileObserver?.disconnect(),this._sentinelObserver?.disconnect(),this._tileTickInterval!==null&&clearInterval(this._tileTickInterval),clearTimeout(this._searchDebounce)}willUpdate(e){!e.has("hass")&&!e.has("entryId")||!this.hass||!this.entryId||this.entryId!==this._lastEntryId&&(this._lastEntryId=this.entryId,this._loadSources())}updated(){let e=this._browse.hasMore&&!this._browse.error?this._sentinelRef.value:void 0;e!==this._lastObservedSentinel&&(this._sentinelObserver?.disconnect(),e&&this._sentinelObserver?.observe(e),this._lastObservedSentinel=e)}async _loadSources(){if(!(!this.entryId||!this.hass.callWS)){this._sourcesLoading=!0,this._sourcesError=null;try{this._sources=await this.hass.callWS(cr(this.entryId));let e=this._sources.filter(s=>s.configured),t=e.some(s=>s.id===this._browse.filters.source);e.length>0&&!t&&(this._resetGrid({source:e[0].id,sort:e[0].default_sort,query:"",size:void 0,animatedOnly:!1}),this._loadMore())}catch(e){this._sourcesError=M(e)}finally{this._sourcesLoading=!1}}}_resetGrid(e){this._browse=st(e),this._tileObserver?.disconnect(),this._tileObserver=null,this._tileSchedules.clear()}_applyFilters(e){let t=fr(this._browse,e);t!==this._browse&&(this._resetGrid(t.filters),this._loadMore())}async _loadMore(){let e=_r(this._browse);if(e===this._browse)return;this._browse=e;let t=this._activeSource(),s=e.filters,n=e.page;if(!this.entryId||!this.hass.callWS){this._browse=zt(this._browse,s,n,"Not connected to Home Assistant.");return}try{let o=await this.hass.callWS(ur(this.entryId,{source:s.source,sort:s.sort,page:n,query:t?.supports_search?s.query:void 0,size:s.size,animatedOnly:s.animatedOnly}));this._browse=br(this._browse,s,n,o),this._signItems(o.items)}catch(o){this._browse=zt(this._browse,s,n,M(o))}}async _signItems(e){let t=e.filter(n=>!this._signedPaths[K(n)]);if(t.length===0)return;let s=await Promise.all(t.map(async n=>[K(n),await this._signedCache.sign(this.hass,n.media_path)]));this._signedPaths={...this._signedPaths,...Object.fromEntries(s)}}_activeSource(){return this._sources.find(e=>e.id===this._browse.filters.source)}_configuredSources(){return this._sources.filter(e=>e.configured)}_accountPromptSources(){return this._sources.filter(e=>!e.configured&&e.requires_account)}_visibleItems(){return this._activeSource()?.supports_search?this._browse.items:vr(this._browse.items,this._browse.filters.query)}_onSearchInput(e){if(this._activeSource()?.supports_search){clearTimeout(this._searchDebounce),this._searchDebounce=setTimeout(()=>this._applyFilters({query:e}),Ls);return}this._browse={...this._browse,filters:{...this._browse.filters,query:e}}}_onSourceSelected(e){let t=this._sources.find(s=>s.id===e);this._applyFilters({source:e,sort:t?.default_sort??"",query:"",size:void 0})}_onSortSelected(e){this._applyFilters({sort:e})}_onSizeSelected(e){this._applyFilters({size:e.length>0?e:void 0})}_toggleAnimatedOnly(){this._applyFilters({animatedOnly:!this._browse.filters.animatedOnly})}_openIntegrationOptions(){history.pushState(null,"",`/config/integrations/integration/${As}`),window.dispatchEvent(new CustomEvent("location-changed",{bubbles:!0,composed:!0}))}_openItem(e){this._selectedItem=e,this._itemSheetOpen=!0}_onItemSheetClosed(){this._itemSheetOpen=!1}_ensureTileObserver(){return this._tileObserver||(this._tileObserver=new IntersectionObserver(e=>{let t=performance.now(),s=!1;for(let n of e){let o=n.target.dataset.tileKey;if(!o)continue;let a=this._tileSchedules.get(o)??Nt,d=xr(a,n.isIntersecting,t);d!==a&&(this._tileSchedules.set(o,d),s=!0)}s&&(this._ensureTileTicking(),this.requestUpdate())},{rootMargin:"150px",threshold:.1})),this._tileObserver}_ensureTileTicking(){this._tileTickInterval===null&&(this._tileTickInterval=setInterval(()=>{let e=performance.now(),t=!1,s=!1;for(let[n,o]of this._tileSchedules){if(o.pending===null)continue;t=!0;let a=wr(o,e,Cs);a!==o&&(this._tileSchedules.set(n,a),s=!0)}s&&this.requestUpdate(),!t&&this._tileTickInterval!==null&&(clearInterval(this._tileTickInterval),this._tileTickInterval=null)},Es))}_observeTile(e,t){!t.animated||!e||(e.dataset.tileKey=K(t),this._ensureTileObserver().observe(e))}render(){let e=this._activeSource(),t=this._configuredSources(),s=this._accountPromptSources();return l`
-      <div class="toolbar">
-        <input
-          class="search-input"
-          type="search"
-          placeholder="Search designs"
-          .value=${this._browse.filters.query}
-          ?disabled=${!e}
-          @input=${n=>this._onSearchInput(n.target.value)}
-        />
-        ${this._sourcesLoading?l`<p class="hint">Loading gallery sources…</p>`:c}
-        ${this._sourcesError?l`<p class="error">${this._sourcesError}</p>`:c}
-        ${t.length>0?l`
-              <iledclock-segmented-picker
-                group-label="Source"
-                content-fit
-                .options=${t.map(n=>({value:n.id,label:n.name}))}
-                .value=${this._browse.filters.source}
-                @option-selected=${n=>this._onSourceSelected(n.detail.value)}
-              ></iledclock-segmented-picker>
-            `:c}
-        ${s.map(n=>l`
-            <button type="button" class="account-row" @click=${this._openIntegrationOptions}>
-              <span>${Ts(n)}</span>
-              ${m("chevronRight")}
-            </button>
-          `)}
-        ${e?this._renderSortAndFilters(e):c}
+      <div class="content">
+        ${this._actionError?o`<p class="action-error" role="alert">${this._actionError}</p>`:u}
+        <div class="preview-row" @pointerdown=${f=>this._onSwipeStart(f)} @pointerup=${f=>this._onSwipeEnd(f)} @pointercancel=${()=>this._swipeStartX=null}>
+          <div class="hero-preview" aria-label="Adapted clock preview">
+            ${this._pixelFrames.length>0?o`<iledclock-led-preview context="hero" .frames=${this._pixelFrames} .delays=${c} .playing=${this._pixelFrames.length>1} label=${`${e.title}, adapted for the clock`}></iledclock-led-preview>`:this._previewLoading?o`<div class="preview-skeleton" role="status" aria-label="Preparing adapted preview"></div>`:o`<div class="preview-placeholder" aria-hidden="true">▦</div>`}
+          </div>
+          <figure class="original-preview">
+            ${this.imageUrl&&!this._originalFailed?o`<img src=${this.imageUrl} alt=${`Original ${e.title}`} loading="lazy" decoding="async" @error=${()=>this._originalFailed=!0} />`:this._originalFailed?o`<div class="original-placeholder"><span aria-hidden="true">▦</span><lu-icon-button icon="mdi:refresh" tooltip="Retry original image" aria-label="Retry original image" @lu-press=${this._retryOriginal}></lu-icon-button></div>`:o`<div class="original-placeholder" aria-hidden="true">▦</div>`}
+            <figcaption>Original</figcaption>
+          </figure>
+        </div>
+        ${this._previewError?o`<lu-error title="The adapted preview couldn’t load" .message=${this._previewError} retry-label="Retry preview" @retry=${()=>void this._loadPreview()}></lu-error>`:u}
+        ${this._preview&&this._layout==="auto"&&_t(this._preview.report.notes)?o`<p class="fit-note">${_t(this._preview.report.notes)}</p>`:u}
+        <section class="settings" aria-label="Preview settings">
+          <h3>Layout</h3>
+          ${this._previewLoading&&!this._preview?o`<lu-skeleton variant="line" width="220px" label="Loading layout choices"></lu-skeleton>`:this._preview?o`<iledclock-segmented-picker group-label="Layout" content-fit .options=${s} .value=${this._layout} @option-selected=${f=>this._selectLayout(f.detail.value)}></iledclock-segmented-picker>`:u}
+          <button class="disclosure" type="button" aria-expanded=${this._adjustOpen} @click=${()=>this._adjustOpen=!this._adjustOpen}>
+            <span>${this._adjustOpen?"Hide":"Adjust"}</span><span aria-hidden="true">${this._adjustOpen?"\u2212":"+"}</span>
+          </button>
+          ${this._adjustOpen?o`<div class="adjust">
+                <label class="control">Scale<iledclock-stepper .value=${n} min="1" max="16" step="1" @value-selected=${f=>this._updateAdjust({scale:f.detail.value})}></iledclock-stepper></label>
+                <div class="offset-row">
+                  <label class="control">Offset X<iledclock-stepper .value=${l.x} min=${-xi} max=${xi} step="1" @value-selected=${f=>this._updateAdjust({offset:{...l,x:f.detail.value}})}></iledclock-stepper></label>
+                  <label class="control">Offset Y<iledclock-stepper .value=${l.y} min=${-xi} max=${xi} step="1" @value-selected=${f=>this._updateAdjust({offset:{...l,y:f.detail.value}})}></iledclock-stepper></label>
+                </div>
+                <div class="background-row"><label for="background-color">Background</label><input id="background-color" type="color" .value=${P(this._adjust.background??[0,0,0])} @input=${f=>this._updateAdjust({background:O(f.target.value)})} />${this._adjust.background?o`<button type="button" class="clear-background" @click=${this._clearBackground}>Clear</button>`:u}</div>
+                <button class="enhance-row" type="button" aria-pressed=${d} @click=${()=>this._updateAdjust({enhance:!d})}><span>Enhance colours</span><span class="toggle ${d?"on":""}" aria-hidden="true"><span></span></span></button>
+              </div>`:u}
+        </section>
+        <p class="credit">${h} ${p?o`<a href=${p} target="_blank" rel="noopener noreferrer">View original</a>`:u}</p>
       </div>
-      ${!this._sourcesLoading&&!e&&t.length===0&&s.length===0?l`<p class="empty-state">No gallery sources are available right now.</p>`:c}
-      ${e?this._renderGrid():c}
-      <iledclock-gallery-item-sheet
+      <div slot="footer" class="actions">
+        <lu-pill-button variant="primary" .label=${this._saving==="show"?"Showing\u2026":"Show on clock"} ?disabled=${!a} @lu-press=${this._showOnClock}></lu-pill-button>
+        <lu-pill-button variant="secondary" .label=${this._saving==="save"?"Saving\u2026":"Save to library"} ?disabled=${!a} @lu-press=${this._saveToLibrary}></lu-pill-button>
+        <lu-pill-button variant="quiet" .label=${this._saving==="edit"?"Opening\u2026":"Edit"} ?disabled=${!a} @lu-press=${this._editDesign}></lu-pill-button>
+      </div>
+    </lu-sheet>`}};It.properties={hass:{attribute:!1},entryId:{attribute:!1},open:{type:Boolean},item:{attribute:!1},source:{attribute:!1},imageUrl:{type:String,attribute:"image-url"},items:{attribute:!1},importCache:{attribute:!1},_layout:{state:!0},_adjustOpen:{state:!0},_adjust:{state:!0},_preview:{state:!0},_previewLoading:{state:!0},_previewError:{state:!0},_saving:{state:!0},_actionError:{state:!0},_originalFailed:{state:!0}},It.styles=[g,v`
+    :host { display: block; }
+    .sheet-heading { display: flex; align-items: center; gap: var(--lu-space-2); min-width: 0; flex: 1; }
+    .heading-text { min-width: 0; flex: 1; }
+    h2 { overflow: hidden; margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.2 var(--lu-font); letter-spacing: -.01em; text-overflow: ellipsis; white-space: nowrap; }
+    .heading-text p { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .item-nav { display: flex; gap: var(--lu-space-1); flex: none; }
+    .content { display: flex; min-width: 0; flex-direction: column; gap: var(--lu-space-3); color: var(--lu-ink); }
+    .action-error { margin: 0; color: var(--lu-danger); font: 500 var(--lu-type-body)/1.4 var(--lu-font); }
+    .preview-row { display: grid; grid-template-columns: minmax(0, 1fr) clamp(64px, 23cqi, 112px); gap: var(--lu-space-2); align-items: center; touch-action: pan-y; }
+    .hero-preview { display: grid; place-items: center; min-width: 0; overflow: hidden; aspect-ratio: 2 / 1; border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-tile); background: #050607; }
+    iledclock-led-preview { width: 100%; max-width: 384px; }
+    .preview-skeleton, .preview-placeholder { display: grid; place-items: center; width: 100%; height: 100%; color: var(--lu-ink-3); background: var(--lu-tile); }
+    .preview-placeholder { font: 300 var(--lu-type-display)/1 var(--lu-font); }
+    .original-preview { display: flex; flex-direction: column; gap: var(--lu-space-1); min-width: 0; margin: 0; align-items: center; }
+    .original-preview img, .original-placeholder { display: grid; place-items: center; width: 100%; aspect-ratio: 1; border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: #050607; object-fit: contain; image-rendering: pixelated; }
+    .original-placeholder { position: relative; color: var(--lu-ink-3); font-size: 24px; }
+    .original-placeholder lu-icon-button { position: absolute; right: 0; bottom: 0; }
+    figcaption { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .fit-note { margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .settings { display: flex; flex-direction: column; gap: var(--lu-space-2); }
+    h3 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-label)/1.25 var(--lu-font); }
+    .disclosure { display: flex; justify-content: space-between; align-items: center; min-height: var(--lu-target, 48px); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-tile); color: var(--lu-ink-2); text-align: left; font: 500 var(--lu-type-label)/1 var(--lu-font); cursor: pointer; }
+    .adjust { display: flex; flex-direction: column; gap: var(--lu-space-3); padding: var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-tile); background: var(--lu-tile); }
+    .control { display: flex; flex-direction: column; align-items: center; gap: var(--lu-space-1); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .offset-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--lu-space-2); }
+    .background-row { display: flex; align-items: center; gap: var(--lu-space-2); min-height: var(--lu-target, 48px); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.3 var(--lu-font); }
+    .background-row input { width: var(--lu-target, 48px); height: var(--lu-target, 48px); padding: 0; border: 0; border-radius: 50%; background: transparent; }
+    .clear-background { min-height: var(--lu-target, 48px); padding: 0 var(--lu-space-2); border: 0; background: transparent; color: var(--lu-accent); font: 500 var(--lu-type-label)/1 var(--lu-font); }
+    .enhance-row { display: flex; align-items: center; justify-content: space-between; min-height: var(--lu-target, 48px); padding: 0; border: 0; background: transparent; color: var(--lu-ink); text-align: left; font: 500 var(--lu-type-label)/1.3 var(--lu-font); cursor: pointer; }
+    .toggle { display: grid; align-items: center; justify-content: start; width: 42px; height: 26px; padding: 2px; border-radius: var(--lu-radius-pill); background: var(--lu-track-off); }
+    .toggle.on { justify-content: end; background: var(--lu-accent); }
+    .toggle span { width: 22px; height: 22px; border-radius: 50%; background: var(--lu-card); }
+    .credit { display: flex; flex-wrap: wrap; gap: var(--lu-space-1); margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .credit a { color: var(--lu-accent); font-weight: 600; text-decoration: none; }
+    .credit a:hover { text-decoration: underline; }
+    .actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--lu-space-2); }
+    @container (min-width: 460px) { .actions { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition-duration: var(--lu-motion-layer) !important; } }
+  `];customElements.define("iledclock-explore-item-sheet",It);var K="for-you",po=350,ho=12,Sa="/config/integrations/integration/iledclock";function Ea(){return{source:"",sort:"",query:"",size:void 0,animatedOnly:!1,category:void 0}}var Rt=class extends m{constructor(){super();this._signedCache=new mi;this._importCache=new ke;this._sentinelRef=B();this._sentinelObserver=null;this._sourceRequestId=0;this._shelfCatalogRequestId=0;this._shelfGeneration=0;this._browseRequestGeneration=0;this._selectedRouteToken=null;this._routeOpenedBySelection=!1;this._sources=[],this._sourcesLoading=!1,this._sourcesError=null,this._viewSourceId=K,this._searchInput="",this._activeQuery="",this._browse=pe(Ea()),this._catalogShelves=[],this._shelves=[],this._shelfLoads={},this._shelfCatalogLoading=!1,this._shelfCatalogError=null,this._signedPaths={},this._selectedItem=null,this._selectedItems=[],this._sheetOpen=!1}connectedCallback(){super.connectedCallback(),this._sentinelObserver=new IntersectionObserver(e=>{e.some(t=>t.isIntersecting)&&this._loadMore()},{rootMargin:"360px"})}disconnectedCallback(){super.disconnectedCallback(),this._sentinelObserver?.disconnect(),clearTimeout(this._searchDebounce),this._sourceRequestId++,this._shelfCatalogRequestId++,this._shelfGeneration++,this._browseRequestGeneration++}willUpdate(e){!e.has("hass")&&!e.has("entryId")||this.entryId!==this._loadedEntryId&&(this._loadedEntryId=this.entryId,this._sourceRequestId++,this._shelfCatalogRequestId++,this._shelfGeneration++,this._browseRequestGeneration++,this._signedCache.clear(),this._importCache.clear(),this._signedPaths={},this._sources=[],this._sourcesError=null,this._viewSourceId=K,this._searchInput="",this._activeQuery="",this._browse=pe(Ea()),this._catalogShelves=[],this._shelves=[],this._shelfLoads={},this._shelfCatalogError=null,this._selectedItem=null,this._selectedItems=[],this._selectedRouteToken=null,this._sheetOpen=!1,this.entryId&&this.hass&&this._loadSources(this.entryId))}updated(e){(e.has("route")||e.has("_sources")||e.has("_browse")||e.has("_shelves"))&&this._syncRouteItem();let t=this._viewSourceId!==K&&this._browse.hasMore&&!this._browse.error?this._sentinelRef.value:void 0;t!==this._observedSentinel&&(this._sentinelObserver?.disconnect(),t&&this._sentinelObserver?.observe(t),this._observedSentinel=t)}async _loadSources(e){if(!this.hass.callWS){this._sourcesError="Home Assistant\u2019s gallery connection is unavailable.",this._sourcesLoading=!1;return}let t=++this._sourceRequestId;this._sourcesLoading=!0,this._sourcesError=null;try{let s=await this.hass.callWS(ra(e));if(t!==this._sourceRequestId||e!==this.entryId)return;this._sources=s,this._sourcesError=null,this._activeQuery?this._loadQueryShelves(this._activeQuery):this._loadShelfCatalog(e)}catch(s){t===this._sourceRequestId&&e===this.entryId&&(this._sourcesError=L(s))}finally{t===this._sourceRequestId&&(this._sourcesLoading=!1)}}async _loadShelfCatalog(e=this.entryId){if(!e||!this.hass.callWS)return;let t=++this._shelfCatalogRequestId;this._shelfCatalogLoading=!0,this._shelfCatalogError=null;try{let s=await this.hass.callWS({type:"iledclock/gallery/shelves",entry_id:e});if(t!==this._shelfCatalogRequestId||e!==this.entryId||this._activeQuery)return;this._catalogShelves=s,this._shelfCatalogLoading=!1,this._installShelves(s,"")}catch(s){t===this._shelfCatalogRequestId&&e===this.entryId&&(this._shelfCatalogError=L(s))}finally{t===this._shelfCatalogRequestId&&(this._shelfCatalogLoading=!1)}}_loadQueryShelves(e){this._shelfCatalogRequestId++,this._shelfCatalogLoading=!1,this._shelfCatalogError=null;let t=fr(this._sources).map(s=>({id:`search:${s.id}`,title:`${Et(s)} results`,source:s.id,sort:s.default_sort}));this._installShelves(t,e)}_installShelves(e,t){this._shelfGeneration++,this._shelves=e.slice(),this._shelfLoads=ya(e);let s=this._shelfGeneration;for(let a of e)this._loadShelf(a,t,s)}async _loadShelf(e,t,s=this._shelfGeneration){if(!this.entryId||!this.hass.callWS)return;let a=wa(this._shelfLoads,e.id);if(!a)return;this._shelfLoads=a.states;let n=this.entryId,l=this._sources.find(p=>p.id===e.source),d=t&&l?.supports_search?t:void 0,c=gr(n,{source:e.source,sort:e.sort??l?.default_sort??"featured",page:0,query:d,category:e.category});try{let p=await this.hass.callWS(c);if(s!==this._shelfGeneration||n!==this.entryId)return;let h=t&&!l?.supports_search?vr(p.items,t):p.items,f=xa(this._shelfLoads,e.id,a.requestId,h);if(f===this._shelfLoads)return;this._shelfLoads=f,this._signItems(h)}catch(p){if(s!==this._shelfGeneration||n!==this.entryId)return;this._shelfLoads=ka(this._shelfLoads,e.id,a.requestId,L(p))}}async _signItems(e){let t=this.entryId;if(!t)return;let s=e.filter(n=>!this._signedPaths[E(n)]);if(s.length===0)return;let a=await Promise.all(s.map(async n=>[E(n),await this._signedCache.sign(this.hass,n.media_path)]));t===this.entryId&&(this._signedPaths={...this._signedPaths,...Object.fromEntries(a)})}async _onMediaRetry(e){let{itemId:t,mediaPath:s}=e.detail;if(!this.entryId||!s)return;let a=this.entryId,n=await this._signedCache.signFresh(this.hass,s);a===this.entryId&&(this._signedPaths={...this._signedPaths,[t]:n})}_activeSource(){return this._sources.find(e=>e.id===this._viewSourceId)}_configuredSources(){return fr(this._sources)}_accountSource(){return this._sources.find(e=>e.id==="divoom"&&!e.configured&&e.requires_account)}_setSearch(e){this._searchInput=e,clearTimeout(this._searchDebounce),this._searchDebounce=setTimeout(()=>this._commitSearch(),po)}_clearSearch(){clearTimeout(this._searchDebounce),this._searchInput="",this._commitSearch()}_commitSearch(){let e=this._searchInput.trim();if(e!==this._activeQuery){if(this._activeQuery=e,this._viewSourceId===K){e?this._loadQueryShelves(e):this._catalogShelves.length>0?this._installShelves(this._catalogShelves,""):this.entryId&&this._loadShelfCatalog(this.entryId);return}this._applyBrowseFilters({query:e})}}_selectView(e){if(clearTimeout(this._searchDebounce),this._activeQuery=this._searchInput.trim(),e===K){this._viewSourceId=K,this._activeQuery?this._loadQueryShelves(this._activeQuery):this._catalogShelves.length>0?this._installShelves(this._catalogShelves,""):this.entryId&&this._loadShelfCatalog(this.entryId);return}let t=this._sources.find(s=>s.id===e);t?.configured&&(this._viewSourceId=e,this._startBrowse({source:e,sort:t.default_sort,query:this._activeQuery,size:void 0,animatedOnly:!1,category:void 0}))}_applyBrowseFilters(e){let t=pa(this._browse,e);t!==this._browse&&(this._browse=t,this._browseRequestGeneration++,this._loadMore())}_startBrowse(e){this._browseRequestGeneration++,this._browse=pe(e),this._loadMore()}async _loadMore(){let e=ha(this._browse);if(e===this._browse||this._viewSourceId===K)return;this._browse=e;let t=this._activeSource(),s=e.filters,a=e.page,n=this._browseRequestGeneration,l=this.entryId;if(!l||!this.hass.callWS||!t){this._browse=mr(this._browse,s,a,"This gallery source isn\u2019t available right now.");return}let d=gr(l,{source:s.source,sort:s.sort,page:a,query:t.supports_search?s.query:void 0,size:s.size,animatedOnly:s.animatedOnly,category:s.category});try{let c=await this.hass.callWS(d);if(n!==this._browseRequestGeneration||l!==this.entryId)return;let p=ma(this._browse,s,a,c);this._browse=p,this._signItems(c.items)}catch(c){if(n!==this._browseRequestGeneration||l!==this.entryId)return;this._browse=mr(this._browse,s,a,L(c))}}_visibleItems(){let e=this._browse.items;return this._activeSource()?.supports_search?e:vr(e,this._browse.filters.query)}_retryBrowse(){this._browse={...this._browse,error:null},this._loadMore()}_openItem(e,t){this._selectedItem=e,this._selectedItems=t,this._selectedRouteToken=wi(e.source,e.id),this._routeOpenedBySelection=!0,this._sheetOpen=!0,this._signItems([e]),T({destination:"explore",item:this._selectedRouteToken})}_openGridItem(e){let t=this._visibleItems().find(s=>E(s)===e.detail.itemId);t&&this._openItem(t,this._visibleItems())}_openShelfItem(e){this._openItem(e.detail.item,e.detail.items)}_openShelf(e){let t=this._sources.find(s=>s.id===e.source);t?.configured&&(clearTimeout(this._searchDebounce),this._activeQuery=this._searchInput.trim(),this._viewSourceId=e.source,this._startBrowse({source:e.source,sort:va(t.sorts,t.default_sort,e.sort??t.default_sort),query:this._activeQuery,size:void 0,animatedOnly:!1,category:e.category}))}_openShelfEvent(e){this._openShelf(e.detail.shelf)}_retryShelf(e){let t=this._shelves.find(s=>s.id===e.detail.shelfId);t&&this._loadShelf(t,this._activeQuery)}_selectSort(e){this._applyBrowseFilters({sort:e})}_selectCategory(e){this._applyBrowseFilters({category:e})}_toggleAnimated(){this._applyBrowseFilters({animatedOnly:!this._browse.filters.animatedOnly})}_selectSize(e){this._applyBrowseFilters({size:e||void 0})}_syncRouteItem(){let e=$a(this.route?.item);if(!e){this._selectedRouteToken&&(this._selectedRouteToken=null,this._routeOpenedBySelection=!1,this._sheetOpen=!1,this._selectedItem=null,this._selectedItems=[]);return}let t=wi(e.source,e.id),s=this._sources.find(d=>d.id===e.source);if(this._sourcesLoading&&!s)return;if(t===this._selectedRouteToken&&this._sheetOpen){!this._routeOpenedBySelection&&s?.configured&&this._viewSourceId!==s.id&&(this._viewSourceId=s.id,this._browseRequestGeneration++,this._browse=pe({source:s.id,sort:s.default_sort,query:this._activeQuery,size:void 0,animatedOnly:!1,category:void 0}),this._loadMore());return}this._routeOpenedBySelection=!1,s?.configured&&this._viewSourceId!==s.id&&(this._viewSourceId=s.id,this._browseRequestGeneration++,this._browse=pe({source:s.id,sort:s.default_sort,query:this._activeQuery,size:void 0,animatedOnly:!1,category:void 0}),this._loadMore());let a=[...this._browse.items,...Object.values(this._shelfLoads).flatMap(d=>d.items)],n=a.find(d=>d.source===e.source&&d.id===e.id)??ba(s,e.source,e.id),l=[...new Map(a.filter(d=>d.source===e.source).map(d=>[E(d),d])).values()];this._selectedItem=n,this._selectedItems=l.length>0?l:[n],this._selectedRouteToken=t,this._sheetOpen=!0,this._signItems([n])}_closeItemSheet(){if(this._routeOpenedBySelection&&this.route?.item===this._selectedRouteToken){this._routeOpenedBySelection=!1,window.history.back();return}if(this.route?.item){T({...this.route,destination:"explore",item:void 0},!0);return}this._sheetOpen=!1,this._selectedItem=null}_navigateItem(e){if(!this._selectedItem)return;let t=this._selectedItems.findIndex(a=>E(a)===E(this._selectedItem)),s=this._selectedItems[t+e.detail.delta];s&&(this._selectedItem=s,this._selectedRouteToken=wi(s.source,s.id),this._signItems([s]),T({destination:"explore",item:this._selectedRouteToken},!0))}_retrySources(){this.entryId&&this._loadSources(this.entryId)}_renderToolbar(){let e=this._configuredSources(),t=this._accountSource(),s=this.entryId?`${Sa}?config_entry=${encodeURIComponent(this.entryId)}`:Sa;return o`<div class="toolbar">
+      <div class="search-row">
+        <label class="search-box">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <span class="visually-hidden">Search pixel art</span>
+          <input type="search" placeholder="Search pixel art" .value=${this._searchInput} @input=${a=>this._setSearch(a.target.value)} />
+        </label>
+        ${this._searchInput?o`<lu-icon-button icon="mdi:close" tooltip="Clear search" aria-label="Clear search" @lu-press=${this._clearSearch}></lu-icon-button>`:u}
+      </div>
+      <nav class="source-pills" aria-label="Gallery sources">
+        <button type="button" class="source-pill" aria-pressed=${this._viewSourceId===K} @click=${()=>this._selectView(K)}>For you</button>
+        ${e.map(a=>o`<button type="button" class="source-pill" aria-pressed=${this._viewSourceId===a.id} @click=${()=>this._selectView(a.id)}>${Et(a)}</button>`)}
+      </nav>
+      ${t?o`<a class="account-row" href=${s}><span class="account-spark" aria-hidden="true">✦</span><span>Add a free Divoom account to browse 700k+ designs</span><span class="account-arrow" aria-hidden="true">›</span></a>`:u}
+      ${this._sourcesError?o`<lu-error title="Gallery sources couldn’t load" .message=${this._sourcesError} retry-label="Retry sources" @retry=${this._retrySources}></lu-error>`:u}
+      ${this._sourcesLoading&&this._sources.length===0?o`<p class="loading-hint" role="status">Loading gallery sources…</p>`:u}
+    </div>`}_renderForYou(){return this._sourcesError&&this._sources.length===0?u:this._shelfCatalogError&&this._shelves.length===0&&!this._activeQuery?o`<lu-error title="Your shelves couldn’t load" .message=${this._shelfCatalogError} retry-label="Retry shelves" @retry=${()=>void this._loadShelfCatalog()}></lu-error>`:this._shelfCatalogLoading&&this._shelves.length===0?o`<div class="shelf-loading" role="status" aria-busy="true"><lu-skeleton variant="line" width="190px" label="Loading recommendations"></lu-skeleton><div class="shelf-placeholder"><lu-skeleton variant="card" label="Loading shelf"></lu-skeleton></div></div>`:this._shelves.length===0?o`<lu-empty title=${this._activeQuery?"No source results yet":"No shelves are available"} .message=${this._activeQuery?"Try a different search or choose a gallery above.":"There are no recommendations to show right now. Choose a source to browse."}></lu-empty>`:o`<div class="shelves">
+      ${this._shelves.map(e=>{let t=this._shelfLoads[e.id],s=this._sources.find(n=>n.id===e.source),a=t?.items??[];return o`<iledclock-explore-shelf
+          .shelf=${e}
+          .source=${s}
+          .sourceName=${s?Et(s):e.source}
+          .items=${a}
+          .signedPaths=${this._signedPaths}
+          .status=${t?.status??"idle"}
+          .error=${t?.error??void 0}
+          @explore-item-open=${this._openShelfItem}
+          @explore-shelf-open=${this._openShelfEvent}
+          @shelf-retry=${this._retryShelf}
+          @media-retry-request=${this._onMediaRetry}
+        ></iledclock-explore-shelf>`})}
+    </div>`}_renderFilters(e){let t=e.categories??[];return o`<div class="filters" aria-label="Filter designs">
+      ${t.length>0?o`<div class="filter-set" role="group" aria-label="Category">
+        <button class="filter-pill ${this._browse.filters.category?"":"selected"}" type="button" aria-pressed=${!this._browse.filters.category} @click=${()=>this._selectCategory(void 0)}>All</button>
+        ${t.map(s=>o`<button class="filter-pill ${this._browse.filters.category===s.id?"selected":""}" type="button" aria-pressed=${this._browse.filters.category===s.id} @click=${()=>this._selectCategory(s.id)}>${s.label}</button>`)}
+      </div>`:u}
+      ${e.sorts.length>0?o`<iledclock-segmented-picker group-label="Sort" content-fit .options=${e.sorts.map(s=>({value:s.id,label:s.label}))} .value=${this._browse.filters.sort} @option-selected=${s=>this._selectSort(s.detail.value)}></iledclock-segmented-picker>`:u}
+      <div class="filter-set options" role="group" aria-label="Additional filters">
+        <button class="filter-pill ${this._browse.filters.animatedOnly?"selected":""}" type="button" aria-pressed=${this._browse.filters.animatedOnly} @click=${this._toggleAnimated}>Animated only</button>
+        ${e.sizes.length>1?o`<iledclock-segmented-picker group-label="Size" content-fit .options=${[{value:"",label:"All sizes"},...e.sizes.map(s=>({value:s,label:s}))]} .value=${this._browse.filters.size??""} @option-selected=${s=>this._selectSize(s.detail.value)}></iledclock-segmented-picker>`:u}
+      </div>
+    </div>`}_renderTile(e){let t=yi(e),s=bi(e)??"";return o`<iledclock-art-tile
+      .itemId=${E(e)}
+      .imageUrl=${this._signedPaths[E(e)]??""}
+      .mediaPath=${e.media_path}
+      .animated=${e.animated}
+      .title=${e.title}
+      .subtitle=${s}
+      @tile-selected=${this._openGridItem}
+    >
+      ${t?o`<span class="badge exact">Fits exactly</span>`:u}
+      ${e.animated?o`<span class="badge">${e.frames&&e.frames>1?`${e.frames} frames`:"Animated"}</span>`:u}
+      <span class="badge size">${e.width}×${e.height}</span>
+    </iledclock-art-tile>`}_renderSourceGrid(e){let t=this._visibleItems();return o`<section class="source-view" aria-label=${`${Et(e)} designs`}>
+      ${this._renderFilters(e)}
+      <div class="grid" aria-busy=${this._browse.loading}>
+        ${t.map(s=>this._renderTile(s))}
+        ${this._browse.loading?Array.from({length:ho},()=>o`<div class="grid-skeleton"><lu-skeleton variant="card" label="Loading artwork"></lu-skeleton></div>`):u}
+      </div>
+      ${this._browse.error?o`<lu-error title="This gallery couldn’t load" .message=${this._browse.error} retry-label="Retry results" @retry=${this._retryBrowse}></lu-error>`:u}
+      ${t.length===0&&!this._browse.loading&&!this._browse.error&&!this._browse.hasMore?o`<lu-empty title="No designs match your search" .message=${this._browse.filters.query?"Try another title or clear your search.":"Try another category or sort."}></lu-empty>`:t.length===0&&!this._browse.loading&&!this._browse.error?o`<p class="end-of-list" role="status">Looking through more designs…</p>`:u}
+      ${this._browse.hasMore&&!this._browse.error?o`<div class="paging"><button class="load-more" type="button" ?disabled=${this._browse.loading} @click=${()=>void this._loadMore()}>${this._browse.loading?"Loading\u2026":"Load more"}</button><div class="sentinel" ${A(this._sentinelRef)} aria-hidden="true"></div></div>`:t.length>0?o`<p class="end-of-list" role="status">You’ve reached the end of this gallery.</p>`:u}
+    </section>`}render(){let e=this._activeSource();return o`<div class="explore" @media-retry-request=${this._onMediaRetry}>
+      <header class="intro"><p class="eyebrow">PIXEL STUDIO · EXPLORE</p><h1>Find your next clock face</h1><p>Originals, icons and animations, tuned for the 32 × 16 display.</p></header>
+      ${this._renderToolbar()}
+      ${this._viewSourceId===K?this._renderForYou():e?this._renderSourceGrid(e):o`<lu-empty title="This source isn’t available" .message=${"Choose a configured gallery source above."}></lu-empty>`}
+      <iledclock-explore-item-sheet
         .hass=${this.hass}
         .entryId=${this.entryId}
         .item=${this._selectedItem}
-        .source=${e}
-        ?open=${this._itemSheetOpen}
-        @close-requested=${this._onItemSheetClosed}
-      ></iledclock-gallery-item-sheet>
-    `}_renderSortAndFilters(e){return l`
-      <iledclock-segmented-picker
-        group-label="Sort"
-        content-fit
-        .options=${e.sorts.map(t=>({value:t.id,label:t.label}))}
-        .value=${this._browse.filters.sort}
-        @option-selected=${t=>this._onSortSelected(t.detail.value)}
-      ></iledclock-segmented-picker>
-      <div class="filter-row">
-        <button type="button" class="filter-chip ${this._browse.filters.animatedOnly?"on":""}" @click=${()=>this._toggleAnimatedOnly()}>
-          ${m("gif")} Animated only
-        </button>
-        ${e.sizes.length>1?l`
-              <iledclock-segmented-picker
-                group-label="Size"
-                content-fit
-                .options=${[{value:"",label:"All sizes"},...e.sizes.map(t=>({value:t,label:t}))]}
-                .value=${this._browse.filters.size??""}
-                @option-selected=${t=>this._onSizeSelected(t.detail.value)}
-              ></iledclock-segmented-picker>
-            `:c}
-      </div>
-    `}_renderGrid(){let e=this._visibleItems();return l`
-      <div class="grid">
-        ${e.map(t=>this._renderTile(t))}
-        ${this._browse.loading?Array.from({length:Ms},()=>l`<div class="tile"><div class="plate"><div class="skeleton"></div></div></div>`):c}
-      </div>
-      ${!this._browse.loading&&e.length===0&&!this._browse.error?l`<p class="empty-state">No designs match your search.</p>`:c}
-      ${this._browse.error?l`
-            <div class="error-row">
-              <p class="error">${this._browse.error}</p>
-              <button type="button" class="retry-button" @click=${()=>void this._loadMore()}>Retry</button>
-            </div>
-          `:c}
-      ${this._browse.hasMore&&!this._browse.error?l`<div class="sentinel" ${I(this._sentinelRef)}></div>`:c}
-    `}_renderTile(e){let t=K(e),s=this._tileSchedules.get(t)??Nt,n=We(),o=this._signedPaths[t],a=!!o&&(!e.animated||$r(s,e.animated,n)),d=yr(e);return l`
-      <button type="button" class="tile" @click=${()=>this._openItem(e)} aria-label=${e.title}>
-        <div class="plate" ${I(p=>this._observeTile(p,e))}>
-          ${a?l`<img class="art" src=${o} alt="" loading="lazy" decoding="async" />`:l`<div class="skeleton ${o?"static":""}"></div>`}
-          ${e.animated&&!a&&o?l`<span class="badge" title="Animated design">${m("gif")}</span>`:c}
-        </div>
-        <p class="title">${e.title}</p>
-        ${d?l`<p class="meta">${d}</p>`:c}
-      </button>
-    `}};Ae.properties={hass:{attribute:!1},entryId:{attribute:!1},_sources:{state:!0},_sourcesLoading:{state:!0},_sourcesError:{state:!0},_browse:{state:!0},_signedPaths:{state:!0},_selectedItem:{state:!0},_itemSheetOpen:{state:!0}},Ae.styles=[y,_`
-    :host {
-      display: block;
-      height: 100%;
-      overflow-y: auto;
-      box-sizing: border-box;
-      padding: 16px;
-      container-type: inline-size;
-      color: var(--lu-ink);
-    }
-    .toolbar {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    .search-input {
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-pill);
-      border: 1px solid var(--lu-edge);
-      background: var(--lu-card);
-      color: var(--lu-ink);
-      padding: 0 16px;
-      font-size: 15px;
-      box-sizing: border-box;
-    }
-    .search-input:disabled {
-      opacity: 0.5;
-    }
-    .hint {
-      margin: 0;
-      font-size: 13px;
-      color: var(--lu-ink-2);
-    }
-    .error {
-      margin: 0;
-      font-size: 13px;
-      color: var(--lu-danger);
-    }
-    .account-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: 1px dashed var(--lu-edge);
-      background: none;
-      color: var(--lu-ink-2);
-      padding: 0 14px;
-      font-size: 13px;
-      cursor: pointer;
-      text-align: left;
-    }
-    .filter-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-    .filter-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      min-height: var(--lu-target, 48px);
-      padding: 0 16px;
-      border-radius: var(--lu-radius-pill);
-      border: 1px solid var(--lu-edge);
-      background: var(--lu-tile);
-      color: var(--lu-ink);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .filter-chip.on {
-      background: var(--lu-accent);
-      color: var(--lu-accent-ink);
-      border-color: transparent;
-    }
-    iledclock-segmented-picker {
-      max-width: 100%;
-    }
-    .empty-state {
-      margin: 24px 0;
-      text-align: center;
-      font-size: 14px;
-      color: var(--lu-ink-2);
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-    @container (min-width: 480px) {
-      .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    }
-    @container (min-width: 700px) {
-      .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    }
-    @container (min-width: 960px) {
-      .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    }
-    .tile {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      background: none;
-      border: none;
-      padding: 0;
-      cursor: pointer;
-      text-align: left;
-      color: inherit;
-      font: inherit;
-    }
-    .plate {
-      position: relative;
-      width: 100%;
-      min-height: 0;
-      aspect-ratio: 1 / 1;
-      border-radius: var(--lu-radius-tile);
-      overflow: hidden;
-      background: #050607;
-      border: 1px solid var(--lu-edge);
-    }
-    .art {
-      /* Absolutely placed so the image's own size can never stretch the square plate (a 32x8
-         strip made its tile taller than its neighbours). */
-      position: absolute;
-      inset: 0;
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      image-rendering: pixelated;
-    }
-    .skeleton {
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, #0a0b0c 25%, #16181a 37%, #0a0b0c 63%);
-      background-size: 400% 100%;
-      animation: gallery-shimmer 1.4s ease infinite;
-    }
-    .skeleton.static {
-      animation: none;
-      background: #0a0b0c;
-    }
-    @keyframes gallery-shimmer {
-      0% { background-position: 100% 0; }
-      100% { background-position: 0 0; }
-    }
-    .badge {
-      position: absolute;
-      right: 6px;
-      bottom: 6px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.6);
-      color: #fff;
-    }
-    .title {
-      margin: 0;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--lu-ink);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .meta {
-      margin: 0;
-      font-size: 12px;
-      color: var(--lu-ink-2);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .error-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      margin: 16px 0;
-    }
-    .retry-button {
-      min-height: var(--lu-target, 48px);
-      padding: 0 16px;
-      border-radius: var(--lu-radius-pill);
-      border: 1px solid var(--lu-edge);
-      background: var(--lu-tile);
-      color: var(--lu-ink);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .sentinel {
-      height: 1px;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      * {
-        transition: none !important;
-        animation: none !important;
-      }
-    }
-    `];customElements.define("iledclock-gallery-browser",Ae);var Ps=250,ot=64,Ie=class extends g{constructor(){super();this._filename="";this._dataB64="";this._fileSizeBytes=0;this._pixelFrames=[];this._playStartedAt=0;this._rafId=null;this._requestId=0;this._sourceImgRef=X();this._dragMode=null;this._dragStartClientX=0;this._dragStartClientY=0;this._dragStartBox=null;this._dragRenderedWidth=0;this._dragRenderedHeight=0;this._onFileInputChange=async e=>{let t=e.target,s=t.files?.[0];t.value="",s&&await this._acceptFile(s)};this._onDrop=async e=>{e.preventDefault();let t=e.dataTransfer?.files?.[0];t&&await this._acceptFile(t)};this._onDragOver=e=>{e.preventDefault()};this._fetchUrl=async()=>{let e=this._urlInput.trim();if(e){this._fetchingUrl=!0,this._pickError=null;try{let t=await fetch(e);if(!t.ok)throw new Error(`Server responded ${t.status}`);let s=await t.blob(),n=mr(e,s.type),o=Ft(n,s.size);if(o){this._pickError=o;return}let a=await this._readAsDataUrl(s),d=a.slice(a.indexOf(",")+1);this._beginPreviewStage(n,d,s.size,Ot(n)?a:null)}catch{this._pickError="Couldn't load that image directly (many sites block this). Try saving it to your device and picking the file instead."}finally{this._fetchingUrl=!1}}};this._onSourceImageLoad=()=>{let e=this._sourceImgRef.value;e&&(this._naturalWidth=e.naturalWidth,this._naturalHeight=e.naturalHeight,this._cropBox=Pt(e.naturalWidth,e.naturalHeight))};this._clearBackground=()=>{let{background:e,...t}=this._adjust;this._adjust=t,this._loadPreview()};this._resetCrop=()=>{this._cropTouched=!1,this._naturalWidth>0&&(this._cropBox=Pt(this._naturalWidth,this._naturalHeight)),this._loadPreview()};this._onDragMove=e=>{if(!this._dragMode||!this._dragStartBox)return;let{dx:t,dy:s}=tr(e.clientX-this._dragStartClientX,e.clientY-this._dragStartClientY,this._dragRenderedWidth,this._dragRenderedHeight,this._naturalWidth,this._naturalHeight);this._cropBox=this._dragMode==="move"?ir(this._dragStartBox,t,s,this._naturalWidth,this._naturalHeight):rr(this._dragStartBox,this._dragMode,t,s,this._naturalWidth,this._naturalHeight),this._cropTouched=!0};this._onDragEnd=()=>{this._dragMode&&(this._teardownDrag(),this._loadPreview())};this._save=()=>this._finishImport(!1);this._show=()=>this._finishImport(!0);this.open=!1,this._stage="pick",this._sourceDataUrl=null,this._naturalWidth=0,this._naturalHeight=0,this._cropBox=null,this._cropTouched=!1,this._urlInput="",this._fetchingUrl=!1,this._pickError=null,this._layout="auto",this._adjustOpen=!1,this._adjust={},this._preview=null,this._previewLoading=!1,this._previewError=null,this._saving=null,this._actionError=null}disconnectedCallback(){super.disconnectedCallback(),this._stopLoop(),clearTimeout(this._debounceTimer),this._teardownDrag()}updated(e){e.has("open")&&this.open&&this._resetState(),e.has("_preview")&&(this._pixelFrames=this._preview?this._preview.frames.map((t,s)=>xe(t,32,16,this._preview.delays_ms[s]??100)):[],this._playStartedAt=performance.now())}_resetState(){this._stage="pick",this._filename="",this._dataB64="",this._fileSizeBytes=0,this._sourceDataUrl=null,this._naturalWidth=0,this._naturalHeight=0,this._cropBox=null,this._cropTouched=!1,this._urlInput="",this._fetchingUrl=!1,this._pickError=null,this._layout="auto",this._adjustOpen=!1,this._adjust={},this._preview=null,this._previewError=null,this._actionError=null,this._pixelFrames=[],this._stopLoop()}_startLoop(){if(this._rafId!==null)return;this._playStartedAt=performance.now();let e=()=>{this.requestUpdate(),this._rafId=requestAnimationFrame(e)};this._rafId=requestAnimationFrame(e)}_stopLoop(){this._rafId!==null&&cancelAnimationFrame(this._rafId),this._rafId=null}_currentFrame(){return this._pixelFrames.length===0?null:this._pixelFrames[N(this._pixelFrames,performance.now()-this._playStartedAt)]}async _acceptFile(e){let t=Ft(e.name,e.size);if(t){this._pickError=t;return}let s=await this._readAsDataUrl(e),n=s.slice(s.indexOf(",")+1);this._beginPreviewStage(e.name,n,e.size,Ot(e.name)?s:null)}_readAsDataUrl(e){return new Promise((t,s)=>{let n=new FileReader;n.onload=()=>t(String(n.result)),n.onerror=()=>s(n.error),n.readAsDataURL(e)})}_beginPreviewStage(e,t,s,n){this._filename=e,this._dataB64=t,this._fileSizeBytes=s,this._sourceDataUrl=n,this._naturalWidth=0,this._naturalHeight=0,this._cropBox=null,this._cropTouched=!1,this._layout="auto",this._adjust={},this._adjustOpen=!1,this._pickError=null,this._stage="preview",this._loadPreview(),this._startLoop()}_backToPick(){this._resetState()}_sourceDimensions(){return this._naturalWidth>0&&this._naturalHeight>0?{width:this._naturalWidth,height:this._naturalHeight}:this._preview?{width:this._preview.report.native_size[0],height:this._preview.report.native_size[1]}:{width:32,height:16}}_buildOptions(){let e={...this._adjust};this._layout!=="auto"&&(e.layout=this._layout),this._sourceDataUrl&&this._cropTouched&&this._cropBox&&(e.crop=this._cropBox);let t=this._sourceDimensions();return rt(e,t.width,t.height)}async _loadPreview(){if(!this.entryId||!this.hass.callWS||!this._filename)return;let e=++this._requestId;this._previewLoading=!0,this._previewError=null;try{let t=await this.hass.callWS(Rt(this.entryId,{filename:this._filename,dataB64:this._dataB64,options:this._buildOptions(),save:!1}));if(e!==this._requestId)return;this._preview=t}catch(t){if(e!==this._requestId)return;this._previewError=M(t),this._preview=null}finally{e===this._requestId&&(this._previewLoading=!1)}}_selectLayout(e){this._layout=e,this._loadPreview()}_updateAdjust(e){this._adjust={...this._adjust,...e},clearTimeout(this._debounceTimer),this._debounceTimer=setTimeout(()=>void this._loadPreview(),Ps)}_startDrag(e,t){if(!this._cropBox)return;e.preventDefault(),e.stopPropagation();let s=this._sourceImgRef.value;if(!s)return;let n=s.getBoundingClientRect();this._dragMode=t,this._dragStartClientX=e.clientX,this._dragStartClientY=e.clientY,this._dragStartBox=this._cropBox,this._dragRenderedWidth=n.width,this._dragRenderedHeight=n.height,window.addEventListener("pointermove",this._onDragMove),window.addEventListener("pointerup",this._onDragEnd),window.addEventListener("pointercancel",this._onDragEnd)}_teardownDrag(){this._dragMode=null,this._dragStartBox=null,window.removeEventListener("pointermove",this._onDragMove),window.removeEventListener("pointerup",this._onDragEnd),window.removeEventListener("pointercancel",this._onDragEnd)}async _finishImport(e){if(!(!this.entryId||!this.hass.callWS)){this._saving=e?"show":"save",this._actionError=null;try{let t=await this.hass.callWS(Rt(this.entryId,{filename:this._filename,dataB64:this._dataB64,options:this._buildOptions(),save:!0}));if(!lr(t))throw new Error("Save didn't return a design id.");e&&await this.hass.callWS(H(this.entryId,{design_id:t.design_id})),this.dispatchEvent(new CustomEvent("iledclock-designs-changed",{bubbles:!0,composed:!0})),this.dispatchEvent(new CustomEvent("iledclock-open-design",{detail:{design_id:t.design_id},bubbles:!0,composed:!0})),this._close()}catch(t){this._actionError=M(t)}finally{this._saving=null}}}_close(){this.dispatchEvent(new CustomEvent("close-requested",{bubbles:!0,composed:!0}))}_onKeydown(e){e.key==="Escape"&&this._close()}render(){return this.open?l`
-      <div class="backdrop" @click=${this._close}></div>
-      <div class="panel" role="dialog" aria-modal="true" aria-label="Import" @keydown=${e=>this._onKeydown(e)}>
-        <header>
-          <h2>Import</h2>
-          <button type="button" class="icon-button" @click=${this._close} aria-label="Close">${m("close")}</button>
+        .source=${this._sources.find(t=>t.id===this._selectedItem?.source)}
+        .imageUrl=${this._selectedItem?this._signedPaths[E(this._selectedItem)]??"":""}
+        .items=${this._selectedItems}
+        .importCache=${this._importCache}
+        .open=${this._sheetOpen}
+        @close-requested=${this._closeItemSheet}
+        @item-navigate=${this._navigateItem}
+      ></iledclock-explore-item-sheet>
+    </div>`}};Rt.properties={hass:{attribute:!1},entryId:{attribute:!1},route:{attribute:!1},_sources:{state:!0},_sourcesLoading:{state:!0},_sourcesError:{state:!0},_viewSourceId:{state:!0},_searchInput:{state:!0},_activeQuery:{state:!0},_browse:{state:!0},_catalogShelves:{state:!0},_shelves:{state:!0},_shelfLoads:{state:!0},_shelfCatalogLoading:{state:!0},_shelfCatalogError:{state:!0},_signedPaths:{state:!0},_selectedItem:{state:!0},_selectedItems:{state:!0},_sheetOpen:{state:!0}},Rt.styles=[g,v`
+    :host { display: block; min-width: 0; height: 100%; overflow: auto; container-type: inline-size; color: var(--lu-ink); }
+    .explore { box-sizing: border-box; width: min(100%, 1200px); min-width: 0; margin: 0 auto; padding: var(--lu-space-4); }
+    .intro { margin: 0 0 var(--lu-space-4); }
+    .eyebrow { margin: 0 0 var(--lu-space-1); color: var(--lu-ink-3); font: 600 var(--lu-type-caption)/1.3 var(--lu-font); letter-spacing: .08em; }
+    h1 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.2 var(--lu-font); letter-spacing: -.02em; }
+    .intro > p:last-child { max-width: 52ch; margin: var(--lu-space-2) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-body)/1.45 var(--lu-font); }
+    .toolbar { display: flex; min-width: 0; flex-direction: column; gap: var(--lu-space-3); margin-bottom: var(--lu-space-5); }
+    .search-row { display: flex; align-items: center; gap: var(--lu-space-2); }
+    .search-box { display: flex; align-items: center; gap: var(--lu-space-2); flex: 1; min-width: 0; min-height: var(--lu-target, 48px); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-card); box-shadow: var(--lu-highlight-rest, none); }
+    .search-icon { color: var(--lu-ink-3); font: 400 24px/1 var(--lu-font); }
+    input[type="search"] { width: 100%; min-width: 0; min-height: 44px; border: 0; outline: 0; background: transparent; color: var(--lu-ink); font: 400 var(--lu-type-body)/1.3 var(--lu-font); }
+    input[type="search"]::placeholder { color: var(--lu-ink-3); }
+    .search-box:focus-within { border-color: var(--lu-focus, var(--lu-accent)); }
+    input[type="search"]:focus-visible { outline: 2px solid var(--lu-focus, var(--lu-accent)); outline-offset: 2px; border-radius: var(--lu-radius-control); }
+    .source-pills, .filter-set { display: flex; align-items: center; gap: var(--lu-space-2); min-width: 0; overflow-x: auto; padding: 2px 1px; scrollbar-width: thin; }
+    .source-pill, .filter-pill { flex: none; min-height: var(--lu-target, 48px); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-tile); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1 var(--lu-font); cursor: pointer; white-space: nowrap; }
+    .source-pill[aria-pressed="true"], .filter-pill.selected { border-color: transparent; background: var(--lu-accent); color: var(--lu-accent-ink); }
+    .source-pill:focus-visible, .filter-pill:focus-visible, .load-more:focus-visible, .account-row:focus-visible, .see-all:focus-visible { outline: 2px solid var(--lu-focus, var(--lu-accent)); outline-offset: 2px; }
+    .account-row { display: flex; align-items: center; gap: var(--lu-space-2); min-height: var(--lu-target, 48px); padding: var(--lu-space-2) var(--lu-space-3); border: 1px dashed var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink-2); text-decoration: none; font: 400 var(--lu-type-body)/1.35 var(--lu-font); }
+    .account-spark, .account-arrow { flex: none; color: var(--lu-ink-3); }
+    .account-row span:nth-child(2) { flex: 1; }
+    .loading-hint { margin: 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .shelves { display: flex; flex-direction: column; gap: var(--lu-space-6); }
+    .shelf-loading { display: flex; flex-direction: column; gap: var(--lu-space-3); }
+    .shelf-placeholder { width: 100%; height: 180px; }
+    .filters { display: flex; flex-direction: column; gap: var(--lu-space-2); margin: 0 0 var(--lu-space-4); }
+    .options { flex-wrap: wrap; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 120px), 1fr)); gap: var(--lu-space-4) var(--lu-space-3); align-items: start; }
+    .grid-skeleton { aspect-ratio: .78; }
+    .grid-skeleton lu-skeleton { display: block; height: 100%; }
+    .badge { display: inline-flex; min-height: 24px; align-items: center; padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-glass-raised, var(--lu-tile)); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1 var(--lu-font); }
+    .badge.exact { color: var(--lu-positive); }
+    .badge.size { color: var(--lu-ink-3); }
+    .paging { display: flex; flex-direction: column; align-items: center; gap: var(--lu-space-2); padding-top: var(--lu-space-4); }
+    .load-more { min-width: 160px; min-height: var(--lu-target, 48px); padding: 0 var(--lu-space-4); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-tile); color: var(--lu-ink); font: 500 var(--lu-type-label)/1 var(--lu-font); cursor: pointer; }
+    .load-more:disabled { opacity: .55; cursor: default; }
+    .sentinel { width: 1px; height: 1px; }
+    .end-of-list { margin: var(--lu-space-4) 0; color: var(--lu-ink-3); text-align: center; font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    @container (min-width: 720px) { .explore { padding: var(--lu-space-6); } .grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 148px), 1fr)); } .toolbar { margin-bottom: var(--lu-space-6); } }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition-duration: var(--lu-motion-label, 120ms) !important; } }
+  `];customElements.define("iledclock-explore-browser",Rt);var Lt=class extends m{constructor(){super(),this.narrow=!1}render(){return o`<main class="destination" aria-label="Explore pixel art">
+      ${this.entryId?o`<iledclock-explore-browser .hass=${this.hass} .entryId=${this.entryId} .route=${this.route}></iledclock-explore-browser>`:o`<lu-empty title="Connect a clock to browse" message="The gallery needs an iLedClock integration entry before it can load sources."></lu-empty>`}
+    </main>`}};Lt.properties={hass:{attribute:!1},entryId:{attribute:!1},route:{attribute:!1},narrow:{type:Boolean}},Lt.styles=[g,_,v`
+    :host { display: block; min-width: 0; height: 100%; container-type: inline-size; }
+    .destination { display: block; height: 100%; min-width: 0; }
+  `];customElements.define("iledclock-dest-explore",Lt);var Mt=class extends m{constructor(){super();this._designRequestId=0;this._playlistRequestId=0;this._onImportRequested=()=>{this._importOpen=!0};this._onImportClosed=()=>{this._importOpen=!1};this._retryDesigns=()=>{this.entryId&&this._loadDesigns(this.entryId)};this._retryPlaylist=()=>{this.entryId&&this._loadPlaylist(this.entryId)};this._onDelete=e=>{this._deleteOne(e.detail.id)};this._onDesignsDeleteRequested=e=>{this._deleteMany(e)};this._onDesignShowRequested=e=>{this._showDesign(e)};this._onAddDesigns=e=>{let t=this._playlist.length;this._playlist=Hs(this._playlist,e.detail.ids,this._maxItems);let s=this._playlist.length-t;this._toast({message:s>0?`${s} ${s===1?"design added":"designs added"} to rotation`:"Rotation is full",timeoutMs:3e3})};this._onPlaylistItemsChanged=e=>{this._playlist=e.detail.items};this.narrow=!1,this.route={destination:"library"},this._designs=[],this._designsLoading=!1,this._playlist=[],this._savedPlaylist=[],this._playlistLoading=!1,this._error=null,this._playlistError=null,this._busy=!1,this._maxItems=9,this._importOpen=!1}willUpdate(e){if(e.has("entryId")&&(this._maxItems=9),!(!e.has("entryId")&&!e.has("hass"))){if(this.entryId){this._loadAll(this.entryId);return}this._designs=[],this._playlist=[],this._savedPlaylist=[],this._error=null,this._playlistError=null}}async _loadAll(e){await Promise.all([this._loadDesigns(e),this._loadPlaylist(e),this._loadCapabilities(e)])}async _loadDesigns(e){let t=++this._designRequestId;this._designsLoading=!0,this._error=null;try{if(!this.hass?.callWS)throw new Error("Home Assistant connection is unavailable.");let s=await this.hass.callWS(z(e));if(t!==this._designRequestId||e!==this.entryId)return;if(!Array.isArray(s))throw new Error("The design list returned an unexpected response.");this._designs=s}catch(s){t===this._designRequestId&&e===this.entryId&&(this._error=s instanceof Error?s.message:"Could not load saved designs.")}finally{t===this._designRequestId&&(this._designsLoading=!1)}}async _loadPlaylist(e){let t=++this._playlistRequestId;this._playlistLoading=!0,this._playlistError=null;try{if(!this.hass?.callWS)throw new Error("Home Assistant connection is unavailable.");let s=await this.hass.callWS(Jr(e));if(t!==this._playlistRequestId||e!==this.entryId)return;if(!s||!Array.isArray(s.playlist))throw new Error("The rotation list returned an unexpected response.");this._playlist=ot(s.playlist),this._savedPlaylist=ot(s.playlist)}catch(s){t===this._playlistRequestId&&e===this.entryId&&(this._playlistError=s instanceof Error?s.message:"Could not load the rotation.")}finally{t===this._playlistRequestId&&(this._playlistLoading=!1)}}async _loadCapabilities(e){if(this.hass?.callWS)try{let t=await this.hass.callWS({type:"iledclock/state",entry_id:e});e===this.entryId&&Number.isFinite(t.capabilities?.max_playlist_items)&&(this._maxItems=t.capabilities.max_playlist_items)}catch{}}_toast(e){this.dispatchEvent(new CustomEvent("lu-toast",{detail:e,bubbles:!0,composed:!0}))}async _onRename(e){let t=this.entryId,s=this._designs.find(n=>n.id===e.detail.id),a=this.hass?.callWS?.bind(this.hass);if(!(!t||!s||!a||!e.detail.name.trim())){this._busy=!0;try{await a(Fe({...s,name:e.detail.name.trim(),updated:Date.now()})),await this._loadDesigns(t),this._toast({message:"Design name updated",timeoutMs:2500})}catch(n){this._toast({message:`Couldn't rename the design: ${n instanceof Error?n.message:"Please try again."}`,timeoutMs:7e3})}finally{this._busy=!1}}}async _onDuplicate(e){let t=this.entryId,s=this._designs.find(l=>l.id===e.detail.id),a=this.hass?.callWS?.bind(this.hass);if(!t||!s||!a)return;this._busy=!0;let n=Date.now();try{let l={...s,id:`local-${n.toString(36)}-${Math.random().toString(36).slice(2,8)}`,name:`${s.name} copy`,frames:[...s.frames],delays:[...s.delays],tags:s.tags?[...s.tags]:void 0,created:n,updated:n};await a(Fe(l)),await this._loadDesigns(t),this._toast({message:`${l.name} added to Library`,timeoutMs:2500})}catch(l){this._toast({message:`Couldn't duplicate the design: ${l instanceof Error?l.message:"Please try again."}`,timeoutMs:7e3})}finally{this._busy=!1}}async _deleteOne(e){if(this.hass?.callWS){this._busy=!0;try{await this.hass.callWS(Vi(e)),this.entryId&&await this._loadDesigns(this.entryId),this._toast({message:"Design deleted",timeoutMs:2500})}catch(t){this._toast({message:`Couldn't delete the design: ${t instanceof Error?t.message:"Please try again."}`,timeoutMs:7e3})}finally{this._busy=!1}}}async _deleteMany(e){if(!(!this.hass?.callWS||e.detail.ids.length===0)){this._busy=!0;try{let t=await Promise.allSettled(e.detail.ids.map(async n=>this.hass.callWS(Vi(n)))),s=t.filter(n=>n.status==="fulfilled").length;this.entryId&&await this._loadDesigns(this.entryId);let a=t.length-s;this._toast({message:a?`Deleted ${s}; ${a} couldn't be deleted.`:`${s} designs deleted`,timeoutMs:a?7e3:3e3})}finally{this._busy=!1}}}async _showDesign(e){!this.entryId||!this.hass||(this._busy=!0,await F(this,this.hass,this.entryId,{design_id:e.detail.id},e.detail.title),this._busy=!1)}async _applyPlaylist(){if(!(!this.entryId||!this.hass?.callWS||this._playlist.length===0)){this._busy=!0;try{let e=ts(this._playlist,this._maxItems);await this.hass.callWS(es(this.entryId,e)),this._playlist=ot(e),this._savedPlaylist=ot(e),this._toast({message:"Rotation applied to the clock",timeoutMs:3e3})}catch(e){this._toast({message:`Couldn't apply the rotation: ${e instanceof Error?e.message:"Please try again."}`,timeoutMs:8e3})}finally{this._busy=!1}}}render(){if(!this.entryId)return o`<lu-empty title="Connect a clock to open your Library" message="Saved designs and rotations belong to an iLedClock device."></lu-empty>`;let e=As(this._playlist,this._savedPlaylist),t=this._savedPlaylist.length>0;return o`<div class="destination">
+      <iledclock-library-panel
+        .route=${this.route}
+        .designs=${this._designs}
+        .loading=${this._designsLoading}
+        .error=${this._error}
+        ?disabled=${this._busy}
+        @retry-designs=${this._retryDesigns}
+        @import-requested=${this._onImportRequested}
+        @design-rename-requested=${this._onRename}
+        @design-duplicate-requested=${this._onDuplicate}
+        @design-delete-requested=${this._onDelete}
+        @designs-delete-requested=${this._onDesignsDeleteRequested}
+        @design-show-requested=${this._onDesignShowRequested}
+        @designs-add-to-rotation=${this._onAddDesigns}
+      ></iledclock-library-panel>
+
+      <section class="rotation lu-section-surface" aria-labelledby="rotation-title">
+        <header class="rotation-header">
+          <div><h2 id="rotation-title">Rotation</h2><p class="subtitle">Programs the clock shows in order</p></div>
+          ${!this._playlistLoading&&!this._playlistError?o`<lu-chip .label=${t?"On":"Off"} .kind=${t?"positive":"neutral"}></lu-chip>`:u}
         </header>
-        <div class="body">${this._stage==="pick"?this._renderPick():this._renderPreviewStage()}</div>
-      </div>
-    `:c}_renderPick(){return l`
-      <div class="drop-zone" @dragover=${this._onDragOver} @drop=${this._onDrop}>
-        <span class="drop-icon">${m("upload")}</span>
-        <p>Drop a GIF, PNG, JPEG, WebP, .aseprite or .piskel file</p>
-        <label class="pick-button">
-          Choose a file
-          <input type="file" accept=".gif,.png,.jpg,.jpeg,.webp,.aseprite,.ase,.piskel" hidden @change=${this._onFileInputChange} />
-        </label>
-      </div>
-      <div class="url-row">
-        <input
-          class="url-input"
-          type="text"
-          placeholder="Or paste an image URL"
-          .value=${this._urlInput}
-          @input=${e=>this._urlInput=e.target.value}
-        />
-        <button type="button" class="secondary-action" ?disabled=${this._fetchingUrl||!this._urlInput.trim()} @click=${this._fetchUrl}>
-          ${this._fetchingUrl?"Fetching\u2026":"Fetch"}
-        </button>
-      </div>
-      ${this._pickError?l`<p class="error">${this._pickError}</p>`:c}
-    `}_renderPreviewStage(){let e=this._sourceDimensions();return l`
-      ${this._actionError?l`<p class="error">${this._actionError}</p>`:c}
-      ${this._sourceDataUrl?l`
-            <div class="crop-stage">
-              <img class="source-img" ${I(this._sourceImgRef)} src=${this._sourceDataUrl} @load=${this._onSourceImageLoad} alt="" />
-              ${this._cropBox?this._renderCropOverlay(this._cropBox):c}
-            </div>
-            <div class="crop-controls">
-              <p class="hint">Drag the box to crop, or drag a handle to resize.</p>
-              ${this._cropTouched?l`<button type="button" class="link-button" @click=${this._resetCrop}>Reset crop</button>`:c}
-            </div>
-          `:l`<p class="hint">${this._filename} can't be shown directly here (only the server can decode it) -- showing the adapted preview below.</p>`}
-      <div class="preview-plate">
-        ${this._pixelFrames.length===0&&this._previewLoading?l`<div class="skeleton"></div>`:l`<iledclock-matrix-canvas .frame=${this._currentFrame()} bloom></iledclock-matrix-canvas>`}
-      </div>
-      ${this._previewError?l`<p class="error">${this._previewError}</p>`:c}
-      <iledclock-segmented-picker
-        group-label="Layout"
-        content-fit
-        .options=${ar(this._preview?.layouts_available??[]).map(t=>({value:t,label:it(t)}))}
-        .value=${this._layout}
-        @option-selected=${t=>this._selectLayout(t.detail.value)}
-      ></iledclock-segmented-picker>
-      ${this._layout==="auto"&&this._preview&&ie(this._preview.report.notes)?l`<p class="hint">${ie(this._preview.report.notes)}</p>`:c}
-      <button type="button" class="disclosure" @click=${()=>this._adjustOpen=!this._adjustOpen}>${m(this._adjustOpen?"chevronUp":"chevronDown")} Adjust</button>
-      ${this._adjustOpen?this._renderAdjust(e):c}
-      <button type="button" class="link-row" @click=${()=>this._backToPick()}>${m("chevronLeft")} Choose a different file</button>
-      <div class="actions">
-        <button type="button" class="secondary-action" ?disabled=${this._saving!==null} @click=${this._save}>${m("save")} ${this._saving==="save"?"Saving\u2026":"Save"}</button>
-        <iledclock-hold-button label="Hold to show on clock" complete-label="Showing" ?disabled=${this._saving!==null} @confirmed=${this._show}></iledclock-hold-button>
-      </div>
-    `}_renderCropOverlay(e){let t=this._naturalWidth||1,s=this._naturalHeight||1,n=`left:${e.x/t*100}%; top:${e.y/s*100}%; width:${e.w/t*100}%; height:${e.h/s*100}%;`;return l`
-      <div class="crop-box" style=${n} @pointerdown=${o=>this._startDrag(o,"move")}>
-        ${er.map(o=>l`<span class="handle handle-${o}" @pointerdown=${a=>this._startDrag(a,o)}></span>`)}
-      </div>
-    `}_renderAdjust(e){let t=this._adjust.scale??1,s=this._adjust.offset??{x:0,y:0},n=this._adjust.enhance??!1;return l`
-      <div class="adjust">
-        ${this._sourceDataUrl?c:this._renderNumericCrop(e)}
-        <label class="stepper-field">
-          Scale<iledclock-stepper .value=${t} min="1" max="16" step="1" @value-selected=${o=>this._updateAdjust({scale:o.detail.value})}></iledclock-stepper>
-        </label>
-        <div class="two-up">
-          <label class="stepper-field">
-            Offset X<iledclock-stepper
-              .value=${s.x}
-              min=${-ot}
-              max=${ot}
-              step="1"
-              @value-selected=${o=>this._updateAdjust({offset:{...s,x:o.detail.value}})}
-            ></iledclock-stepper>
-          </label>
-          <label class="stepper-field">
-            Offset Y<iledclock-stepper
-              .value=${s.y}
-              min=${-ot}
-              max=${ot}
-              step="1"
-              @value-selected=${o=>this._updateAdjust({offset:{...s,y:o.detail.value}})}
-            ></iledclock-stepper>
-          </label>
+        <div class="rotation-status" role="status">
+          ${this._playlistError?u:this._playlistLoading?u:t?o`<span>${this._savedPlaylist.length===1?"One saved program; the clock keeps showing it.":`The clock cycles through ${this._savedPlaylist.length} saved programs.`}</span>`:o`<span>No saved programs; the clock uses its default display.</span>`}
+          ${e?o`<lu-chip label="Unsaved changes" kind="warning"></lu-chip>`:o`<span class="saved-label">${this._playlistLoading?"Loading saved rotation\u2026":"Saved rotation"}</span>`}
         </div>
-        <div class="background-row">
-          <span class="adjust-label">Background</span>
-          <input
-            type="color"
-            .value=${O(this._adjust.background??[0,0,0])}
-            @input=${o=>this._updateAdjust({background:F(o.target.value)})}
-          />
-          ${this._adjust.background?l`<button type="button" class="link-button" @click=${this._clearBackground}>Clear</button>`:c}
+        ${this._playlistError?o`<lu-error title="Couldn't load the rotation" .message=${this._playlistError} @retry=${this._retryPlaylist}></lu-error>`:this._playlistLoading?o`<lu-skeleton variant="card" label="Loading rotation"></lu-skeleton>`:o`<iledclock-playlist-editor .items=${this._playlist} .maxItems=${this._maxItems} .designs=${this._designs} ?disabled=${this._busy} @items-changed=${this._onPlaylistItemsChanged}></iledclock-playlist-editor>`}
+        <div class="apply-row">
+          <iledclock-hold-button label="Hold to apply rotation" complete-label="Rotation applied" ?disabled=${this._busy||this._playlistLoading||!!this._playlistError||this._playlist.length===0} @confirmed=${this._applyPlaylist}></iledclock-hold-button>
         </div>
-        <button type="button" class="toggle-row" @click=${()=>this._updateAdjust({enhance:!n})}>
-          <span class="toggle-label">Enhance colours</span>
-          <span class="toggle-pill ${n?"on":""}"><span class="toggle-knob"></span></span>
-        </button>
-      </div>
-    `}_renderNumericCrop(e){let t=this._adjust.crop??{x:0,y:0,w:e.width,h:e.height};return l`
-      <span class="adjust-label">Crop (source pixels)</span>
-      <div class="crop-grid">
-        <label class="stepper-field">
-          X<iledclock-stepper .value=${t.x} min="0" .max=${e.width} step="1" @value-selected=${s=>this._updateAdjust({crop:{...t,x:s.detail.value}})}></iledclock-stepper>
-        </label>
-        <label class="stepper-field">
-          Y<iledclock-stepper .value=${t.y} min="0" .max=${e.height} step="1" @value-selected=${s=>this._updateAdjust({crop:{...t,y:s.detail.value}})}></iledclock-stepper>
-        </label>
-        <label class="stepper-field">
-          Width<iledclock-stepper .value=${t.w} min="1" .max=${e.width} step="1" @value-selected=${s=>this._updateAdjust({crop:{...t,w:s.detail.value}})}></iledclock-stepper>
-        </label>
-        <label class="stepper-field">
-          Height<iledclock-stepper .value=${t.h} min="1" .max=${e.height} step="1" @value-selected=${s=>this._updateAdjust({crop:{...t,h:s.detail.value}})}></iledclock-stepper>
-        </label>
-      </div>
-    `}};Ie.properties={hass:{attribute:!1},entryId:{attribute:!1},open:{type:Boolean,reflect:!0},_stage:{state:!0},_sourceDataUrl:{state:!0},_naturalWidth:{state:!0},_naturalHeight:{state:!0},_cropBox:{state:!0},_cropTouched:{state:!0},_urlInput:{state:!0},_fetchingUrl:{state:!0},_pickError:{state:!0},_layout:{state:!0},_adjustOpen:{state:!0},_adjust:{state:!0},_preview:{state:!0},_previewLoading:{state:!0},_previewError:{state:!0},_saving:{state:!0},_actionError:{state:!0}},Ie.styles=[y,_`
-    :host(:not([open])) {
-      display: none;
-    }
-    :host {
-      position: fixed;
-      inset: 0;
-      z-index: 110;
-    }
-    .backdrop {
-      position: absolute;
-      inset: 0;
-      background: var(--lu-scrim, rgba(0, 0, 0, 0.5));
-    }
-    .panel {
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: min(480px, 100vw);
-      background: var(--lu-card);
-      color: var(--lu-ink);
-      box-shadow: var(--lu-shadow-raised);
-      border-left: 1px solid var(--lu-edge);
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      container-type: inline-size;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 16px;
-      border-bottom: 1px solid var(--lu-edge);
-      position: sticky;
-      top: 0;
-      background: inherit;
-      z-index: 1;
-    }
-    h2 {
-      margin: 0;
-      font-size: 17px;
-      font-weight: 600;
-    }
-    .icon-button {
-      flex: none;
-      width: var(--lu-target, 48px);
-      height: var(--lu-target, 48px);
-      border-radius: 50%;
-      border: none;
-      background: transparent;
-      color: var(--lu-ink);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .icon-button:hover {
-      background: var(--lu-tile);
-    }
-    .body {
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .error {
-      margin: 0;
-      font-size: 13px;
-      color: var(--lu-danger);
-    }
-    .hint {
-      margin: 0;
-      font-size: 13px;
-      color: var(--lu-ink-2);
-    }
-    .drop-zone {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      padding: 32px 16px;
-      border-radius: var(--lu-radius-tile);
-      border: 2px dashed var(--lu-edge);
-      text-align: center;
-    }
-    .drop-zone p {
-      margin: 0;
-      font-size: 14px;
-      color: var(--lu-ink-2);
-    }
-    .drop-icon {
-      display: inline-flex;
-      color: var(--lu-ink-2);
-      font-size: 28px;
-    }
-    .pick-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: var(--lu-target, 48px);
-      padding: 0 20px;
-      border-radius: var(--lu-radius-pill);
-      background: var(--lu-accent);
-      color: var(--lu-accent-ink);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .url-row {
-      display: flex;
-      gap: 8px;
-    }
-    .url-input {
-      flex: 1;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--lu-edge);
-      background: var(--lu-card);
-      color: var(--lu-ink);
-      padding: 0 12px;
-      box-sizing: border-box;
-      font-size: 14px;
-    }
-    .secondary-action {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-pill);
-      border: 1px solid var(--lu-edge);
-      background: var(--lu-tile);
-      color: var(--lu-ink);
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 0 16px;
-    }
-    .secondary-action:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
-    .crop-stage {
-      position: relative;
-      border-radius: var(--lu-radius-tile);
-      overflow: hidden;
-      background: #050607;
-      touch-action: none;
-    }
-    .source-img {
-      display: block;
-      width: 100%;
-      height: auto;
-      max-height: 320px;
-      object-fit: contain;
-    }
-    .crop-box {
-      position: absolute;
-      border: 2px solid var(--lu-accent);
-      box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.45);
-      touch-action: none;
-      cursor: move;
-    }
-    .handle {
-      position: absolute;
-      width: 16px;
-      height: 16px;
-      margin: -8px;
-      background: #fff;
-      border: 2px solid var(--lu-accent);
-      border-radius: 50%;
-      touch-action: none;
-    }
-    .handle-nw { top: 0; left: 0; cursor: nwse-resize; }
-    .handle-n { top: 0; left: 50%; cursor: ns-resize; }
-    .handle-ne { top: 0; left: 100%; cursor: nesw-resize; }
-    .handle-e { top: 50%; left: 100%; cursor: ew-resize; }
-    .handle-se { top: 100%; left: 100%; cursor: nwse-resize; }
-    .handle-s { top: 100%; left: 50%; cursor: ns-resize; }
-    .handle-sw { top: 100%; left: 0; cursor: nesw-resize; }
-    .handle-w { top: 50%; left: 0; cursor: ew-resize; }
-    .crop-controls {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-    .preview-plate {
-      aspect-ratio: 2 / 1;
-      width: 100%;
-      border-radius: var(--lu-radius-tile);
-      overflow: hidden;
-      background: #050607;
-      border: 1px solid var(--lu-edge);
-    }
-    .skeleton {
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, #0a0b0c 25%, #16181a 37%, #0a0b0c 63%);
-      background-size: 400% 100%;
-      animation: import-shimmer 1.4s ease infinite;
-    }
-    @keyframes import-shimmer {
-      0% { background-position: 100% 0; }
-      100% { background-position: 0 0; }
-    }
-    .disclosure {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      align-self: flex-start;
-      min-height: var(--lu-target, 48px);
-      padding: 0 14px;
-      border-radius: var(--lu-radius-pill);
-      border: 1px solid var(--lu-edge);
-      background: var(--lu-tile);
-      color: var(--lu-ink);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .adjust {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      padding: 12px;
-      border-radius: var(--lu-radius-tile);
-      background: var(--lu-tile);
-    }
-    .adjust-label {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--lu-ink-2);
-    }
-    .crop-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-    @container (min-width: 360px) {
-      .crop-grid,
-      .two-up {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-    .two-up {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-    .stepper-field {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--lu-ink-2);
-    }
-    .background-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .background-row input[type="color"] {
-      width: 40px;
-      height: 40px;
-      border: none;
-      border-radius: 50%;
-      overflow: hidden;
-      padding: 0;
-      background: none;
-      cursor: pointer;
-    }
-    .link-button {
-      background: none;
-      border: none;
-      color: var(--lu-accent);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 0;
-    }
-    .link-row {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      align-self: flex-start;
-      background: none;
-      border: none;
-      color: var(--lu-ink-2);
-      font-size: 13px;
-      cursor: pointer;
-      padding: 4px 0;
-    }
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: none;
-      border: none;
-      padding: 6px 0;
-      min-height: var(--lu-target, 48px);
-      color: var(--lu-ink);
-      cursor: pointer;
-      text-align: left;
-      font-size: 14px;
-    }
-    .toggle-label {
-      flex: 1;
-    }
-    .toggle-pill {
-      flex: none;
-      width: 40px;
-      height: 24px;
-      border-radius: var(--lu-radius-pill);
-      background: var(--lu-track-off);
-      position: relative;
-    }
-    .toggle-pill.on {
-      background: var(--lu-accent);
-    }
-    .toggle-knob {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #fff;
-      transition: transform var(--lu-motion-focus) var(--lu-ease);
-    }
-    .toggle-pill.on .toggle-knob {
-      transform: translateX(16px);
-    }
-    .actions {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding-top: 4px;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      * {
-        transition: none !important;
-      }
-      .skeleton {
-        animation: none;
-        background: #0f1112;
-      }
-    }
-    `];customElements.define("iledclock-import-sheet",Ie);var Hs=10,Rs="Untitled design";function Ds(){return`local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`}var Os=3e3,Fs=20,Te=class extends g{constructor(){super();this._unsubscribe=null;this._onFrameChanged=e=>{let t=this._frames.slice();t[this._activeFrameIndex]=e.detail.frame,this._pushFrames(t)};this._onColorPicked=e=>{this._activeColor=e.detail.color;let t=e.detail.color.join(",");this._recentColors=[e.detail.color,...this._recentColors.filter(s=>s.join(",")!==t)].slice(0,Hs)};this._onUndoRequested=()=>{this._history=Qi(this._history),this._activeFrameIndex=Math.min(this._activeFrameIndex,this._frames.length-1)};this._onRedoRequested=()=>{this._history=Ji(this._history),this._activeFrameIndex=Math.min(this._activeFrameIndex,this._frames.length-1)};this._onFramesChanged=e=>{this._pushFrames(e.detail.frames),this._activeFrameIndex=Math.min(this._activeFrameIndex,e.detail.frames.length-1)};this._onFrameSelected=e=>{this._activeFrameIndex=e.detail.index};this._onDelayChanged=e=>{let t=this._frames.slice(),s=t[e.detail.index];s&&(t[e.detail.index]={...s,durationMs:e.detail.delayMs},this._pushFrames(t))};this._onPlayToggled=e=>{this._playing=e.detail.playing};this._onGalleryDesignsChanged=()=>{this._entryId&&this._loadDesigns(this._entryId)};this._onGalleryOpenDesign=async e=>{this._entryId&&await this._loadDesigns(this._entryId);let t=this._designs.find(s=>s.id===e.detail.design_id);t&&(this._history=Le(T(t)),this._activeFrameIndex=0,this._currentDesignId=t.id,this._designName=t.name,this._nav="editor",this._importSheetOpen=!1)};this._onDesignSelected=e=>{let t=this._designs.find(s=>s.id===e.detail.id);t&&(this._history=Le(T(t)),this._activeFrameIndex=0,this._currentDesignId=t.id,this._designName=t.name)};this._onSaveClick=async()=>{this._busy="save";let e=await this._saveDesign(this._currentDesignId,this._frames,this._designName);e&&(this._currentDesignId=e),this._busy=null};this._onDesignRenameRequested=async e=>{let t=this._designs.find(s=>s.id===e.detail.id);t&&await this._saveDesign(t.id,T(t),e.detail.name)};this._onDesignDuplicateRequested=async e=>{let t=this._designs.find(s=>s.id===e.detail.id);t&&await this._saveDesign(null,T(t),`${t.name} copy`)};this._onDesignDeleteRequested=async e=>{if(this.hass.callWS)try{await this.hass.callWS($i(e.detail.id)),this._currentDesignId===e.detail.id&&(this._currentDesignId=null),this._entryId&&this._loadDesigns(this._entryId)}catch(t){this._error=t instanceof Error?t.message:"Delete failed."}};this._onSendConfirmed=async()=>{if(!(!this._entryId||!this.hass.callWS)){this._busy="send",this._error=null;try{let e=this._currentDesignId;if(e=await this._saveDesign(e,this._frames,this._designName),!e)return;this._currentDesignId=e,await this.hass.callWS(H(this._entryId,{design_id:e}))}catch(e){this._error=e instanceof Error?e.message:"Send failed."}finally{this._busy=null}}};this._onPlaylistItemsChanged=e=>{this._playlist=e.detail.items};this._onSavePlaylistConfirmed=async()=>{if(!(!this._entryId||!this.hass.callWS)){this._busy="playlist",this._error=null;try{let e=Ci(this._playlist,this._envelope?.capabilities.max_playlist_items??9);await this.hass.callWS(Si(this._entryId,e)),this._playlist=e}catch(e){this._error=e instanceof Error?e.message:"Saving the playlist failed."}finally{this._busy=null}}};this.narrow=!1,this._envelope=null,this._history=Le([P(32,16)]),this._activeFrameIndex=0,this._activeColor=[34,225,232],this._recentColors=[],this._wrap=!1,this._designs=[],this._designsLoading=!1,this._designName=Rs,this._currentDesignId=null,this._playlist=[],this._playing=!1,this._uploadProgress=null,this._nav="editor",this._importSheetOpen=!1,this._generativeKind=Qe[0].kind,this._generativeSeconds=8,this._busy=null,this._error=null}connectedCallback(){super.connectedCallback(),this.addEventListener("iledclock-designs-changed",this._onGalleryDesignsChanged),this.addEventListener("iledclock-open-design",this._onGalleryOpenDesign)}disconnectedCallback(){super.disconnectedCallback(),this.removeEventListener("iledclock-designs-changed",this._onGalleryDesignsChanged),this.removeEventListener("iledclock-open-design",this._onGalleryOpenDesign),this._unsubscribe&&this._unsubscribe()}willUpdate(e){if(!e.has("hass")&&!e.has("deviceId")||!this.hass)return;let t=this.deviceId??this._autoDeviceId(),s=Ye(this.hass.devices,t);this._entryId=s,s&&s!==this._lastEntryIdSubscribed&&(this._lastEntryIdSubscribed=s,this._connect(s),this._loadDesigns(s),this._loadPlaylist(s))}_autoDeviceId(){return Object.values(this.hass.entities??{}).find(t=>t.platform==="iledclock")?.device_id??void 0}async _connect(e,t=0){if(this._unsubscribe&&(this._unsubscribe(),this._unsubscribe=null),!!this.hass.callWS)try{this._envelope=await this.hass.callWS({type:"iledclock/state",entry_id:e}),this.hass.connection&&(this._unsubscribe=await this.hass.connection.subscribeMessage(s=>{s.type==="upload"?(this._uploadProgress=s,(s.state==="done"||s.state==="error")&&setTimeout(()=>this._uploadProgress=null,2500)):this._envelope=s},{type:"iledclock/subscribe",entry_id:e})),t>0&&this._loadPlaylist(e)}catch(s){s?.code==="unknown_entry"&&t<Fs&&this.isConnected&&setTimeout(()=>void this._connect(e,t+1),Os)}}async _loadDesigns(e){if(this.hass.callWS){this._designsLoading=!0;try{this._designs=await this.hass.callWS(Ke(e))}catch(t){this._error=t instanceof Error?t.message:"Could not load the design library."}finally{this._designsLoading=!1}}}async _loadPlaylist(e){if(this.hass.callWS)try{let t=await this.hass.callWS(ki(e));this._playlist=t.playlist??[]}catch{this._playlist=[]}}get _frames(){return this._history.present}_pushFrames(e){this._history=Xi(this._history,e)}_replaceDesign(e,t){this._history=Le(e),this._activeFrameIndex=0,this._currentDesignId=null,t&&(this._designName=t)}async _renderInto(e,t){if(!(!this._entryId||!this.hass.callWS)){this._busy="render",this._error=null;try{let s=await this.hass.callWS(te(this._entryId,e)),n=s.frames.map((o,a)=>{let d=atob(o),p=new Uint8Array(32*16*3);for(let u=0;u<Math.min(d.length,p.length);u++)p[u]=d.charCodeAt(u);return{width:32,height:16,pixels:p,durationMs:s.delays[a]??100}});n.length>0&&this._replaceDesign(n,t)}catch(s){this._error=s instanceof Error?s.message:"Import failed."}finally{this._busy=null}}}_runGenerative(){this._renderInto({type:"generative",kind:this._generativeKind,seconds:this._generativeSeconds},Qe.find(e=>e.kind===this._generativeKind)?.label??"Generative")}async _saveDesign(e,t,s){if(!this.hass.callWS)return null;let n=Date.now(),o=e?this._designs.find(d=>d.id===e):void 0,a=Oi(t,{id:e??Ds(),name:s,kind:t.length>1?"animation":"image",created:o?.created??n,updated:n,tags:o?.tags});try{let d=await this.hass.callWS(wi(a));return this._entryId&&this._loadDesigns(this._entryId),d.id}catch(d){return this._error=d instanceof Error?d.message:"Save failed.",null}}_toggleMenu(){this.dispatchEvent(new CustomEvent("hass-toggle-menu",{bubbles:!0,composed:!0}))}render(){let e=this._frames,t=e[this._activeFrameIndex]??e[0],s=this._activeFrameIndex>0?e[this._activeFrameIndex-1]??null:null;return l`
-      <div class="app-bar">
-        ${this.narrow?l`<button type="button" class="icon-button" @click=${()=>this._toggleMenu()} aria-label="Show sidebar">${m("menu")}</button>`:c}
-        <h1>Pixel Studio</h1>
-        <iledclock-segmented-picker
-          class="nav-picker"
-          group-label="Section"
-          content-fit
-          .options=${[{value:"editor",label:"Editor"},{value:"gallery",label:"Gallery"}]}
-          .value=${this._nav}
-          @option-selected=${n=>this._nav=n.detail.value}
-        ></iledclock-segmented-picker>
-        ${this._uploadProgress?l`<span class="upload-status">${this._renderUploadStatus(this._uploadProgress)}</span>`:c}
-      </div>
-      <div class="body">
-        ${this._error?l`<p class="error">${this._error}</p>`:c}
-        ${this._nav==="gallery"?l`<div class="gallery-view"><iledclock-gallery-browser .hass=${this.hass} .entryId=${this._entryId}></iledclock-gallery-browser></div>`:l`
-              <div class="editor-column">
-                <div class="name-row">
-                  <input class="design-name" type="text" .value=${this._designName} @change=${n=>this._designName=n.target.value} placeholder="Design name" />
-                  <button type="button" class="secondary-action" @click=${()=>this._importSheetOpen=!0}>${m("image")} Import</button>
-                </div>
-                <iledclock-pixel-editor
-                  .frame=${t}
-                  .onionSkin=${s}
-                  .wrap=${this._wrap}
-                  .activeColor=${this._activeColor}
-                  .recentColors=${this._recentColors}
-                  .hass=${this.hass}
-                  .entryId=${this._entryId}
-                  @frame-changed=${this._onFrameChanged}
-                  @color-picked=${this._onColorPicked}
-                  @undo-requested=${this._onUndoRequested}
-                  @redo-requested=${this._onRedoRequested}
-                ></iledclock-pixel-editor>
-                <iledclock-frame-timeline
-                  .frames=${e}
-                  .activeIndex=${this._activeFrameIndex}
-                  .playing=${this._playing}
-                  @frames-changed=${this._onFramesChanged}
-                  @frame-selected=${this._onFrameSelected}
-                  @delay-changed=${this._onDelayChanged}
-                  @play-toggled=${this._onPlayToggled}
-                ></iledclock-frame-timeline>
-                ${this._renderGenerativeSection()}
-                <div class="button-row">
-                  <button type="button" class="secondary-action" ?disabled=${this._busy==="save"} @click=${this._onSaveClick}>${m("save")} Save</button>
-                  <iledclock-hold-button label="Hold to send to clock" complete-label="Sent" ?disabled=${this._busy==="send"||!this._entryId} @confirmed=${this._onSendConfirmed}></iledclock-hold-button>
-                </div>
-              </div>
-              <div class="side-column">
-                <iledclock-library-panel
-                  .designs=${this._designs}
-                  .loading=${this._designsLoading}
-                  @design-selected=${this._onDesignSelected}
-                  @design-rename-requested=${this._onDesignRenameRequested}
-                  @design-duplicate-requested=${this._onDesignDuplicateRequested}
-                  @design-delete-requested=${this._onDesignDeleteRequested}
-                ></iledclock-library-panel>
-                <iledclock-playlist-editor
-                  .items=${this._playlist}
-                  .maxItems=${this._envelope?.capabilities.max_playlist_items??9}
-                  .designs=${this._designs}
-                  @items-changed=${this._onPlaylistItemsChanged}
-                ></iledclock-playlist-editor>
-                <iledclock-hold-button
-                  label="Hold to save playlist to clock"
-                  complete-label="Saved"
-                  danger
-                  ?disabled=${this._busy==="playlist"||!this._entryId}
-                  @confirmed=${this._onSavePlaylistConfirmed}
-                ></iledclock-hold-button>
-              </div>
-            `}
-      </div>
-      <iledclock-import-sheet .hass=${this.hass} .entryId=${this._entryId} ?open=${this._importSheetOpen} @close-requested=${()=>this._importSheetOpen=!1}></iledclock-import-sheet>
-    `}_renderUploadStatus(e){return e.state==="error"?`Upload failed${e.error?`: ${e.error}`:""}`:e.state==="done"?"Upload complete":`Uploading ${e.program+1}/${e.programs} \u2013 chunk ${e.chunk+1}/${e.chunks}`}_renderGenerativeSection(){return l`
-      <div class="import-section">
-        <div class="generative-row">
-          <select class="generative-select" @change=${e=>this._generativeKind=e.target.value}>
-            ${Qe.map(e=>l`<option value=${e.kind} ?selected=${e.kind===this._generativeKind}>${e.label}</option>`)}
-          </select>
-          <button type="button" class="secondary-action" ?disabled=${this._busy==="render"} @click=${this._runGenerative}>${m("generative")} Generate</button>
-        </div>
-      </div>
-    `}};Te.properties={hass:{attribute:!1},narrow:{type:Boolean},deviceId:{attribute:"device-id"},_entryId:{state:!0},_envelope:{state:!0},_history:{state:!0},_activeFrameIndex:{state:!0},_activeColor:{state:!0},_recentColors:{state:!0},_wrap:{state:!0},_designs:{state:!0},_designsLoading:{state:!0},_designName:{state:!0},_currentDesignId:{state:!0},_playlist:{state:!0},_playing:{state:!0},_uploadProgress:{state:!0},_nav:{state:!0},_importSheetOpen:{state:!0},_generativeKind:{state:!0},_generativeSeconds:{state:!0},_busy:{state:!0},_error:{state:!0}},Te.styles=[y,_`
-    :host {
-      display: block;
-      height: 100vh;
-      background: var(--primary-background-color);
-      color: var(--lu-ink);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    .app-bar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 0 16px;
-      height: 56px;
-      flex: none;
-      background: var(--app-header-background-color, var(--primary-background-color));
-      border-bottom: 1px solid var(--divider-color);
-    }
-    .nav-picker {
-      /* The picker is a size container (container-type: inline-size), so it has no intrinsic
-         width: in this flex row it collapsed to 0 px beside the title. Give it a definite one. */
-      flex: 0 0 220px;
-      width: 220px;
-    }
-    h1 {
-      font-size: 18px;
-      font-weight: 700;
-      margin: 0;
-      flex: 1;
-    }
-    .icon-button {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: none;
-      background: transparent;
-      color: var(--primary-text-color);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .upload-status {
-      font-size: 13px;
-      color: var(--secondary-text-color);
-    }
-    .body {
-      flex: 1;
-      overflow-y: auto;
-      container-type: inline-size;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    .error {
-      margin: 0;
-      color: var(--lu-danger);
-      font-size: 13px;
-    }
-    .editor-column,
-    .side-column {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      min-width: 0;
-    }
-    .name-row {
-      display: flex;
-      gap: 8px;
-    }
-    .design-name {
-      flex: 1;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      padding: 0 12px;
-      font-size: 15px;
-      font-weight: 600;
-    }
-    .gallery-view {
-      min-height: 0;
-      flex: 1;
-    }
-    .import-section {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding: 10px;
-      border-radius: var(--lu-radius-tile);
-      border: 1px solid var(--divider-color);
-    }
-    .generative-row {
-      display: flex;
-      gap: 8px;
-    }
-    .generative-select {
-      flex: 1;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-control);
-      border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      padding: 0 10px;
-    }
-    .button-row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .button-row iledclock-hold-button {
-      flex: 1;
-    }
-    .secondary-action {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      min-height: var(--lu-target, 48px);
-      border-radius: var(--lu-radius-pill);
-      border: 1px solid var(--divider-color);
-      background: none;
-      color: var(--primary-text-color);
-      cursor: pointer;
-      padding: 0 16px;
-      font-size: 14px;
-      font-weight: 600;
-      transition: transform 90ms var(--lu-ease, ease);
-    }
-    .secondary-action:active:not(:disabled) {
-      transform: scale(0.97);
-    }
-    .secondary-action:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
-    @container (min-width: 900px) {
-      .body {
-        flex-direction: row;
-        align-items: flex-start;
-      }
-      .editor-column {
-        flex: 1 1 62%;
-      }
-      .side-column {
-        flex: 1 1 38%;
-        position: sticky;
-        top: 0;
-      }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      * {
-        transition: none !important;
-        animation: none !important;
-      }
-    }
-  `];customElements.define("iledclock-studio-panel",Te);
+      </section>
+      <iledclock-import-sheet .hass=${this.hass} .entryId=${this.entryId} .open=${this._importOpen} @close-requested=${this._onImportClosed} @closed=${this._onImportClosed} @iledclock-designs-changed=${this._retryDesigns}></iledclock-import-sheet>
+    </div>`}};Mt.properties={hass:{attribute:!1},entryId:{attribute:!1},route:{attribute:!1},narrow:{type:Boolean},_designs:{state:!0},_designsLoading:{state:!0},_playlist:{state:!0},_savedPlaylist:{state:!0},_playlistLoading:{state:!0},_error:{state:!0},_playlistError:{state:!0},_busy:{state:!0},_maxItems:{state:!0},_importOpen:{state:!0}},Mt.styles=[g,_,v`
+    :host { display: block; min-width: 0; container-type: inline-size; }
+    .destination { display: grid; gap: var(--lu-space-4); min-width: 0; }
+    .rotation { display: grid; gap: var(--lu-space-3); min-width: 0; padding: var(--lu-space-4); }
+    .rotation-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--lu-space-2); }
+    h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); }
+    .subtitle { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .rotation-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lu-space-2); color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .saved-label { color: var(--lu-ink-3); }
+    .apply-row { display: flex; justify-content: flex-end; }
+    .apply-row iledclock-hold-button { width: min(100%, 24rem); }
+    @container (max-width: 420px) { .rotation { padding: var(--lu-space-3); } .apply-row iledclock-hold-button { width: 100%; } }
+  `];customElements.define("iledclock-dest-library",Mt);var Tt=class extends m{constructor(){super();this._onDeviceSelected=e=>{this._selectedDeviceId=e.detail.deviceId,this._entryId=le(this.hass.devices,this._selectedDeviceId),this._status=null};this._onRouteChanged=e=>{this._route=e.detail.route};this._onClockStatus=e=>{this._status=e.detail};this._openSettings=e=>{let t=this.renderRoot.querySelector("iledclock-settings-sheet");t&&(t.section=e.detail?.section??"display"),this._settingsOpen=!0};this._closeSettings=()=>{this._settingsOpen=!1};this.narrow=!1,this._selectedDeviceId=void 0,this._entryId=void 0,this._route=typeof window>"u"?{destination:"now"}:Ke(window.location.href),this._status=null,this._settingsOpen=!1}willUpdate(e){(e.has("hass")||e.has("deviceId"))&&this._resolveDevice()}_resolveDevice(){if(!this.hass){this._entryId=void 0;return}let e=[...new Set(Object.values(this.hass.entities).filter(a=>a.platform==="iledclock"&&a.device_id).map(a=>a.device_id).filter(a=>!!a))],t=this.deviceId??this._selectedDeviceId,s=t&&e.includes(t)?t:e[0];s!==this._selectedDeviceId&&(this._selectedDeviceId=s),this._entryId=le(this.hass.devices,s)}_entities(){return this._selectedDeviceId?Xt(this.hass.entities,this._selectedDeviceId):{deviceId:"",settingSwitches:[]}}_state(){return this._status?.state??null}render(){let e=this._route,t={hass:this.hass,entryId:this._entryId,route:e,narrow:this.narrow};return o`<iledclock-app-shell .hass=${this.hass} .entryId=${this._entryId} .deviceId=${this._selectedDeviceId} .route=${e} .narrow=${this.narrow} @route-changed=${this._onRouteChanged} @device-selected=${this._onDeviceSelected} @settings-requested=${this._openSettings} @clock-status=${this._onClockStatus}>
+      <div class="destination" ?hidden=${e.destination!=="now"}><iledclock-dest-now .hass=${t.hass} .entryId=${t.entryId} .route=${t.route} .narrow=${t.narrow}></iledclock-dest-now></div>
+      <div class="destination" ?hidden=${e.destination!=="create"}><iledclock-dest-create .hass=${t.hass} .entryId=${t.entryId} .route=${t.route} .narrow=${t.narrow}></iledclock-dest-create></div>
+      <div class="destination" ?hidden=${e.destination!=="explore"}><iledclock-dest-explore .hass=${t.hass} .entryId=${t.entryId} .route=${t.route} .narrow=${t.narrow}></iledclock-dest-explore></div>
+      <div class="destination" ?hidden=${e.destination!=="library"}><iledclock-dest-library .hass=${t.hass} .entryId=${t.entryId} .route=${t.route} .narrow=${t.narrow}></iledclock-dest-library></div>
+      <iledclock-settings-sheet .hass=${this.hass} .entities=${this._entities()} .entryId=${this._entryId} .state=${this._state()} ?open=${this._settingsOpen} @close-requested=${this._closeSettings}></iledclock-settings-sheet>
+    </iledclock-app-shell>`}};Tt.properties={hass:{attribute:!1},narrow:{type:Boolean},deviceId:{attribute:"device-id"},_selectedDeviceId:{state:!0},_entryId:{state:!0},_route:{state:!0},_status:{state:!0},_settingsOpen:{state:!0}},Tt.styles=[g,_,v`
+    :host { display: block; width: 100%; min-height: 100%; color: var(--lu-ink); font-family: var(--lu-font); }
+    .destination { display: block; min-width: 0; }
+    .destination[hidden] { display: none; }
+  `];customElements.define("iledclock-studio-panel",Tt);

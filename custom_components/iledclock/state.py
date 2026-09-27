@@ -153,6 +153,8 @@ class ClockState:
     scoreboard: ScoreboardState | None = None
     last_updated: float | None = None
     consecutive_failures: int = 0
+    now_showing: dict[str, Any] | None = None
+    show_history: tuple[dict[str, Any], ...] = ()
 
     def merge(self, **changes: Any) -> "ClockState":
         """Same as `merge_state(self, changes)`; convenience for call sites that already have

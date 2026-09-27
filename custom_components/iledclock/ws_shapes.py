@@ -170,15 +170,19 @@ def shape_state_event(
     busy: bool,
     state: ClockState,
     playlist: Sequence[PlaylistItem],
+    now_showing: dict[str, Any] | None = None,
+    show_history: Sequence[dict[str, Any]] = (),
 ) -> dict[str, Any]:
     """Contract D `iledclock/state` response and every `iledclock/subscribe` push:
-    `{connected, busy, state, playlist, capabilities}`."""
+    `{connected, busy, state, playlist, capabilities, now_showing, history}`."""
     return {
         "connected": connected,
         "busy": busy,
         "state": shape_clock_state(state),
         "playlist": shape_playlist(playlist),
         "capabilities": shape_capabilities(state),
+        "now_showing": dict(now_showing) if now_showing is not None else None,
+        "history": [dict(item) for item in show_history],
     }
 
 
@@ -208,9 +212,8 @@ def shape_upload_progress(
     chunks: int,
     error: str | None = None,
 ) -> dict[str, Any]:
-    """Contract B's dispatcher signal payload / Contract D's upload-progress push:
-    `{type: "upload", state, program, programs, chunk, chunks, error?}`. `state` is one of
-    "start"/"chunk"/"done"/"error"."""
+    """Base progress fields shared by dispatcher pushes. The coordinator preserves these fields
+    and adds `upload: {done, total}` while sending, then `upload: null` at completion or failure."""
     payload: dict[str, Any] = {
         "type": "upload",
         "state": state,

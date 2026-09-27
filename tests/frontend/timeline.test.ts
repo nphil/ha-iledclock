@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clampFrameDelay, deleteFrame, duplicateFrame, insertFrame, MAX_FRAME_DELAY_MS, MIN_FRAME_DELAY_MS, reorderFrame, setFrameDelay, totalDurationMs } from "../../frontend/src/lib/timeline.ts";
+import { clampFrameDelay, deleteFrame, duplicateFrame, insertFrame, MAX_FRAME_COUNT, MAX_FRAME_DELAY_MS, MIN_FRAME_DELAY_MS, reorderFrame, setFrameDelay, totalDurationMs } from "../../frontend/src/lib/timeline.ts";
 import { createFrame, framesEqual, setPixel } from "../../frontend/src/lib/grid.ts";
 
 function labelled(n: number) {
@@ -67,4 +67,10 @@ test("clampFrameDelay rounds to the nearest millisecond", () => {
 
 test("totalDurationMs sums every frame's own delay", () => {
   assert.equal(totalDurationMs([labelled(1), labelled(2), labelled(3)]), 101 + 102 + 103);
+});
+
+test("add and duplicate preserve the 64-frame maximum", () => {
+  const frames = Array.from({ length: MAX_FRAME_COUNT }, (_, index) => labelled(index));
+  assert.equal(insertFrame(frames, frames.length - 1).length, MAX_FRAME_COUNT);
+  assert.equal(duplicateFrame(frames, 0).length, MAX_FRAME_COUNT);
 });

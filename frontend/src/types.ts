@@ -226,6 +226,7 @@ export interface StoredDesign {
   created: number;
   updated: number;
   tags?: string[];
+  clock_region?: { x: number; y: number; w: number; h: number } | null;
 }
 
 export type RenderSpec =
@@ -242,4 +243,4 @@ export interface RenderResult {
 
 /** `iledclock/show`'s `item`: either a design id or an inline render spec, uploaded immediately
  * as a single-program playlist override. */
-export type ShowItem = { design_id: string } | { spec: RenderSpec };
+export type ShowItem = { design_id: string } | { spec: RenderSpec } | { restore: "previous" };
