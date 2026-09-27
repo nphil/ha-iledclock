@@ -55,6 +55,7 @@ from .program_builder import (
     design_to_frames,
     frames_to_content,
     power_limit_programs,
+    to_device_timing,
 )
 from .protocol import commands
 from .protocol import render as protocol_render
@@ -475,7 +476,7 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             self._restore_unsub = None
 
     async def _async_upload_programs(self, programs: list[Program]) -> None:
-        programs = power_limit_programs(programs, self.data.brightness)
+        programs = to_device_timing(power_limit_programs(programs, self.data.brightness))
         entry_id = self.entry.entry_id
         total = len(programs)
 

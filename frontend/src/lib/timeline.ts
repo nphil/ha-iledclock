@@ -8,7 +8,7 @@
 import { cloneFrame, createFrame, type PixelFrame } from "./grid.ts";
 
 export const DEFAULT_FRAME_DELAY_MS = 100;
-export const MIN_FRAME_DELAY_MS = 20;
+export const MIN_FRAME_DELAY_MS = 10;
 export const MAX_FRAME_DELAY_MS = 60000;
 
 export function clampFrameDelay(delayMs: number): number {

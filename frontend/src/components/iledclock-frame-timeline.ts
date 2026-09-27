@@ -7,7 +7,7 @@ import { LitElement, css, html, nothing, type PropertyValues } from "lit";
 import { ref } from "lit/directives/ref.js";
 import { TOKENS_CSS } from "../styles/tokens.ts";
 import type { PixelFrame } from "../lib/grid.ts";
-import { clampFrameDelay, deleteFrame, duplicateFrame, insertFrame, reorderFrame } from "../lib/timeline.ts";
+import { MIN_FRAME_DELAY_MS, clampFrameDelay, deleteFrame, duplicateFrame, insertFrame, reorderFrame } from "../lib/timeline.ts";
 import { frameIndexAtTime } from "../lib/frame-player.ts";
 import { dragTargetIndex, moveItem, type AxisRect } from "../lib/drag-reorder.ts";
 import { mdiIcon } from "../lib/mdi-icons.ts";
@@ -143,7 +143,7 @@ export class IledclockFrameTimeline extends LitElement {
               <input
                 class="delay-input"
                 type="number"
-                min="20"
+                min=${MIN_FRAME_DELAY_MS}
                 max="60000"
                 step="10"
                 .value=${String(frame.durationMs)}

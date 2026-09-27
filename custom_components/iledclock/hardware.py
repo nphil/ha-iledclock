@@ -322,9 +322,21 @@ ANIMATION_FRAME_COUNT_FIELD_BYTES: int = 2
 ANIMATION_DELAY_WIRE_MIN_MS: int = 0
 ANIMATION_DELAY_WIRE_MAX_MS: int = 65535
 
-#: The vendor app's own practical floor when importing a GIF. [VENDOR DptLoadImage.java `Math.max(delay, 20)`]
-#: Not a proven firmware/wire limit -- see module docstring above and docs/HARDWARE.md.
-ANIMATION_DELAY_PRACTICAL_FLOOR_MS: int = 20
+#: Our shortest real frame time. The vendor clamps GIF imports to 20 [VENDOR DptLoadImage.java
+#: `Math.max(delay, 20)`], which is ~30 ms of real time on this clock (see below). 10 ms real is
+#: the next value to confirm on hardware; lower it once measured.
+ANIMATION_DELAY_PRACTICAL_FLOOR_MS: int = 10
+
+#: Real time the firmware spends per unit of the per-frame delay field. [DEVICE] 2026-09-26, timed by
+#: eye on the live clock: 8 frames x 125 -> ~1.5 s per loop and 32 frames x 20 -> ~1.0 s per loop,
+#: i.e. ~1.5 ms per unit in both cases (a fixed per-frame overhead fits neither). So the field is
+#: NOT milliseconds on this unit despite the vendor treating it as such: its GIFs play ~1.5x slow.
+DEVICE_MS_PER_DELAY_UNIT: float = 1.5
+
+
+def device_delay_units(real_ms: float) -> int:
+    """Wire value for a frame that should stay on screen for `real_ms` of real time."""
+    return max(1, min(ANIMATION_DELAY_WIRE_MAX_MS, round(real_ms / DEVICE_MS_PER_DELAY_UNIT)))
 
 
 def quantize_delay_ms(

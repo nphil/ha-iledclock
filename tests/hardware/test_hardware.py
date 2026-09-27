@@ -352,9 +352,16 @@ class QuantizeDelayMsTests(unittest.TestCase):
         self.assertEqual(hardware.quantize_delay_ms(100.4), 100)
         self.assertEqual(hardware.quantize_delay_ms(100.6), 101)
 
-    def test_default_floor_is_vendor_gif_import_convention(self) -> None:
+    def test_default_floor_is_the_practical_floor(self) -> None:
+        self.assertEqual(hardware.quantize_delay_ms(0), hardware.ANIMATION_DELAY_PRACTICAL_FLOOR_MS)
         self.assertEqual(hardware.quantize_delay_ms(1), hardware.ANIMATION_DELAY_PRACTICAL_FLOOR_MS)
-        self.assertEqual(hardware.quantize_delay_ms(0), 20)
+
+    def test_device_delay_units_follow_the_measured_1_5_ms_unit(self) -> None:
+        # [DEVICE] 20 units looked like ~30 ms per frame, 125 units like ~190 ms.
+        self.assertEqual(hardware.device_delay_units(30), 20)
+        self.assertEqual(hardware.device_delay_units(187.5), 125)
+        self.assertEqual(hardware.device_delay_units(0), 1)
+        self.assertEqual(hardware.device_delay_units(10**9), 65535)
 
     def test_ceiling_is_two_byte_field_max(self) -> None:
         self.assertEqual(hardware.quantize_delay_ms(1_000_000), 65535)

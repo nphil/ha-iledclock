@@ -45,3 +45,23 @@ class PowerLimitTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DeviceTimingTest(unittest.TestCase):
+    """The clock spends ~1.5 ms per delay unit (timed on the live clock), so uploads convert."""
+
+    def test_animation_frames_convert_to_device_units(self):
+        from custom_components.iledclock.program_builder import to_device_timing
+
+        prog = Program(contents=[AnimationContent(start_column=0, start_row=0, show_width=32, show_height=16,
+                                                  frames=[_frame((1, 2, 3)), _frame((1, 2, 3))])], show_count=10)
+        prog.contents[0].frames[0] = Frame(pixels=prog.contents[0].frames[0].pixels, duration_ms=30)
+        prog.contents[0].frames[1] = Frame(pixels=prog.contents[0].frames[1].pixels, duration_ms=150)
+        frames = to_device_timing([prog])[0].contents[0].frames
+        self.assertEqual([f.duration_ms for f in frames], [20, 100])
+
+    def test_still_images_are_untouched(self):
+        from custom_components.iledclock.program_builder import to_device_timing
+
+        out = to_device_timing([_graffiti((9, 9, 9))])
+        self.assertEqual(out[0].contents[0].pixels.duration_ms, 100)

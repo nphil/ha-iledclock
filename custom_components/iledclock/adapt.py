@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
 from . import hardware
-from .const import DESIGN_MAX_FRAMES, DISPLAY_HEIGHT, DISPLAY_WIDTH
+from .const import DESIGN_MAX_FRAMES, DESIGN_MIN_DELAY_MS, DISPLAY_HEIGHT, DISPLAY_WIDTH
 
 #: `hardware.ContentPath` our own uploaded art (animation/graffiti frames) always uses --
 #: the curved RGB444 transfer, per docs/HARDWARE.md 2.2 (never the linear one, which is
@@ -36,7 +36,7 @@ LAYOUTS: tuple[str, ...] = (
 #: library's broader hand-authored-content allowance (`const.DESIGN_MAX_DELAY_MS` =
 #: 60_000ms) -- still implemented via `hardware.quantize_delay_ms`, just parameterised
 #: with this step's own bounds rather than that function's defaults.
-_TIMING_FLOOR_MS = 20
+_TIMING_FLOOR_MS = DESIGN_MIN_DELAY_MS
 _TIMING_CEILING_MS = 10_000
 
 #: docs/GALLERY.md step 6: "if frames > const.DESIGN_MAX_FRAMES (64) decimate evenly"

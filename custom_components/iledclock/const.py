@@ -210,7 +210,7 @@ DEFAULT_PLAYLIST_DURATION_S = 10
 # --- Designs (custom pixel art / animation library, store.py) ------------------------------
 DESIGN_KINDS = ("image", "animation")
 DESIGN_MAX_FRAMES = 64
-DESIGN_MIN_DELAY_MS = 20
+DESIGN_MIN_DELAY_MS = 10  # real ms; see hardware.ANIMATION_DELAY_PRACTICAL_FLOOR_MS
 DESIGN_MAX_DELAY_MS = 60_000
 DESIGN_NAME_MAX_LENGTH = 64
 

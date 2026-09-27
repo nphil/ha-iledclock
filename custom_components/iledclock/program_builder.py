@@ -26,7 +26,7 @@ from typing import Any, Mapping, Sequence
 
 from .const import CLOCK_COLOR_RGB, DISPLAY_HEIGHT, DISPLAY_WIDTH
 from .designs import Design
-from .hardware import power_limited_frame
+from .hardware import device_delay_units, power_limited_frame
 from .playlist import PlaylistItem
 from .protocol.models import Frame, Segment
 from .protocol.programs import (
@@ -395,6 +395,25 @@ def power_limit_programs(programs: Sequence[Program], brightness: int | None) ->
                 content = replace(content, pixels=_power_limit_frame(content.pixels, brightness))
             elif isinstance(content, AnimationContent):
                 content = replace(content, frames=[_power_limit_frame(f, brightness) for f in content.frames])
+            contents.append(content)
+        out.append(replace(program, contents=contents))
+    return out
+
+
+def to_device_timing(programs: Sequence[Program]) -> list[Program]:
+    """Convert every animation frame's real-time `duration_ms` into the clock's own delay units
+    (`hardware.device_delay_units`, ~1.5 ms per unit), so designs, GIFs and previews keep real
+    milliseconds everywhere and only the upload speaks the device's unit. Applied once, at the
+    upload chokepoint."""
+    out: list[Program] = []
+    for program in programs:
+        contents = []
+        for content in program.contents:
+            if isinstance(content, AnimationContent):
+                content = replace(
+                    content,
+                    frames=[replace(f, duration_ms=device_delay_units(f.duration_ms)) for f in content.frames],
+                )
             contents.append(content)
         out.append(replace(program, contents=contents))
     return out
