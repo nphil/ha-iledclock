@@ -53,3 +53,25 @@ class IconWithClockTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClockStyleGeometryTest(unittest.TestCase):
+    """Regression: clocks rendered as fragments because digit size was left at 1x1 and segment
+    positions were invented instead of the vendor's per-style geometry."""
+
+    def test_clock_face_uses_the_vendor_geometry(self):
+        from custom_components.iledclock.clock_styles import CLOCK_STYLES
+
+        program = build_programs([PlaylistItem(kind="clock", params={"style": 1}, duration_s=10)], designs={})[0]
+        clock = program.contents[0]
+        style = CLOCK_STYLES[1]
+        self.assertEqual((clock.num_width, clock.num_height), (style.num_width, style.num_height))
+        self.assertEqual((clock.hour.start_column, clock.hour.start_row, clock.hour.width, clock.hour.height), style.hour)
+        self.assertEqual((clock.minute.start_column, clock.minute.width), style.minute[0:1] + style.minute[2:3])
+
+    def test_icon_with_clock_picks_a_half_panel_vendor_style(self):
+        design = _design(clock_region={"x": 16, "y": 0, "w": 16, "h": 16})
+        clock = build_programs([PlaylistItem(kind="design", params={"design_id": design.id}, duration_s=10)],
+                               designs={design.id: design})[0].contents[1]
+        self.assertEqual(clock.style_index, 16)
+        self.assertEqual((clock.num_width, clock.num_height), (6, 7))

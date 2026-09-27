@@ -25,6 +25,7 @@ from dataclasses import replace
 from typing import Any, Mapping, Sequence
 
 from .const import CLOCK_COLOR_RGB, DISPLAY_HEIGHT, DISPLAY_WIDTH
+from .clock_styles import CLOCK_STYLES
 from .designs import Design
 from .hardware import device_delay_units, power_limited_frame
 from .playlist import PlaylistItem
@@ -110,34 +111,41 @@ def _resolve_color(value: Any, *, default_index: int = 6) -> tuple[int, int, int
         raise ProgramBuildError(f"color must be one of {sorted(CLOCK_COLOR_RGB)}, got {index}") from err
 
 
-def _clock_content(params: Mapping[str, Any]) -> ClockContent:
-    style = int(_require(params, "style"))
-    # `hours24` is this integration's own playlist/service vocabulary; a `RenderSpec`-originated
-    # show (`iledclock/show`'s `item.spec`, `type: "clock"`) instead carries `h24` -- accept
-    # either so `async_show` doesn't need to know which vocabulary a given caller used.
+def _style_clock(style_index: int, params: Mapping[str, Any]) -> ClockContent:
+    """A firmware clock face with the vendor's exact geometry for `style_index` (clock_styles.py).
+    Its digits come from a per-style glyph table, so digit size and segment positions are fixed
+    per style; only colour and 12/24 h are ours to choose."""
+    style = CLOCK_STYLES.get(style_index)
+    if style is None:
+        raise ProgramBuildError(f"unknown clock style {style_index}; choose one of {sorted(CLOCK_STYLES)}")
+    color = _resolve_color(params.get("color", params.get("clock_color")))
+    # `hours24` is this integration's playlist/service vocabulary; `h24` is RenderSpec's.
     hours24 = bool(params.get("hours24", params.get("h24", True)))
-    show_seconds = bool(params.get("show_seconds", False))
-    color = _resolve_color(params.get("color"))
 
-    ampm_columns = 0 if hours24 else 6
-    segments = _hhmm_segments(color, show_seconds=show_seconds, trailing_columns=ampm_columns)
-    ampm = Segment()
-    if not hours24:
-        ampm = Segment(
-            color=color, start_column=segments["_next_column"], start_row=_ROW,
-            width=DISPLAY_WIDTH - segments["_next_column"], height=_DIGIT_H,
-        )
+    def seg(geometry: tuple[int, int, int, int] | None) -> Segment:
+        if geometry is None:
+            return Segment()
+        x, y, w, h = geometry
+        return Segment(color=color, start_column=x, start_row=y, width=w, height=h)
 
     return ClockContent(
-        style_index=style,
+        style_index=style_index,
         is_24_hour=hours24,
-        hour=segments["hour"],
-        space_hour=segments["space_hour"],
-        minute=segments["minute"],
-        space_minute=segments["space_minute"],
-        seconds=segments["seconds"],
-        ampm=ampm,
+        hour=seg(style.hour),
+        space_hour=seg(style.space_hour),
+        minute=seg(style.minute),
+        space_minute=seg(style.space_minute),
+        seconds=seg(style.seconds),
+        is_blink_colon=style.blink_colon,
+        reuse_space_after_minute=style.show_space_minute,
+        show_time=0,
+        num_width=style.num_width,
+        num_height=style.num_height,
     )
+
+
+def _clock_content(params: Mapping[str, Any]) -> ClockContent:
+    return _style_clock(int(_require(params, "style")), params)
 
 
 def _date_content(params: Mapping[str, Any]) -> DateContent:
@@ -293,24 +301,33 @@ def _crop_columns(frame: Frame, width: int) -> Frame:
     return replace(frame, pixels=[row[:width] for row in frame.pixels], width=width)
 
 
-def _clock_in_region(region: tuple[int, int, int, int], params: Mapping[str, Any]) -> ClockContent:
-    """A live HH:MM firmware clock confined to `region` (x, y, w, h), centred in it."""
+#: Clock styles the vendor draws inside part of the panel (it pairs them with background art),
+#: most preferred first: 16/17/19/40 are a stacked HH-over-MM clock in the right half, 14/15 in
+#: the left half, 20-27 small corner/strip clocks.
+_REGION_STYLE_PREFERENCE = (16, 17, 19, 40, 15, 14, 21, 20, 23, 27, 22, 25, 24, 26)
+
+
+def _style_fits(style_index: int, region: tuple[int, int, int, int]) -> bool:
     x, y, w, h = region
-    color = _resolve_color(params.get("clock_color"))
-    left = x + max(0, (w - 16) // 2)
-    row = y + max(0, (h - _DIGIT_H) // 2)
-    hour = Segment(color=color, start_column=left, start_row=row, width=_DIGIT_W, height=_DIGIT_H)
-    left += _DIGIT_W + _GAP
-    space_hour = Segment(color=color, start_column=left, start_row=row, width=_COLON_W, height=_DIGIT_H)
-    left += _COLON_W + _GAP
-    minute = Segment(color=color, start_column=left, start_row=row, width=_DIGIT_W, height=_DIGIT_H)
-    return ClockContent(
-        style_index=int(params.get("clock_style", 1)),
-        is_24_hour=bool(params.get("hours24", True)),
-        hour=hour,
-        space_hour=space_hour,
-        minute=minute,
-    )
+    style = CLOCK_STYLES[style_index]
+    for geometry in (style.hour, style.space_hour, style.minute, style.space_minute, style.seconds):
+        if geometry is None:
+            continue
+        sx, sy, sw, sh = geometry
+        if sx < x or sy < y or sx + sw > x + w or sy + sh > y + h:
+            return False
+    return True
+
+
+def _clock_in_region(region: tuple[int, int, int, int], params: Mapping[str, Any]) -> ClockContent:
+    """A live firmware clock inside `region` (x, y, w, h): the user's chosen style when it fits,
+    else the first vendor style designed to sit beside art that does."""
+    requested = params.get("clock_style")
+    candidates = ([int(requested)] if requested is not None else []) + list(_REGION_STYLE_PREFERENCE)
+    for style_index in candidates:
+        if style_index in CLOCK_STYLES and _style_fits(style_index, region):
+            return _style_clock(style_index, params)
+    raise ProgramBuildError(f"no clock style fits in region {region}")
 
 
 def _design_content(params: Mapping[str, Any], designs: Mapping[str, Design]) -> Content | list[Content]:
