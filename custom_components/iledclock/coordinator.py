@@ -17,7 +17,9 @@ of the cycle from updating.
 
 from __future__ import annotations
 
+import asyncio
 import base64
+import binascii
 import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
@@ -39,6 +41,8 @@ from .const import (
     CONF_TIME_SYNC,
     CONSECUTIVE_FAILURES_FOR_UNAVAILABLE,
     DESIGN_MAX_FRAMES,
+    DISPLAY_HEIGHT,
+    DISPLAY_WIDTH,
     DOMAIN,
     MAX_REMINDERS,
     PLAYLIST_KINDS,
@@ -260,6 +264,7 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         self.design_library: IledClockDesignLibrary = async_get_design_library(hass)
         self.playlist_store = IledClockPlaylistStore(hass, entry.entry_id)
         self.show_store = IledClockShowStore(hass, entry.entry_id)
+        self._show_lock = asyncio.Lock()
         self._time_sync_enabled: bool = options[CONF_TIME_SYNC]
         self._synced_since_start = False
         self._unsub_daily_sync: Callable[[], None] | None = None
@@ -269,6 +274,7 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         # overwriting it. `_saved_playlist` is the playlist to restore once a *timed* override
         # (`show_text`'s `duration_s`) expires; `None` means "no override pending restore".
         self._saved_playlist: list[PlaylistItem] | None = None
+        self._restore_generation = 0
         self._restore_unsub: Callable[[], None] | None = None
         self.active_item: PlaylistItem | None = None
         self.preview_png: bytes | None = None
@@ -411,14 +417,20 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
     def _designs_by_id(self) -> dict[str, Design]:
         return {design.id: design for design in self.design_library.designs}
 
+    async def async_seed_showing_from_playlist(self) -> None:
+        if self.show_store.now_showing is not None or not self.playlist_store.playlist:
+            return
+        await self._async_record_showing(self._descriptor_for_playlist_item(self.playlist_store.playlist[0]))
+
     async def async_set_playlist(self, items: list[PlaylistItem]) -> None:
         """`iledclock/playlist/set` and the `set_playlist` service: persist and upload."""
-        self._cancel_pending_restore()
-        self._saved_playlist = None
-        await self.playlist_store.async_set_playlist(items)
-        await self._async_upload_playlist(items, record_showing=True)
+        async with self._show_lock:
+            self._cancel_pending_restore()
+            self._saved_playlist = None
+            await self.playlist_store.async_set_playlist(items)
+            await self._async_upload_playlist_locked(items, record_showing=True)
 
-    async def _async_upload_playlist(self, items: list[PlaylistItem], *, record_showing: bool = False) -> None:
+    async def _async_upload_playlist_locked(self, items: list[PlaylistItem], *, record_showing: bool = False) -> None:
         programs = build_programs(items, designs=self._designs_by_id())
         await self._async_upload_programs(programs)
         self.active_item = items[0] if items else None
@@ -427,13 +439,12 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             await self._async_record_showing(self._descriptor_for_playlist_item(self.active_item))
 
     async def async_show(self, spec: Mapping[str, Any], *, restore_after_s: float | None = None) -> dict[str, Any]:
-        """Contract D `iledclock/show` / every `show_*` service: upload `spec` as a single-
-        program playlist override. `spec` is `{"type": <playlist kind>, **params}` for anything
-        that already has a native wire content type, or `{"type": "image"|"generative", ...}`
-        for the two render-only kinds that have no playlist-kind equivalent (image_to_frames.../
-        generative(...) rendered client-side, then wrapped as an animation/graffiti). When
-        `restore_after_s` is given, the previous playlist is restored afterwards -- `show_text`'s
-        "notify-style temporary message" behaviour."""
+        """Serialize each clock show from upload through history update."""
+        async with self._show_lock:
+            return await self._async_show_locked(spec, restore_after_s=restore_after_s)
+
+    async def _async_show_locked(self, spec: Mapping[str, Any], *, restore_after_s: float | None = None) -> dict[str, Any]:
+        """Upload one show item and record it only after the clock accepts the program."""
         show_type = spec.get("type")
         params = {key: value for key, value in spec.items() if key != "type"}
         descriptor_params = dict(params)
@@ -446,6 +457,11 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         elif show_type == "image":
             frames = await self.async_render_image(params)
             program = Program(contents=[frames_to_content(frames, still=len(frames) == 1)], show_count=10)
+            descriptor_params = {
+                "title": params.get("title"),
+                "frames": [base64.b64encode(bytes(channel for row in frame.pixels for pixel in row for channel in pixel)).decode("ascii") for frame in frames],
+                "delays": [frame.duration_ms for frame in frames],
+            }
             preview_item = None
             await self._async_update_preview_from_frames(frames, approximate=False)
         elif show_type == "generative":
@@ -468,11 +484,18 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         descriptor = self._descriptor_for_spec(show_type, descriptor_params)
         await self._async_record_showing(descriptor)
         if restore_after_s:
-            self._restore_unsub = async_call_later(self.hass, restore_after_s, self._async_restore_playlist)
+            generation = self._restore_generation
+
+            async def restore_playlist(now: datetime) -> None:
+                await self._async_restore_playlist(now, generation)
+
+            self._restore_unsub = async_call_later(self.hass, restore_after_s, restore_playlist)
         return dict(self.show_store.now_showing or descriptor)
 
     def _descriptor_for_spec(self, kind: str, params: Mapping[str, Any]) -> dict[str, Any]:
         fields = dict(params)
+        fields.pop("data_b64", None)
+        fields.pop("url", None)
         title = fields.pop("title", None)
         if kind == "design":
             design = self.design_library.get_design(str(fields.get("design_id", "")))
@@ -506,6 +529,10 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         }))
 
     async def async_restore_previous(self) -> dict[str, Any]:
+        async with self._show_lock:
+            return await self._async_restore_previous_locked()
+
+    async def _async_restore_previous_locked(self) -> dict[str, Any]:
         """Re-show the newest available distinct prior item, marking deleted designs skipped."""
         for descriptor in list(self.show_store.history[1:]):
             if descriptor.get("unavailable"):
@@ -521,7 +548,7 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             fields = {key: value for key, value in descriptor.items() if key not in {"kind", "title", "shown_at", "unavailable"}}
             if kind == "generative" and "effect" in fields:
                 fields["kind"] = fields.pop("effect")
-            return await self.async_show({"type": kind, **fields, "title": descriptor.get("title")})
+            return await self._async_show_locked({"type": kind, **fields, "title": descriptor.get("title")})
         raise ValueError("nothing_to_restore")
 
     async def async_mark_design_deleted(self, design_id: str) -> None:
@@ -534,13 +561,17 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             "show_history": tuple(dict(item) for item in self.show_store.history),
         }))
 
-    async def _async_restore_playlist(self, _now: datetime) -> None:
-        self._restore_unsub = None
-        saved, self._saved_playlist = self._saved_playlist, None
-        if saved:
-            await self._async_upload_playlist(saved, record_showing=True)
+    async def _async_restore_playlist(self, _now: datetime, generation: int | None = None) -> None:
+        async with self._show_lock:
+            if generation is not None and generation != self._restore_generation:
+                return
+            self._restore_unsub = None
+            saved, self._saved_playlist = self._saved_playlist, None
+            if saved:
+                await self._async_upload_playlist_locked(saved, record_showing=True)
 
     def _cancel_pending_restore(self) -> None:
+        self._restore_generation += 1
         if self._restore_unsub is not None:
             self._restore_unsub()
             self._restore_unsub = None
@@ -626,7 +657,39 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         canvas.blit(frame.pixels, 0, 0)
         return canvas.to_png(8)
 
+    @staticmethod
+    def _frames_from_descriptor(params: Mapping[str, Any]) -> list[Frame]:
+        raw_frames = params.get("frames")
+        if not isinstance(raw_frames, list) or not raw_frames or len(raw_frames) > DESIGN_MAX_FRAMES:
+            raise ProgramBuildError("stored image must contain 1 to 64 rendered frames")
+        expected_size = DISPLAY_WIDTH * DISPLAY_HEIGHT * 3
+        encoded_size = ((expected_size + 2) // 3) * 4
+        raw_delays = params.get("delays")
+        delays = raw_delays if isinstance(raw_delays, list) else []
+        frames: list[Frame] = []
+        for index, encoded in enumerate(raw_frames):
+            if not isinstance(encoded, str) or len(encoded) != encoded_size:
+                raise ProgramBuildError("stored image frame has an invalid size")
+            try:
+                pixels = base64.b64decode(encoded, validate=True)
+            except (binascii.Error, ValueError) as err:
+                raise ProgramBuildError("stored image frame is invalid") from err
+            if len(pixels) != expected_size:
+                raise ProgramBuildError("stored image frame has an invalid size")
+            rows = [
+                [tuple(pixels[offset:offset + 3]) for offset in range(row_start, row_start + DISPLAY_WIDTH * 3, 3)]
+                for row_start in range(0, expected_size, DISPLAY_WIDTH * 3)
+            ]
+            try:
+                delay = int(delays[index]) if index < len(delays) else 100
+            except (TypeError, ValueError):
+                delay = 100
+            frames.append(Frame(pixels=rows, duration_ms=max(1, min(60_000, delay))))
+        return frames
+
     async def async_render_image(self, params: Mapping[str, Any]) -> list[Frame]:
+        if isinstance(params.get("frames"), list):
+            return self._frames_from_descriptor(params)
         if params.get("url"):
             session = aiohttp_client.async_get_clientsession(self.hass)
             async with session.get(params["url"]) as response:

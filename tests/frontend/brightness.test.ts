@@ -1,33 +1,42 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { brightnessToPercent, percentToBrightness } from "../../frontend/src/lib/brightness.ts";
+import { brightnessToPercent, haBrightnessToPercent, percentToBrightness, percentToWireBrightness } from "../../frontend/src/lib/brightness.ts";
 
-test("brightnessToPercent maps HA brightness onto the user percentage range", () => {
+test("clock wire brightness maps its native 5-255 range to user 5-100%", () => {
+  assert.equal(brightnessToPercent(5), 5);
+  assert.equal(brightnessToPercent(163), 65);
   assert.equal(brightnessToPercent(255), 100);
-  assert.equal(brightnessToPercent(1), 1);
-  assert.equal(brightnessToPercent(128), 50);
+  assert.equal(percentToWireBrightness(5), 5);
+  assert.equal(percentToWireBrightness(100), 255);
+  assert.equal(percentToWireBrightness(50), 123);
 });
 
-test("percentToBrightness maps user percentage onto HA's 1-255 range", () => {
+test("HA light brightness maps to the same percentage range", () => {
+  assert.equal(haBrightnessToPercent(1), 5);
+  assert.equal(haBrightnessToPercent(255), 100);
+  assert.equal(percentToBrightness(5), 1);
   assert.equal(percentToBrightness(100), 255);
-  assert.equal(percentToBrightness(1), 3);
-  assert.equal(percentToBrightness(50), 128);
 });
 
-test("both directions clamp finite out-of-range and non-finite input", () => {
-  assert.equal(brightnessToPercent(0), 1);
+test("both brightness mappings clamp out-of-range and non-finite inputs", () => {
+  assert.equal(brightnessToPercent(0), 5);
   assert.equal(brightnessToPercent(9999), 100);
-  assert.equal(brightnessToPercent(Number.NaN), 1);
-  assert.equal(brightnessToPercent(Number.POSITIVE_INFINITY), 1);
+  assert.equal(brightnessToPercent(Number.NaN), 5);
+  assert.equal(percentToWireBrightness(0), 5);
+  assert.equal(percentToWireBrightness(9999), 255);
+  assert.equal(percentToWireBrightness(Number.POSITIVE_INFINITY), 5);
+  assert.equal(haBrightnessToPercent(0), 5);
+  assert.equal(haBrightnessToPercent(9999), 100);
   assert.equal(percentToBrightness(0), 1);
   assert.equal(percentToBrightness(9999), 255);
   assert.equal(percentToBrightness(Number.NaN), 1);
-  assert.equal(percentToBrightness(Number.NEGATIVE_INFINITY), 1);
 });
 
-test("round-tripping a percent through brightness and back never drifts by more than one step", () => {
-  for (let percent = 1; percent <= 100; percent++) {
-    const roundTripped = brightnessToPercent(percentToBrightness(percent));
-    assert.ok(Math.abs(roundTripped - percent) <= 1, "percent " + percent + " round-tripped to " + roundTripped);
+test("wire and HA brightness round-trips stay within one displayed percentage point", () => {
+  for (let percent = 5; percent <= 100; percent++) {
+    const wirePercent = brightnessToPercent(percentToWireBrightness(percent));
+    const haPercent = haBrightnessToPercent(percentToBrightness(percent));
+    assert.ok(Math.abs(wirePercent - percent) <= 1, "wire percent " + percent + " round-tripped to " + wirePercent);
+    assert.ok(Math.abs(haPercent - percent) <= 1, "HA percent " + percent + " round-tripped to " + haPercent);
   }
 });

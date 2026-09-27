@@ -29,6 +29,7 @@ export class IledclockAppShell extends LitElement {
     deviceId: { attribute: false },
     _status: { state: true },
     _upload: { state: true },
+    _mobile: { state: true },
   };
 
   declare hass: HomeAssistant;
@@ -38,14 +39,19 @@ export class IledclockAppShell extends LitElement {
   declare deviceId: string | undefined;
   declare _status: StudioState | null;
   declare _upload: (UploadProgressEvent & { upload?: { done: number; total: number } | null }) | null;
+  declare _mobile: boolean;
 
   private _unsubscribe: (() => Promise<void>) | null = null;
   private _subscribedEntryId: string | undefined;
+  private _statusRevision = 0;
+  private _lastConnection: HomeAssistant["connection"] | undefined;
+  private _resizeObserver: ResizeObserver | null = null;
 
   constructor() {
     super();
     this.route = typeof window === "undefined" ? { destination: "now" } : parseStudioRoute(window.location.href);
     this.narrow = false;
+    this._mobile = false;
     this._status = null;
     this._upload = null;
   }
@@ -56,6 +62,16 @@ export class IledclockAppShell extends LitElement {
     window.addEventListener("location-changed", this._onLocationChanged);
     this.addEventListener("lu-toast", this._onToast as EventListener);
     this.addEventListener("iledclock-open-design", this._onOpenDesign as EventListener);
+    if (typeof ResizeObserver !== "undefined") {
+      this._resizeObserver = new ResizeObserver((entries) => {
+        const mobile = (entries[0]?.contentRect.width ?? 0) < 720;
+        this.toggleAttribute("mobile", mobile);
+        if (mobile !== this._mobile) this._mobile = mobile;
+      });
+      this._resizeObserver.observe(this);
+    }
+    this._lastConnection = this.hass?.connection;
+    if (this.hass && this.entryId) void this._loadStatus();
   }
 
   disconnectedCallback(): void {
@@ -64,11 +80,21 @@ export class IledclockAppShell extends LitElement {
     window.removeEventListener("location-changed", this._onLocationChanged);
     this.removeEventListener("lu-toast", this._onToast as EventListener);
     this.removeEventListener("iledclock-open-design", this._onOpenDesign as EventListener);
-    if (this._unsubscribe) void this._unsubscribe();
+    this._resizeObserver?.disconnect();
+    this._resizeObserver = null;
+    this._statusRevision++;
+    this._subscribedEntryId = undefined;
+    if (this._unsubscribe) {
+      void this._unsubscribe();
+      this._unsubscribe = null;
+    }
   }
 
   protected willUpdate(changed: PropertyValues): void {
-    if ((changed.has("entryId") || changed.has("hass")) && this.hass && this.entryId !== this._subscribedEntryId) void this._loadStatus();
+    const entryChanged = changed.has("entryId") && this.entryId !== this._subscribedEntryId;
+    const connectionChanged = changed.has("hass") && this.hass?.connection !== this._lastConnection;
+    if (changed.has("hass")) this._lastConnection = this.hass?.connection;
+    if (this.hass && (entryChanged || connectionChanged)) void this._loadStatus();
   }
 
   private _devices(): StudioDeviceOption[] {
@@ -82,7 +108,9 @@ export class IledclockAppShell extends LitElement {
   }
 
   private async _loadStatus(): Promise<void> {
+    const revision = ++this._statusRevision;
     const entryId = this.entryId;
+    const connection = this.hass?.connection;
     if (this._unsubscribe) {
       void this._unsubscribe();
       this._unsubscribe = null;
@@ -91,14 +119,15 @@ export class IledclockAppShell extends LitElement {
     this._status = null;
     this._upload = null;
     if (!entryId || !this.hass.callWS) return;
+    const isCurrent = (): boolean => this.isConnected && revision === this._statusRevision && entryId === this.entryId && connection === this.hass?.connection;
     try {
       const status = await this.hass.callWS<StudioState>({ type: "iledclock/state", entry_id: entryId });
-      if (entryId !== this.entryId) return;
+      if (!isCurrent()) return;
       this._status = status;
       this._notifyClockStatus(status);
-      if (this.hass.connection) {
-        this._unsubscribe = await this.hass.connection.subscribeMessage<StudioSubscribeEvent>((event) => {
-          if (entryId !== this.entryId) return;
+      if (connection) {
+        const unsubscribe = await connection.subscribeMessage<StudioSubscribeEvent>((event) => {
+          if (!isCurrent()) return;
           if (event.type === "upload") {
             this._upload = event.upload === null || event.state === "done" || event.state === "error" ? null : event;
           } else {
@@ -106,9 +135,14 @@ export class IledclockAppShell extends LitElement {
             this._notifyClockStatus(event);
           }
         }, { type: "iledclock/subscribe", entry_id: entryId });
+        if (!isCurrent()) {
+          void unsubscribe();
+          return;
+        }
+        this._unsubscribe = unsubscribe;
       }
     } catch {
-      if (entryId === this.entryId) this._status = null;
+      if (isCurrent()) this._status = null;
     }
   }
 
@@ -179,9 +213,9 @@ export class IledclockAppShell extends LitElement {
         ${devices.length > 1 ? html`<select class="device-picker" aria-label="Choose iLedClock" .value=${this.deviceId ?? devices[0]?.deviceId ?? ""} @change=${this._onDeviceSelected}>${devices.map((device) => html`<option value=${device.deviceId}>${device.name}</option>`)}</select>` : nothing}
         <lu-icon-button icon="mdi:cog-outline" tooltip="Settings" aria-label="Settings" @lu-press=${this._openSettings}></lu-icon-button>
       </header>
-      <lu-nav .options=${NAV_OPTIONS} .value=${this.route.destination} @destination-selected=${this._onDestinationSelected}></lu-nav>
+      <lu-nav ?mobile=${this._mobile} .options=${NAV_OPTIONS} .value=${this.route.destination} @destination-selected=${this._onDestinationSelected}></lu-nav>
       <main class="content"><slot></slot></main>
-      <lu-toast></lu-toast>
+      <lu-toast ?mobile=${this._mobile}></lu-toast>
     </div>`;
   }
 
@@ -198,8 +232,10 @@ export class IledclockAppShell extends LitElement {
     .device-picker { flex: 0 1 9rem; min-width: var(--lu-target); max-width: 9rem; height: var(--lu-target); padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
     .content { width: min(100%, 1200px); box-sizing: border-box; margin: 0 auto; padding: var(--lu-space-4) var(--lu-space-4) var(--lu-space-6); }
     @container (min-width: 720px) { .content { padding: var(--lu-space-5) var(--lu-space-6) var(--lu-space-6); } }
-    @container (max-width: 719px) { .content { padding-bottom: calc(64px + var(--lu-space-4) + env(safe-area-inset-bottom)); } }
-    @container (max-width: 380px) { .app-bar { gap: var(--lu-space-1); padding-inline: var(--lu-space-2); } .status-label { max-width: 8ch; } .device-picker { max-width: 5rem; } }
+    :host([mobile]) .content { padding-bottom: calc(64px + var(--lu-space-4) + env(safe-area-inset-bottom)); }
+    :host([mobile]) .app-bar { gap: var(--lu-space-1); padding-inline: var(--lu-space-2); }
+    :host([mobile]) .status-label { max-width: 8ch; }
+    :host([mobile]) .device-picker { max-width: 5rem; }
   `];
 }
 

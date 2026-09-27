@@ -91,6 +91,11 @@ export function fitsClockExactly(item: Pick<ExploreGalleryItem, "native_fit" | "
   return item.native_fit === true || (item.native_fit === undefined && item.width === 32 && item.height === 16);
 }
 
+/** Native 32×16 and all other non-square artwork use the wide design plate; square sources stay square. */
+export function exploreTileAspect(item: Pick<ExploreGalleryItem, "width" | "height">): "square" | "design" {
+  return item.width === item.height ? "square" : "design";
+}
+
 export function parseExploreSize(size: string | undefined): readonly [number, number] | null {
   if (!size) return null;
   const match = /^(\d+)x(\d+)$/i.exec(size);

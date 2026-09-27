@@ -3,9 +3,9 @@ import type { ClockStateEnvelope, HomeAssistant, IledclockCardConfig, RenderResu
 import type { LuToastRequest } from "./lu-toast.ts";
 import { resolveIledclockEntities, type IledclockEntities } from "../lib/resolve-entities.ts";
 import { resolveEntryId } from "../lib/entry-id.ts";
-import { brightnessToPercent, percentToBrightness } from "../lib/brightness.ts";
-import { buildClockRenderSpec, designsListRequest, renderRequest } from "../lib/ws-api.ts";
-import { CLOCK_COLORS, CLOCK_FACE_COUNT } from "../lib/clock-faces.ts";
+import { brightnessToPercent, haBrightnessToPercent, percentToBrightness } from "../lib/brightness.ts";
+import { designsListRequest, renderRequest } from "../lib/ws-api.ts";
+import { clockFacePreviewFrames } from "../lib/clock-faces.ts";
 import { createFrame, GRID_HEIGHT, GRID_WIDTH, type PixelFrame } from "../lib/grid.ts";
 import { designToFrames } from "../lib/design-codec.ts";
 import { TOKENS_CSS, SURFACES_CSS } from "../styles/tokens.ts";
@@ -29,13 +29,15 @@ interface CardDescriptor {
   text?: string;
   speed?: number;
   [key: string]: unknown;
+  frames?: string[];
+  delays?: number[];
 }
 interface CardEnvelope extends ClockStateEnvelope { now_showing?: CardDescriptor | null; history?: CardDescriptor[]; }
 type CardUploadEvent = UploadProgressEvent & { upload?: { done: number; total: number } | null };
 const EMPTY_FRAME = createFrame(GRID_WIDTH, GRID_HEIGHT);
 const EMPTY_FRAMES: PixelFrame[] = [EMPTY_FRAME];
 
-function decodeFrames(result: RenderResult): PixelFrame[] {
+function decodeFrames(result: Pick<RenderResult, "frames" | "delays">): PixelFrame[] {
   return result.frames.map((encoded, index) => {
     const binary = atob(encoded);
     const pixels = new Uint8Array(GRID_WIDTH * GRID_HEIGHT * 3);
@@ -58,6 +60,7 @@ export class IledclockCard extends LitElement {
     _entryId: { state: true },
     _envelope: { state: true },
     _heroFrames: { state: true },
+    _heroAvailable: { state: true },
     _heroDelays: { state: true },
     _heroApproximate: { state: true },
     _previewError: { state: true },
@@ -72,6 +75,7 @@ export class IledclockCard extends LitElement {
   declare _entryId: string | undefined;
   declare _envelope: CardEnvelope | null;
   declare _heroFrames: PixelFrame[];
+  declare _heroAvailable: boolean;
   declare _heroDelays: number[];
   declare _heroApproximate: boolean;
   declare _previewError: string | null;
@@ -85,6 +89,8 @@ export class IledclockCard extends LitElement {
   private _previewRevision = 0;
   private _connectionRevision = 0;
   private _resizeObserver: ResizeObserver | null = null;
+  private _retryTimer: ReturnType<typeof setTimeout> | undefined;
+  private _lastConnection: HomeAssistant["connection"] | undefined;
   private _cardWidth = 0;
 
   constructor() {
@@ -92,6 +98,7 @@ export class IledclockCard extends LitElement {
     this._entities = { deviceId: "", settingSwitches: [] };
     this._envelope = null;
     this._heroFrames = EMPTY_FRAMES;
+    this._heroAvailable = false;
     this._heroDelays = [];
     this._heroApproximate = false;
     this._previewError = null;
@@ -134,27 +141,34 @@ export class IledclockCard extends LitElement {
 
   protected willUpdate(changed: PropertyValues): void {
     if (!(changed.has("hass") || changed.has("_config")) || !this.hass || !this._config?.device_id) return;
+    const connectionChanged = changed.has("hass") && this.hass.connection !== this._lastConnection;
+    if (changed.has("hass")) this._lastConnection = this.hass.connection;
     const deviceId = this._config.device_id;
     this._entities = resolveIledclockEntities(this.hass.entities, deviceId);
     const entryId = resolveEntryId(this.hass.devices, deviceId);
-    if (entryId !== this._entryId) {
-      this._entryId = entryId;
-      if (!entryId) {
+    const entryChanged = entryId !== this._entryId;
+    this._entryId = entryId;
+    if (!entryId) {
+      if (entryChanged || connectionChanged) {
         this._subscribedEntryId = undefined;
         this._connectionRevision++;
         this._previewRevision++;
+        clearTimeout(this._retryTimer);
+        this._retryTimer = undefined;
         if (this._unsubscribe) void this._unsubscribe();
         this._unsubscribe = null;
         this._envelope = null;
         this._heroFrames = EMPTY_FRAMES;
+        this._heroAvailable = false;
         this._heroDelays = [];
         this._heroApproximate = false;
         this._previewError = null;
         this._upload = null;
         this._previewKey = "";
       }
+      return;
     }
-    if (entryId && entryId !== this._subscribedEntryId) {
+    if (entryChanged || connectionChanged || entryId !== this._subscribedEntryId) {
       this._subscribedEntryId = entryId;
       void this._connect(entryId);
     }
@@ -166,20 +180,29 @@ export class IledclockCard extends LitElement {
     this._resizeObserver = null;
     this._connectionRevision++;
     this._previewRevision++;
+    clearTimeout(this._retryTimer);
+    this._retryTimer = undefined;
     this._subscribedEntryId = undefined;
     if (this._unsubscribe) void this._unsubscribe();
     this._unsubscribe = null;
   }
 
+  private _connectionIsCurrent(entryId: string, revision: number): boolean {
+    return entryId === this._entryId && revision === this._connectionRevision && this.isConnected;
+  }
+
   private async _connect(entryId: string): Promise<void> {
+    clearTimeout(this._retryTimer);
+    this._retryTimer = undefined;
     if (this._unsubscribe) {
       void this._unsubscribe();
       this._unsubscribe = null;
     }
-    const connectionRevision = ++this._connectionRevision;
+    const revision = ++this._connectionRevision;
     this._previewRevision++;
     this._envelope = null;
     this._heroFrames = EMPTY_FRAMES;
+    this._heroAvailable = false;
     this._heroDelays = [];
     this._heroApproximate = false;
     this._previewError = null;
@@ -189,32 +212,68 @@ export class IledclockCard extends LitElement {
       this._subscribedEntryId = undefined;
       return;
     }
+
+    const snapshot = this._loadSnapshot(entryId, revision);
+    const subscribed = await this._subscribe(entryId, revision);
+    const loaded = await snapshot;
+    if (!loaded || !subscribed) this._scheduleRetry(entryId, revision, !loaded, !subscribed);
+  }
+
+  private async _loadSnapshot(entryId: string, revision: number): Promise<boolean> {
+    if (!this.hass?.callWS || !this._connectionIsCurrent(entryId, revision)) return false;
     try {
       const envelope = await this.hass.callWS<CardEnvelope>({ type: "iledclock/state", entry_id: entryId });
-      if (entryId !== this._entryId || connectionRevision !== this._connectionRevision || !this.isConnected) return;
-      this._envelope = envelope;
-      void this._loadPreview(envelope.now_showing ?? null);
-      if (this.hass.connection) {
-        const unsubscribe = await this.hass.connection.subscribeMessage<SubscribeEvent>((event) => {
-          if (entryId !== this._entryId || connectionRevision !== this._connectionRevision) return;
-          if (event.type === "upload") {
-            const upload = event as CardUploadEvent;
-            this._upload = upload.upload === null || upload.state === "done" || upload.state === "error" ? null : upload;
-            return;
-          }
-          const previous = descriptorKey(this._envelope?.now_showing);
-          this._envelope = event as CardEnvelope;
-          if (descriptorKey(this._envelope.now_showing) !== previous) void this._loadPreview(this._envelope.now_showing ?? null);
-        }, { type: "iledclock/subscribe", entry_id: entryId });
-        if (entryId !== this._entryId || connectionRevision !== this._connectionRevision || !this.isConnected) {
-          void unsubscribe();
+      if (!this._connectionIsCurrent(entryId, revision)) return false;
+      if (this._envelope === null) {
+        this._envelope = envelope;
+        void this._loadPreview(envelope.now_showing ?? null);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async _subscribe(entryId: string, revision: number): Promise<boolean> {
+    const connection = this.hass?.connection;
+    if (!connection || !this._connectionIsCurrent(entryId, revision)) return false;
+    try {
+      const unsubscribe = await connection.subscribeMessage<SubscribeEvent>((event) => {
+        if (!this._connectionIsCurrent(entryId, revision)) return;
+        if (event.type === "upload") {
+          const upload = event as CardUploadEvent;
+          this._upload = upload.upload === null || upload.state === "done" || upload.state === "error" ? null : upload;
           return;
         }
-        this._unsubscribe = unsubscribe;
+        const previous = descriptorKey(this._envelope?.now_showing);
+        this._envelope = event as CardEnvelope;
+        if (descriptorKey(this._envelope.now_showing) !== previous) void this._loadPreview(this._envelope.now_showing ?? null);
+      }, { type: "iledclock/subscribe", entry_id: entryId });
+      if (!this._connectionIsCurrent(entryId, revision) || connection !== this.hass?.connection) {
+        void unsubscribe();
+        return false;
       }
+      this._unsubscribe = unsubscribe;
+      return true;
     } catch {
-      // Keep the card mounted and let the device status remain unavailable rather than fabricating state.
+      return false;
     }
+  }
+
+  private _scheduleRetry(entryId: string, revision: number, retrySnapshot: boolean, retrySubscription: boolean): void {
+    clearTimeout(this._retryTimer);
+    this._retryTimer = setTimeout(() => {
+      this._retryTimer = undefined;
+      void (async () => {
+        if (!this._connectionIsCurrent(entryId, revision)) return;
+        let snapshotFailed = retrySnapshot;
+        let subscriptionFailed = retrySubscription;
+        if (snapshotFailed) snapshotFailed = !(await this._loadSnapshot(entryId, revision));
+        if (subscriptionFailed && !this._unsubscribe) subscriptionFailed = !(await this._subscribe(entryId, revision));
+        else subscriptionFailed = false;
+        if (snapshotFailed || subscriptionFailed) this._scheduleRetry(entryId, revision, snapshotFailed, subscriptionFailed);
+      })();
+    }, 5000);
   }
 
   private async _loadPreview(descriptor: CardDescriptor | null): Promise<void> {
@@ -224,40 +283,50 @@ export class IledclockCard extends LitElement {
     const revision = ++this._previewRevision;
     const entryId = this._entryId;
     if (!entryId || !this.hass?.callWS) return;
+    this._heroAvailable = false;
+    this._heroFrames = EMPTY_FRAMES;
+    this._heroDelays = [];
     this._previewError = null;
     this._heroApproximate = false;
+    if (!descriptor) {
+      this._heroFrames = EMPTY_FRAMES;
+      this._heroDelays = [];
+      this._heroAvailable = false;
+      return;
+    }
     try {
       let frames: PixelFrame[];
       let approximate = false;
-      if (!descriptor) {
-        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, buildClockRenderSpec(1, CLOCK_COLORS[6]!.rgb, true, CLOCK_FACE_COUNT)));
-        frames = decodeFrames(result);
-        approximate = Boolean(result.approximate);
-      } else if (descriptor.kind === "design" && descriptor.design_id) {
+      if (descriptor.kind === "design" && descriptor.design_id) {
         const designs = await this.hass.callWS<StoredDesign[]>(designsListRequest(entryId));
         if (revision !== this._previewRevision) return;
         const design = designs.find((item) => item.id === descriptor.design_id);
         if (!design) throw new Error("The current design is no longer in the library.");
         frames = designToFrames(design);
       } else if (descriptor.kind === "clock") {
+        const style = Number(descriptor.style) || 1;
         const color = Array.isArray(descriptor.color) && descriptor.color.length >= 3 ? descriptor.color.slice(0, 3).map(Number) as [number, number, number] : [255, 255, 255] as [number, number, number];
-        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "clock", style: Number(descriptor.style) || 1, color, h24: descriptor.h24 ?? descriptor.hours24 !== false }));
-        frames = decodeFrames(result);
+        const hours24 = descriptor.h24 ?? descriptor.hours24 !== false;
+        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "clock", style, color, h24: hours24 }));
+        frames = result.approximate ? clockFacePreviewFrames(style, color, hours24) : decodeFrames(result);
         approximate = Boolean(result.approximate);
+      } else if (descriptor.kind === "image" && Array.isArray(descriptor.frames) && descriptor.frames.length > 0) {
+        frames = decodeFrames({ frames: descriptor.frames, delays: descriptor.delays ?? [] });
       } else if (descriptor.kind === "text" && typeof descriptor.text === "string") {
         const color = Array.isArray(descriptor.color) && descriptor.color.length >= 3 ? descriptor.color.slice(0, 3).map(Number) as [number, number, number] : [255, 255, 255] as [number, number, number];
         const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "text", text: descriptor.text, color, speed: typeof descriptor.speed === "number" ? descriptor.speed : 128 }));
         frames = decodeFrames(result);
       } else {
-        throw new Error("A preview is not available for this item; keeping the last known image.");
+        throw new Error("A preview is not available for this item.");
       }
       if (revision === this._previewRevision) {
         this._heroApproximate = approximate;
         this._heroFrames = frames.length ? frames : EMPTY_FRAMES;
         this._heroDelays = this._heroFrames.map((frame) => frame.durationMs);
+        this._heroAvailable = frames.length > 0;
       }
     } catch (error) {
-      if (revision === this._previewRevision) this._previewError = error instanceof Error ? error.message : "Preview unavailable; keeping the last known image.";
+      if (revision === this._previewRevision) this._previewError = error instanceof Error ? error.message : "Preview unavailable.";
     }
   }
 
@@ -298,9 +367,9 @@ export class IledclockCard extends LitElement {
     const state = this._envelope?.state ?? null;
     const descriptor = this._envelope?.now_showing;
     const displayEntity = this._entities.display ? this.hass?.states[this._entities.display] : undefined;
-    const brightnessValue = this._entities.display ? displayEntity?.attributes.brightness ?? state?.brightness : undefined;
-    const brightness = brightnessValue === undefined ? null : brightnessToPercent(Number(brightnessValue));
-    const title = descriptor?.title || (descriptor ? descriptor.kind : "Clock preview");
+    const displayBrightness = displayEntity?.attributes.brightness;
+    const brightness = displayBrightness !== undefined ? haBrightnessToPercent(Number(displayBrightness)) : state ? brightnessToPercent(state.brightness) : null;
+    const title = descriptor?.title || descriptor?.kind || "Showing something set before Pixel Studio 2";
     const connected = this._envelope?.connected ?? (this._entities.connected ? this.hass?.states[this._entities.connected]?.state === "on" : false);
     const uploadProgress = this._upload?.upload;
     const uploadPercent = uploadProgress && uploadProgress.total > 0 ? Math.max(0, Math.min(100, Math.round((uploadProgress.done / uploadProgress.total) * 100))) : null;
@@ -310,8 +379,7 @@ export class IledclockCard extends LitElement {
         <header class="card-heading"><h2>${deviceName}</h2><a href="/iledclock/now" @click=${(event: Event) => { event.preventDefault(); this._openStudio(); }}>Open Pixel Studio</a></header>
         <div class="layout">
           <section class="hero-wrap" aria-label="Current clock display">
-            <iledclock-led-preview context="hero" .maxPitch=${this._narrowCard ? 10 : undefined} .frames=${this._heroFrames} .delays=${this._heroDelays} .playing=${Boolean(state?.power && connected && !this._upload)} label=${title}></iledclock-led-preview>
-            <div class="hero-chips">
+            ${this._heroAvailable ? html`<iledclock-led-preview context="hero" .maxPitch=${this._narrowCard ? 10 : undefined} .frames=${this._heroFrames} .delays=${this._heroDelays} .playing=${Boolean(state?.power && connected && !this._upload)} label=${title}></iledclock-led-preview>` : html`<div class="hero-placeholder" role="group" aria-label="Display preview unavailable"><span>No live preview is available yet.</span><button type="button" class="preview-link" @click=${this._openStudio}>Open Pixel Studio</button></div>`}
               <lu-chip label=${this._connectionLabel()} kind=${connected ? "positive" : "warning"} dot></lu-chip>
               ${this._upload ? html`<lu-chip label=${uploadPercent === null ? "Sending" : "Sending " + uploadPercent + "%"} kind="info" dot></lu-chip>` : nothing}
               <lu-chip label=${title} kind="neutral"></lu-chip>
@@ -323,7 +391,7 @@ export class IledclockCard extends LitElement {
           <div class="controls">
             <iledclock-mode-deck .hass=${this.hass} .entryId=${this._entryId} .state=${state}></iledclock-mode-deck>
             <section class="brightness-control" aria-label="Brightness control">
-              ${brightness !== null ? html`<label for="brightness">Brightness <strong>${brightness}%</strong></label><input id="brightness" type="range" min="1" max="100" .value=${String(brightness)} @input=${this._setBrightness}>` : html`<p class="brightness-hint">Brightness control is unavailable until device state is available.</p>`}
+              ${brightness !== null ? html`<label for="brightness">Brightness <strong>${brightness}%</strong></label><input id="brightness" type="range" min="5" max="100" .value=${String(brightness)} @input=${this._setBrightness}>` : html`<p class="brightness-hint">Brightness control is unavailable until device state is available.</p>`}
             </section>
           </div>
         </div>
@@ -345,6 +413,9 @@ export class IledclockCard extends LitElement {
     .layout { display: grid; min-width: 0; gap: var(--lu-space-3); }
     .hero-wrap { position: relative; min-width: 0; overflow: hidden; border-radius: var(--lu-radius-tile); background: #050607; }
     .hero-wrap iledclock-led-preview { width: 100%; }
+    .hero-placeholder { display: grid; aspect-ratio: 2 / 1; place-content: center; justify-items: center; gap: var(--lu-space-3); padding: var(--lu-space-4); color: var(--lu-ink-2); background: var(--lu-glass-raised); text-align: center; font: 400 var(--lu-type-label)/1.4 var(--lu-font); }
+    .preview-link { min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-accent); background: var(--lu-card); font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .preview-link:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
     .hero-chips { position: absolute; inset: var(--lu-space-2) var(--lu-space-2) auto; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: var(--lu-space-1); pointer-events: none; }
     .hero-chips lu-chip { max-width: 80%; padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: color-mix(in srgb, var(--lu-card) 78%, transparent); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); pointer-events: auto; }
     .hero-chips lu-chip:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

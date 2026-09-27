@@ -20,6 +20,8 @@ export class IledclockArtTile extends LitElement {
     delays: { attribute: false },
     animated: { type: Boolean },
     aspect: { type: String },
+    pixelWidth: { type: Number, attribute: "pixel-width" },
+    pixelHeight: { type: Number, attribute: "pixel-height" },
     title: { type: String },
     subtitle: { type: String },
     _failed: { state: true },
@@ -36,6 +38,8 @@ export class IledclockArtTile extends LitElement {
   declare delays: number[];
   declare animated: boolean;
   declare aspect: ArtTileAspect;
+  declare pixelWidth: number;
+  declare pixelHeight: number;
   declare title: string;
   declare subtitle: string;
   declare _failed: boolean;
@@ -62,6 +66,8 @@ export class IledclockArtTile extends LitElement {
     this.delays = [];
     this.animated = false;
     this.aspect = "square";
+    this.pixelWidth = 32;
+    this.pixelHeight = 16;
     this.title = "";
     this.subtitle = "";
     this._failed = false;
@@ -110,7 +116,7 @@ export class IledclockArtTile extends LitElement {
   }
 
   protected updated(changed: PropertyValues): void {
-    if (changed.has("imageUrl") || changed.has("aspect")) this._measureImage();
+    if (changed.has("imageUrl") || changed.has("aspect") || changed.has("pixelWidth") || changed.has("pixelHeight")) this._measureImage();
   }
 
   disconnectedCallback(): void {
@@ -149,8 +155,8 @@ export class IledclockArtTile extends LitElement {
     const box = this._surfaceRef.value?.getBoundingClientRect();
     if (!box || box.width <= 0 || box.height <= 0) return;
     const image = this.renderRoot.querySelector<HTMLImageElement>("img.art-image");
-    const artWidth = image?.naturalWidth || 32;
-    const artHeight = image?.naturalHeight || 16;
+    const artWidth = this.pixelWidth > 0 ? this.pixelWidth : image?.naturalWidth || 32;
+    const artHeight = this.pixelHeight > 0 ? this.pixelHeight : image?.naturalHeight || 16;
     const size = ledSizeFor("tile", box.width, box.height, { artWidth, artHeight });
     if (this._imageSize?.pitch === size.pitch && this._imageSize.width === size.width && this._imageSize.height === size.height) return;
     this._imageSize = size;
@@ -199,10 +205,9 @@ export class IledclockArtTile extends LitElement {
 
   render() {
     const useFrames = this.frames.length > 0;
-    const showAnimatedImage = this._isAnimated() && !useFrames && this._granted && !this._reducedMotion;
     const imageUrl = this._retryUrl || this.imageUrl;
     const sizeStyle = this._imageSize ? "width:" + this._imageSize.width + "px;height:" + this._imageSize.height + "px" : "";
-    const imageVisible = !this._failed && (!this._isAnimated() || useFrames || showAnimatedImage);
+    const imageVisible = !this._failed && Boolean(imageUrl);
     return html`<article class="tile">
       <div class="plate ${this.aspect === "design" ? "design" : "square"}" ${ref(this._surfaceRef)} @click=${this._select}>
         ${useFrames
@@ -229,8 +234,11 @@ export class IledclockArtTile extends LitElement {
     .art-image { display: block; max-width: none; max-height: none; image-rendering: pixelated; object-fit: contain; }
     .placeholder { display: grid; place-items: center; width: 100%; height: 100%; color: var(--lu-ink-3); }
     .glyph { font: 400 var(--lu-type-display)/1 var(--lu-font); }
-    .badges { position: absolute; inset: var(--lu-space-2) var(--lu-space-2) auto; display: flex; flex-wrap: wrap; gap: var(--lu-space-1); align-items: flex-start; pointer-events: none; }
+    .badges { position: absolute; top: var(--lu-space-2); left: var(--lu-space-2); display: flex; max-width: calc(100% - 2 * var(--lu-space-2)); flex-wrap: wrap; gap: var(--lu-space-1); align-items: flex-start; pointer-events: none; }
     ::slotted([slot="badges"]) { pointer-events: auto; }
+    ::slotted(.tile-badge) { display: inline-flex; min-height: 24px; align-items: center; padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-glass-raised, var(--lu-tile)); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1 var(--lu-font); white-space: nowrap; }
+    ::slotted(.tile-badge.exact) { color: var(--lu-positive); }
+    ::slotted(.tile-badge.size) { color: var(--lu-ink-3); }
     .retry { position: absolute; right: var(--lu-space-2); bottom: var(--lu-space-2); }
     .text { display: flex; flex-direction: column; min-width: 0; min-height: 48px; gap: var(--lu-space-1); padding: 0; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
     .text:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; border-radius: var(--lu-radius-control); }

@@ -52,19 +52,17 @@ export class LuNav extends LitElement {
   }
 
   static styles = [TOKENS_CSS, SURFACES_CSS, css`
-    :host { display: block; width: 100%; container-type: inline-size; z-index: 2; }
+    :host { display: block; width: 100%; z-index: 2; }
     nav { display: flex; justify-content: flex-start; min-width: 0; }
     .tabs { position: sticky; top: 0; z-index: 2; display: inline-flex; gap: var(--lu-space-1); padding: var(--lu-space-1); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-card); }
     .nav-item { display: inline-flex; align-items: center; justify-content: center; gap: var(--lu-space-2); min-width: var(--lu-target); min-height: var(--lu-target); padding: 0 var(--lu-space-4); border: 0; border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: transparent; font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
     .nav-item ha-icon { flex: none; }
     .nav-item.selected { color: var(--lu-accent-ink); background: var(--lu-accent); }
     .nav-item:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
-    @container (max-width: 719px) {
-      nav { justify-content: stretch; }
-      .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 100; display: grid; height: 55px; box-sizing: content-box; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: var(--lu-space-1); padding: var(--lu-space-1) var(--lu-space-2) calc(var(--lu-space-1) + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid var(--lu-edge); border-radius: 0; background: color-mix(in srgb, var(--lu-card) 88%, transparent); backdrop-filter: blur(var(--lu-blur)) saturate(1.2); }
-      .nav-item { flex-direction: column; gap: var(--lu-space-1); min-height: 48px; padding: var(--lu-space-1); font-size: var(--lu-type-caption); }
-      .nav-item span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
-    }
+    :host([mobile]) nav { justify-content: stretch; }
+    :host([mobile]) .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 100; display: grid; height: calc(64px + env(safe-area-inset-bottom)); box-sizing: border-box; grid-template-columns: repeat(4, minmax(0, 1fr)); width: auto; gap: var(--lu-space-1); padding: var(--lu-space-1) var(--lu-space-2) calc(var(--lu-space-1) + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid var(--lu-edge); border-radius: 0; background: color-mix(in srgb, var(--lu-card) 88%, transparent); backdrop-filter: blur(var(--lu-blur)) saturate(1.2); }
+    :host([mobile]) .nav-item { flex-direction: column; gap: var(--lu-space-1); min-height: 48px; padding: var(--lu-space-1); font-size: var(--lu-type-caption); }
+    :host([mobile]) .nav-item span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
     @media (prefers-reduced-motion: reduce) { .nav-item { transition: none; } }
   `];
 }

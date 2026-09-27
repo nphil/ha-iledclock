@@ -6,6 +6,7 @@ import type { LuToastRequest } from "../components/lu-toast.ts";
 import { showRequest } from "./ws-api.ts";
 
 export const UNDO_WINDOW_MS = 5000;
+const undoGenerations = new Map<string, number>();
 
 function toast(host: HTMLElement, request: LuToastRequest): void {
   host.dispatchEvent(new CustomEvent<LuToastRequest>("lu-toast", { detail: request, bubbles: true, composed: true }));
@@ -34,13 +35,20 @@ export async function showWithUndo(host: HTMLElement, hass: HomeAssistant, entry
     });
     return false;
   }
+  const generation = (undoGenerations.get(entryId) ?? 0) + 1;
+  undoGenerations.set(entryId, generation);
   toast(host, {
     message: `Now showing ${title}`,
     actionLabel: "Undo",
     timeoutMs: UNDO_WINDOW_MS,
     action: async () => {
+      if (undoGenerations.get(entryId) !== generation) {
+        toast(host, { message: "That undo expired", timeoutMs: 3000 });
+        return;
+      }
       try {
         await callWS(showRequest(entryId, { restore: "previous" }));
+        if (undoGenerations.get(entryId) === generation) undoGenerations.set(entryId, generation + 1);
         toast(host, { message: "Restored the previous item", timeoutMs: 3000 });
       } catch (err) {
         toast(host, { message: `Couldn't undo: ${errorMessage(err)}`, timeoutMs: 6000 });

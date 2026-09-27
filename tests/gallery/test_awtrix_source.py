@@ -175,6 +175,17 @@ class AwtrixRequestTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(session.calls[1][1]["params"]["sort"], "newest")
         self.assertTrue(newest.has_more)
 
+    async def test_listing_cache_evicts_expired_entries_and_enforces_capacity(self):
+        html = _read("awtrix_icons_list.html")
+        with patch.object(awtrix, "_monotonic", return_value=100.0):
+            awtrix._listing_cache[("expired", 1, "", "", False)] = (99.0, awtrix.SearchPage((), False))
+            session = _FakeSession([_FakeResponse(body=html) for _ in range(awtrix.MAX_LISTING_CACHE_ENTRIES + 2)])
+            for index in range(awtrix.MAX_LISTING_CACHE_ENTRIES + 2):
+                await awtrix.search(session, query=f"query-{index}")
+        self.assertNotIn(("expired", 1, "", "", False), awtrix._listing_cache)
+        self.assertEqual(len(awtrix._listing_cache), awtrix.MAX_LISTING_CACHE_ENTRIES)
+        self.assertNotIn(("", 1, "query-0", "", False), awtrix._listing_cache)
+
     async def test_invalid_listing_html_is_retried_and_transient_http_is_retried(self):
         html = _read("awtrix_icons_list.html")
         malformed = _FakeSession([_FakeResponse(body="<html></html>"), _FakeResponse(body=html)])

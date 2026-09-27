@@ -16,6 +16,7 @@ parser -- there is exactly one producer of this markup and its shape is stable.
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 import html
 import logging
 import re
@@ -54,6 +55,7 @@ MIN_REQUEST_INTERVAL_S = 1.0
 #: Listing pages are user-generated content that changes with new uploads; cache briefly
 #: rather than "refresh daily" like LaMetric's whole-catalog snapshot.
 CACHE_TTL_LISTING_S = 60 * 60
+MAX_LISTING_CACHE_ENTRIES = 128
 CACHE_TTL_MEDIA_S = 7 * 24 * 60 * 60
 
 _RETRY_DELAY_S = 0.2
@@ -62,7 +64,7 @@ _last_warning_at = 0.0
 _monotonic = time.monotonic
 _last_request_at = 0.0
 _request_lock = asyncio.Lock()
-_listing_cache: dict[tuple[str, int, str, str, bool], tuple[float, SearchPage]] = {}
+_listing_cache: OrderedDict[tuple[str, int, str, str, bool], tuple[float, SearchPage]] = OrderedDict()
 
 _ARTICLE_RE = re.compile(r'<article class="icon-card">(.*?)</article>', re.DOTALL)
 _HREF_RE = re.compile(r'<a href="https://awtrix\.de/icons/([^"]+)" class="icon-card__link"')
@@ -241,8 +243,12 @@ async def search(
     """Fetch and parse one page, caching each exact filter/page combination."""
     cache_key = (sort, page, query or "", size or "", animated_only)
     now = _monotonic()
+    for key, (expires_at, _) in tuple(_listing_cache.items()):
+        if expires_at <= now:
+            _listing_cache.pop(key, None)
     cached = _listing_cache.get(cache_key)
-    if cached is not None and cached[0] > now:
+    if cached is not None:
+        _listing_cache.move_to_end(cache_key)
         return cached[1]
 
     params = _params(sort=sort, page=page, query=query, size=size, animated_only=animated_only)
@@ -267,7 +273,14 @@ async def search(
         else:
             has_more = len(items) >= PAGE_SIZE
         result = SearchPage(items=tuple(items), has_more=has_more)
-        _listing_cache[cache_key] = (_monotonic() + CACHE_TTL_LISTING_S, result)
+        now = _monotonic()
+        for key, (expires_at, _) in tuple(_listing_cache.items()):
+            if expires_at <= now:
+                _listing_cache.pop(key, None)
+        _listing_cache[cache_key] = (now + CACHE_TTL_LISTING_S, result)
+        _listing_cache.move_to_end(cache_key)
+        while len(_listing_cache) > MAX_LISTING_CACHE_ENTRIES:
+            _listing_cache.popitem(last=False)
         return result
     raise AssertionError("unreachable")
 

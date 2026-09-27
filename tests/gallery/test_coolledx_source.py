@@ -43,9 +43,11 @@ class _Session:
     def __init__(self, responses: dict[str, _Response]) -> None:
         self.responses = responses
         self.calls: list[str] = []
+        self.options: list[dict[str, Any]] = []
 
-    def get(self, url: str, **_: Any) -> _Response:
+    def get(self, url: str, **options: Any) -> _Response:
         self.calls.append(url)
+        self.options.append(options)
         return self.responses.get(url, _Response(status=404))
 
 
@@ -56,7 +58,7 @@ def _gif_bytes() -> bytes:
     return output.getvalue()
 
 
-class CoolledxCatalogTests(unittest.TestCase):
+class CoolledxCatalogTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.category_payload = _load("category-fc-16x32.json")
         self.manifest = _load("items-trending-en.json")
@@ -79,7 +81,7 @@ class CoolledxCatalogTests(unittest.TestCase):
         self.assertTrue(page.has_more)
         first = page.items[0]
         self.assertEqual(first.id, "trending/fc_16x32_254_77.gif")
-        self.assertEqual(first.title, "Trending 1")
+        self.assertEqual(first.title, "")
         self.assertEqual((first.width, first.height), (32, 16))
         self.assertEqual(first.category, "trending")
         self.assertTrue(first.native_fit)
@@ -89,6 +91,42 @@ class CoolledxCatalogTests(unittest.TestCase):
         self.assertFalse(last_page.has_more)
         self.assertEqual(coolledx.search(self.catalog, query="254_77").items, (first,))
         self.assertEqual(coolledx.search(self.catalog, category="creative").items, ())
+
+    def test_vendor_urls_reject_other_hosts_ip_literals_and_custom_ports(self) -> None:
+        self.assertTrue(coolledx.is_vendor_url("http://www.coolledx.com/path"))
+        self.assertTrue(coolledx.is_vendor_url("https://coolledx.com/path"))
+        for url in (
+            "http://127.0.0.1/config.json",
+            "http://192.168.1.1/config.json",
+            "http://[::1]/config.json",
+            "http://attacker.example/config.json",
+            "https://www.coolledx.com.attacker.example/path",
+            "http://user@coolledx.com/path",
+            "http://coolledx.com:8080/path",
+        ):
+            with self.subTest(url=url):
+                self.assertFalse(coolledx.is_vendor_url(url))
+
+    async def test_vendor_redirect_is_not_followed(self) -> None:
+        session = _Session({coolledx.CONFIG_URL: _Response(status=302)})
+        with self.assertRaises(coolledx.SourceRequestError):
+            await coolledx.fetch_categories(session)
+        self.assertEqual(session.calls, [coolledx.CONFIG_URL])
+        self.assertIs(session.options[0]["allow_redirects"], False)
+
+    async def test_tampered_config_material_url_is_rejected_before_request(self) -> None:
+        session = _Session({coolledx.CONFIG_URL: _Response(payload={"material_url": "http://127.0.0.1"})})
+        with self.assertRaises(coolledx.SourceRequestError):
+            await coolledx.fetch_categories(session)
+        self.assertEqual(session.calls, [coolledx.CONFIG_URL])
+
+    def test_untrusted_manifest_base_url_is_discarded(self) -> None:
+        catalog = coolledx.build_catalog(
+            (self.trending,),
+            {"trending": {"baseUrl": "http://10.0.0.8/secret", "list": ["image.gif"]}},
+        )
+        self.assertEqual(catalog.items, ())
+        self.assertIsNone(catalog.media_url("trending/image.gif"))
 
     def test_untrusted_manifest_filenames_cannot_escape_media_path(self) -> None:
         catalog = coolledx.build_catalog(
@@ -153,6 +191,15 @@ class CoolledxHttpTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(media.content_type, "image/gif")
         self.assertEqual(media.data, original)
         self.assertEqual(coolledx.frame_count(media.data), 2)
+
+    async def test_media_redirect_is_not_followed(self) -> None:
+        item = self.catalog.items[0]
+        url = self.catalog.media_url(item.id)
+        session = _Session({url: _Response(status=302)})
+        with self.assertRaises(coolledx.SourceRequestError):
+            await coolledx.fetch_media(session, self.catalog, item.id)
+        self.assertEqual(session.calls, [url])
+        self.assertIs(session.options[0]["allow_redirects"], False)
 
     async def test_missing_media_is_a_not_found_error(self) -> None:
         item = self.catalog.items[0]

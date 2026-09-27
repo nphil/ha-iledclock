@@ -21,6 +21,7 @@ import {
   exploreSearchRequest,
   exploreSourceLabel,
   fallbackExploreItem,
+  exploreTileAspect,
   fitsClockExactly,
   orderedExploreSources,
   type ExploreGalleryItem,
@@ -628,19 +629,25 @@ export class IledclockExploreBrowser extends LitElement {
 
   private _renderTile(item: ExploreGalleryItem) {
     const exact = fitsClockExactly(item);
-    const subtitle = tileMetaLine(item) ?? "";
+    const noTitle = !item.title || /^Trending\s+\d+$/i.test(item.title);
+    const category = this._activeSource()?.categories?.find((entry) => entry.id === item.category)?.label;
     return html`<iledclock-art-tile
       .itemId=${itemKey(item)}
       .imageUrl=${this._signedPaths[itemKey(item)] ?? ""}
       .mediaPath=${item.media_path}
+      .pixelWidth=${item.width}
+      .pixelHeight=${item.height}
+      .aspect=${exploreTileAspect(item)}
       .animated=${item.animated}
-      .title=${item.title}
-      .subtitle=${subtitle}
+      .title=${noTitle ? "" : item.title}
+      .subtitle=${noTitle ? "" : tileMetaLine(item) ?? ""}
       @tile-selected=${this._openGridItem}
     >
-      ${exact ? html`<span class="badge exact">Fits exactly</span>` : nothing}
-      ${item.animated ? html`<span class="badge">${item.frames && item.frames > 1 ? `${item.frames} frames` : "Animated"}</span>` : nothing}
-      <span class="badge size">${item.width}×${item.height}</span>
+      ${noTitle
+        ? category ? html`<span slot="badges" class="tile-badge">${category}</span>` : nothing
+        : html`${exact ? html`<span slot="badges" class="tile-badge exact">Fits exactly</span>` : nothing}
+            ${item.animated ? html`<span slot="badges" class="tile-badge">${item.frames && item.frames > 1 ? `${item.frames} frames` : "Animated"}</span>` : nothing}
+            <span slot="badges" class="tile-badge size">${item.width}×${item.height}</span>`}
     </iledclock-art-tile>`;
   }
 
@@ -669,7 +676,6 @@ export class IledclockExploreBrowser extends LitElement {
   render() {
     const source = this._activeSource();
     return html`<div class="explore" @media-retry-request=${this._onMediaRetry}>
-      <header class="intro"><p class="eyebrow">PIXEL STUDIO · EXPLORE</p><h1>Find your next clock face</h1><p>Originals, icons and animations, tuned for the 32 × 16 display.</p></header>
       ${this._renderToolbar()}
       ${this._viewSourceId === FOR_YOU ? this._renderForYou() : source ? this._renderSourceGrid(source) : html`<lu-empty title="This source isn’t available" .message=${"Choose a configured gallery source above."}></lu-empty>`}
       <iledclock-explore-item-sheet
@@ -690,10 +696,6 @@ export class IledclockExploreBrowser extends LitElement {
   static styles = [TOKENS_CSS, css`
     :host { display: block; min-width: 0; height: 100%; overflow: auto; container-type: inline-size; color: var(--lu-ink); }
     .explore { box-sizing: border-box; width: min(100%, 1200px); min-width: 0; margin: 0 auto; padding: var(--lu-space-4); }
-    .intro { margin: 0 0 var(--lu-space-4); }
-    .eyebrow { margin: 0 0 var(--lu-space-1); color: var(--lu-ink-3); font: 600 var(--lu-type-caption)/1.3 var(--lu-font); letter-spacing: .08em; }
-    h1 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.2 var(--lu-font); letter-spacing: -.02em; }
-    .intro > p:last-child { max-width: 52ch; margin: var(--lu-space-2) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-body)/1.45 var(--lu-font); }
     .toolbar { display: flex; min-width: 0; flex-direction: column; gap: var(--lu-space-3); margin-bottom: var(--lu-space-5); }
     .search-row { display: flex; align-items: center; gap: var(--lu-space-2); }
     .search-box { display: flex; align-items: center; gap: var(--lu-space-2); flex: 1; min-width: 0; min-height: var(--lu-target, 48px); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-card); box-shadow: var(--lu-highlight-rest, none); }
@@ -718,9 +720,6 @@ export class IledclockExploreBrowser extends LitElement {
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 120px), 1fr)); gap: var(--lu-space-4) var(--lu-space-3); align-items: start; }
     .grid-skeleton { aspect-ratio: .78; }
     .grid-skeleton lu-skeleton { display: block; height: 100%; }
-    .badge { display: inline-flex; min-height: 24px; align-items: center; padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-glass-raised, var(--lu-tile)); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1 var(--lu-font); }
-    .badge.exact { color: var(--lu-positive); }
-    .badge.size { color: var(--lu-ink-3); }
     .paging { display: flex; flex-direction: column; align-items: center; gap: var(--lu-space-2); padding-top: var(--lu-space-4); }
     .load-more { min-width: 160px; min-height: var(--lu-target, 48px); padding: 0 var(--lu-space-4); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-tile); color: var(--lu-ink); font: 500 var(--lu-type-label)/1 var(--lu-font); cursor: pointer; }
     .load-more:disabled { opacity: .55; cursor: default; }

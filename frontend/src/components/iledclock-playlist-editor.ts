@@ -1,5 +1,5 @@
 /** Ordered, keyboard-accessible editor for the clock's saved rotation list. */
-import { LitElement, css, html, nothing, type PropertyValues } from "lit";
+import { LitElement, css, html, nothing } from "lit";
 import { ref } from "lit/directives/ref.js";
 import type { PlaylistItem, PlaylistItemKind, StoredDesign } from "../types.ts";
 import { createPlaylistItem, describePlaylistItem, playlistItemIcon, playlistKindLabel } from "../lib/playlist-item.ts";
@@ -7,13 +7,22 @@ import type { PixelFrame } from "../lib/grid.ts";
 import { designToFrames } from "../lib/design-codec.ts";
 import { dragTargetIndex, type AxisRect } from "../lib/drag-reorder.ts";
 import { moveRotationItem, removeRotationItem, updateRotationDuration } from "../lib/library-state.ts";
-import { mdiIcon } from "../lib/mdi-icons.ts";
+import { mdiIcon, type MdiIconName } from "../lib/mdi-icons.ts";
 import { SURFACES_CSS, TOKENS_CSS } from "../styles/tokens.ts";
 import "./iledclock-led-preview.ts";
 import "./iledclock-stepper.ts";
 import "./lu-empty.ts";
 
-const PLAYLIST_KINDS: readonly PlaylistItemKind[] = ["clock", "date", "text", "design", "timer", "scoreboard", "temperature", "humidity"];
+const ROTATION_CHOICES: readonly { kind: PlaylistItemKind; label: string; icon: MdiIconName }[] = [
+  { kind: "design", label: "Design from library", icon: "image" },
+  { kind: "clock", label: "Clock", icon: "clock" },
+  { kind: "date", label: "Date", icon: "clock" },
+  { kind: "text", label: "Text", icon: "text" },
+  { kind: "timer", label: "Timer", icon: "countdown" },
+  { kind: "scoreboard", label: "Live scores", icon: "scoreboard" },
+  { kind: "temperature", label: "Temperature", icon: "thermometer" },
+  { kind: "humidity", label: "Humidity", icon: "humidity" },
+];
 const FRAME_CACHE = new WeakMap<StoredDesign, PixelFrame[]>();
 
 function framesFor(design: StoredDesign): PixelFrame[] {
@@ -31,18 +40,18 @@ export class IledclockPlaylistEditor extends LitElement {
     maxItems: { type: Number, attribute: "max-items" },
     designs: { attribute: false },
     disabled: { type: Boolean },
-    _addKind: { state: true },
-    _designId: { state: true },
-    _timerMode: { state: true },
+    _addMenuOpen: { state: true },
+    _designMenuOpen: { state: true },
+    _timerMenuOpen: { state: true },
   };
 
   declare items: PlaylistItem[];
   declare maxItems: number;
   declare designs: StoredDesign[];
   declare disabled: boolean;
-  declare _addKind: PlaylistItemKind;
-  declare _designId: string;
-  declare _timerMode: "countdown" | "stopwatch";
+  declare _addMenuOpen: boolean;
+  declare _designMenuOpen: boolean;
+  declare _timerMenuOpen: boolean;
 
   private _dragOriginalIndex: number | null = null;
   private _dragTarget: number | null = null;
@@ -54,14 +63,9 @@ export class IledclockPlaylistEditor extends LitElement {
     this.maxItems = 9;
     this.designs = [];
     this.disabled = false;
-    this._addKind = "clock";
-    this._designId = "";
-    this._timerMode = "countdown";
-  }
-
-  willUpdate(changed: PropertyValues<this>): void {
-    if (!changed.has("designs")) return;
-    if (!this.designs.some((design) => design.id === this._designId)) this._designId = this.designs[0]?.id ?? "";
+    this._addMenuOpen = false;
+    this._designMenuOpen = false;
+    this._timerMenuOpen = false;
   }
 
   private _emit(items: PlaylistItem[]): void {
@@ -82,13 +86,33 @@ export class IledclockPlaylistEditor extends LitElement {
     this._emit(removeRotationItem(this.items, index));
   }
 
-  private _addItem(): void {
+  private _chooseAdd(kind: PlaylistItemKind): void {
     if (this.disabled || this.items.length >= this.maxItems) return;
-    if (this._addKind === "design" && !this.designs.some((design) => design.id === this._designId)) return;
-    const item = createPlaylistItem(this._addKind, this.designs);
-    if (item.kind === "design") item.params = { design_id: this._designId };
-    if (item.kind === "timer") item.params = { mode: this._timerMode };
+    if (kind === "design") {
+      if (this.designs.length > 0) {
+        this._designMenuOpen = !this._designMenuOpen;
+        this._timerMenuOpen = false;
+      }
+      return;
+    }
+    if (kind === "timer") {
+      this._timerMenuOpen = !this._timerMenuOpen;
+      this._designMenuOpen = false;
+      return;
+    }
+    this._addItem(kind);
+  }
+
+  private _addItem(kind: PlaylistItemKind, designId?: string, timerMode: "countdown" | "stopwatch" = "countdown"): void {
+    if (this.disabled || this.items.length >= this.maxItems) return;
+    if (kind === "design" && !this.designs.some((design) => design.id === designId)) return;
+    const item = createPlaylistItem(kind, this.designs);
+    if (item.kind === "design") item.params = { design_id: designId };
+    if (item.kind === "timer") item.params = { mode: timerMode };
     this._emit([...this.items, item]);
+    this._addMenuOpen = false;
+    this._designMenuOpen = false;
+    this._timerMenuOpen = false;
   }
 
   private _onPointerDown(index: number, event: PointerEvent): void {
@@ -138,7 +162,6 @@ export class IledclockPlaylistEditor extends LitElement {
       ? moveRotationItem(this.items, this._dragOriginalIndex, this._dragTarget)
       : this.items;
     const full = items.length >= this.maxItems;
-    const designMissing = this._addKind === "design" && !this.designs.some((design) => design.id === this._designId);
     return html`
       ${items.length === 0 ? html`<lu-empty title="No rotation yet" message="Add a clock, design, timer, or live reading to choose what the clock shows."></lu-empty>` : html`
         <ol class="rows" aria-label="Rotation order">
@@ -161,14 +184,16 @@ export class IledclockPlaylistEditor extends LitElement {
       <div class="add-panel">
         <div class="add-count" role="status">${items.length} / ${this.maxItems} programs</div>
         <div class="add-controls">
-          <label class="add-field">Add menu<select aria-label="Choose a program to add" .value=${this._addKind} ?disabled=${this.disabled || full} @change=${(event: Event) => (this._addKind = (event.currentTarget as HTMLSelectElement).value as PlaylistItemKind)}>
-            ${PLAYLIST_KINDS.map((kind) => html`<option value=${kind}>${playlistKindLabel(kind)}</option>`)}
-          </select></label>
-          ${this._addKind === "design" ? html`<label class="add-field">Design<select aria-label="Choose a design" .value=${this._designId} ?disabled=${this.disabled || full || this.designs.length === 0} @change=${(event: Event) => (this._designId = (event.currentTarget as HTMLSelectElement).value)}>
-            ${this.designs.length === 0 ? html`<option value="">No designs saved</option>` : this.designs.map((design) => html`<option value=${design.id}>${design.name}</option>`)}
-          </select></label>` : nothing}
-          ${this._addKind === "timer" ? html`<label class="add-field">Timer mode<select aria-label="Choose timer mode" .value=${this._timerMode} ?disabled=${this.disabled || full} @change=${(event: Event) => (this._timerMode = (event.currentTarget as HTMLSelectElement).value as "countdown" | "stopwatch")}><option value="countdown">Countdown</option><option value="stopwatch">Stopwatch</option></select></label>` : nothing}
-          <button type="button" class="add-button" ?disabled=${this.disabled || full || designMissing} @click=${this._addItem}>${mdiIcon("plus")} Add</button>
+          <button type="button" class="add-button" aria-expanded=${this._addMenuOpen} aria-controls="rotation-add-menu" ?disabled=${this.disabled || full} @click=${() => { this._addMenuOpen = !this._addMenuOpen; this._designMenuOpen = false; this._timerMenuOpen = false; }}>${mdiIcon("plus")} Add to rotation</button>
+          ${this._addMenuOpen ? html`<div id="rotation-add-menu" class="add-menu" role="group" aria-label="Choose a program to add">
+            ${ROTATION_CHOICES.map((choice) => choice.kind === "design"
+              ? html`<button type="button" class="menu-choice" aria-expanded=${this._designMenuOpen} ?disabled=${this.disabled || full || this.designs.length === 0} @click=${() => this._chooseAdd(choice.kind)}>${mdiIcon(choice.icon)}<span>${choice.label}</span><span class="menu-chevron" aria-hidden="true">${this._designMenuOpen ? "‹" : "›"}</span></button>`
+              : choice.kind === "timer"
+                ? html`<button type="button" class="menu-choice" aria-expanded=${this._timerMenuOpen} ?disabled=${this.disabled || full} @click=${() => this._chooseAdd(choice.kind)}>${mdiIcon(choice.icon)}<span>${choice.label}</span><span class="menu-chevron" aria-hidden="true">${this._timerMenuOpen ? "‹" : "›"}</span></button>`
+                : html`<button type="button" class="menu-choice" ?disabled=${this.disabled || full} @click=${() => this._chooseAdd(choice.kind)}>${mdiIcon(choice.icon)}<span>${choice.label}</span></button>`)}
+            ${this._designMenuOpen ? html`<div class="design-options" aria-label="Choose a saved design">${this.designs.map((design) => html`<button type="button" class="menu-choice design-choice" ?disabled=${this.disabled || full} @click=${() => this._addItem("design", design.id)}>${mdiIcon(design.kind === "animation" ? "gif" : "image")}<span>${design.name}</span></button>`)}</div>` : nothing}
+            ${this._timerMenuOpen ? html`<div class="design-options" role="group" aria-label="Choose timer mode"><button type="button" class="menu-choice" ?disabled=${this.disabled || full} @click=${() => this._addItem("timer", undefined, "countdown")}>${mdiIcon("countdown")}<span>Countdown</span></button><button type="button" class="menu-choice" ?disabled=${this.disabled || full} @click=${() => this._addItem("timer", undefined, "stopwatch")}>${mdiIcon("stopwatch")}<span>Stopwatch</span></button></div>` : nothing}
+          </div>` : nothing}
         </div>
         ${full ? html`<p class="limit-hint">This clock can hold ${this.maxItems} programs. Remove one to add another.</p>` : nothing}
       </div>
@@ -199,13 +224,17 @@ export class IledclockPlaylistEditor extends LitElement {
     .remove { color: var(--lu-ink-2); }
     .add-panel { display: grid; gap: var(--lu-space-2); padding-top: var(--lu-space-2); }
     .add-count { color: var(--lu-ink-3); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); font-variant-numeric: tabular-nums; }
-    .add-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--lu-space-2); }
-    .add-field { display: grid; flex: 1 1 10rem; gap: var(--lu-space-1); min-width: min(100%, 9rem); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
-    select { box-sizing: border-box; width: 100%; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 400 var(--lu-type-label)/1.2 var(--lu-font); }
-    select:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
-    .add-button { display: inline-flex; align-items: center; justify-content: center; gap: var(--lu-space-2); min-width: 7rem; min-height: var(--lu-target); padding: 0 var(--lu-space-4); border: 1px solid var(--lu-edge-raised); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: var(--lu-glass-raised); font: 600 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
-    .add-button:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
-    .add-button:disabled { opacity: .5; cursor: default; }
+    .add-controls { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--lu-space-2); }
+    .add-button { display: inline-flex; align-items: center; justify-content: center; gap: var(--lu-space-2); min-width: 12rem; min-height: var(--lu-target); padding: 0 var(--lu-space-4); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: var(--lu-glass); font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .add-button:focus-visible, .menu-choice:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .add-button:disabled, .menu-choice:disabled { opacity: .5; cursor: default; }
+    .add-menu { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); flex: 1 1 100%; gap: var(--lu-space-1); padding: var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); background: var(--lu-glass-raised, var(--lu-card)); }
+    .menu-choice { display: flex; align-items: center; gap: var(--lu-space-2); min-width: 0; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid transparent; border-radius: var(--lu-radius-control); color: var(--lu-ink-2); background: transparent; text-align: left; font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .menu-choice:hover:not(:disabled) { border-color: var(--lu-edge); background: var(--lu-glass); }
+    .menu-choice svg { width: 20px; height: 20px; flex: none; color: var(--lu-ink-3); }
+    .menu-choice span:nth-child(2) { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .menu-chevron { color: var(--lu-ink-3); font-size: 20px; }
+    .design-options { display: grid; grid-column: 1 / -1; gap: var(--lu-space-1); max-height: 12rem; overflow: auto; padding: var(--lu-space-1); border-top: 1px solid var(--lu-edge); }
     .limit-hint { margin: 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
     @container (min-width: 760px) { .row { grid-template-columns: 64px minmax(0,1fr) 48px auto; } .row-controls { grid-column: auto; flex-wrap: nowrap; } .duration { margin-inline-end: var(--lu-space-1); } }
     @container (max-width: 360px) { .row { grid-template-columns: 56px minmax(0,1fr) 48px; gap: var(--lu-space-1); padding: var(--lu-space-1); } .thumbnail { width: 56px; } .duration { flex-basis: 100%; } .add-button { flex: 1 1 100%; } }

@@ -45,3 +45,14 @@ test("a failed import is removed so the next attempt can retry", async () => {
   assert.equal(recovered, "recovered");
   assert.equal(calls, 2);
 });
+
+test("deleted designs invalidate cached imports across gallery instances", async () => {
+  const first = new GalleryImportCache();
+  const second = new GalleryImportCache();
+  let calls = 0;
+  const importDesign = async () => `design-${++calls}`;
+  assert.equal(await first.getOrImport("awtrix", "deleted-icon", {}, importDesign), "design-1");
+  GalleryImportCache.clearAll();
+  assert.equal(await second.getOrImport("awtrix", "deleted-icon", {}, importDesign), "design-2");
+  assert.equal(calls, 2);
+});

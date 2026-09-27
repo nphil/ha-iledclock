@@ -11,7 +11,6 @@ import { SURFACES_CSS, TOKENS_CSS } from "../styles/tokens.ts";
 import "./iledclock-art-tile.ts";
 import "./iledclock-hold-button.ts";
 import "./iledclock-led-preview.ts";
-import "./lu-chip.ts";
 import "./lu-empty.ts";
 import "./lu-error.ts";
 import "./lu-skeleton.ts";
@@ -289,12 +288,11 @@ export class IledclockLibraryPanel extends LitElement {
           .delays=${design.delays}
           ?animated=${design.kind === "animation"}
           .title=${design.name}
-          .subtitle=${design.kind === "animation" ? "Animated" : "Still"}
           @tile-selected=${this._onTileSelected}
         >
-          ${design.kind === "animation" ? html`<lu-chip slot="badges" label="Animated" kind="neutral"></lu-chip>` : nothing}
-          ${designHasClockRegion(design) ? html`<lu-chip slot="badges" label="With clock" kind="info"></lu-chip>` : nothing}
-          ${fromExplore ? html`<lu-chip slot="badges" label="Explore" kind="neutral"></lu-chip>` : nothing}
+          ${design.kind === "animation" ? html`<span slot="badges" class="tile-badge">Animated</span>` : nothing}
+          ${designHasClockRegion(design) ? html`<span slot="badges" class="tile-badge">With clock</span>` : nothing}
+          ${fromExplore ? html`<span slot="badges" class="tile-badge">Explore</span>` : nothing}
         </iledclock-art-tile>
         ${this._selectMode ? html`
           <button type="button" class="select-toggle ${selected ? "selected" : ""}" aria-pressed=${selected} aria-label=${`${selected ? "Deselect" : "Select"} ${design.name}`} @click=${() => this._toggleSelected(design.id)}>

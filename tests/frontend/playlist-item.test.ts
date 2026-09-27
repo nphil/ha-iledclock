@@ -26,16 +26,16 @@ test("playlistKindLabel sentence-cases each kind word", () => {
 });
 
 test("describePlaylistItem names a known clock face and base colour", () => {
-  assert.equal(describePlaylistItem(item("clock", { style: 3, color: [255, 255, 255] })), "Face 3, white");
+  assert.equal(describePlaylistItem(item("clock", { style: 3, color: [255, 255, 255] })), "Style 3, white");
 });
 
 test("describePlaylistItem appends the 12-hour note only when h24 is explicitly off", () => {
-  assert.equal(describePlaylistItem(item("clock", { style: 1, color: [255, 0, 0], h24: false })), "Face 1, red, 12-hour");
-  assert.equal(describePlaylistItem(item("clock", { style: 1, color: [255, 0, 0], h24: true })), "Face 1, red");
+  assert.equal(describePlaylistItem(item("clock", { style: 1, color: [255, 0, 0], h24: false })), "Style 1, red, 12-hour");
+  assert.equal(describePlaylistItem(item("clock", { style: 1, color: [255, 0, 0], h24: true })), "Style 1, red");
 });
 
 test("describePlaylistItem falls back to hex for a colour outside the 8 base colours", () => {
-  assert.equal(describePlaylistItem(item("clock", { style: 1, color: [12, 34, 56] })), "Face 1, #0c2238");
+  assert.equal(describePlaylistItem(item("clock", { style: 1, color: [12, 34, 56] })), "Style 1, #0c2238");
 });
 
 test("describePlaylistItem degrades a clock item missing its style or colour honestly", () => {

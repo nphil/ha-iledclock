@@ -14,9 +14,15 @@ export function galleryImportCacheKey(source: string, id: string, options: Galle
 
 /** Reuses a single saved design for the same source item and adapted options during this Studio session. */
 export class GalleryImportCache {
+  private static _generation = 0;
+  private _generation = GalleryImportCache._generation;
   private readonly _pending = new Map<string, Promise<string>>();
 
   getOrImport(source: string, id: string, options: GalleryAdjustOptions, importDesign: () => Promise<string>): Promise<string> {
+    if (this._generation !== GalleryImportCache._generation) {
+      this._pending.clear();
+      this._generation = GalleryImportCache._generation;
+    }
     const key = galleryImportCacheKey(source, id, options);
     const existing = this._pending.get(key);
     if (existing) return existing;
@@ -30,5 +36,9 @@ export class GalleryImportCache {
 
   clear(): void {
     this._pending.clear();
+  }
+
+  static clearAll(): void {
+    GalleryImportCache._generation++;
   }
 }

@@ -212,6 +212,38 @@ async def _coolledx_categories(
     )
 
 
+async def _available_coolledx_categories(hass: HomeAssistant) -> tuple[coolledx.Category, ...]:
+    """Return disk-cached labels immediately and refresh missing/stale labels in the background."""
+    language = coolledx.normalize_language(getattr(hass.config, "language", "en"))
+    key = f"iledclock:categories:{DISPLAY_HEIGHT}x{DISPLAY_WIDTH}:{language}"
+    cache = _cache(hass)
+    entry = await hass.async_add_executor_job(partial(cache.get, key, ttl_s=None))
+    categories: tuple[coolledx.Category, ...] = ()
+    if entry is not None:
+        try:
+            categories = _decode_coolledx_categories(entry.data)
+        except Exception:
+            _LOGGER.debug("Ignoring invalid cached gallery categories %s", key, exc_info=True)
+
+    if entry is None or time.time() - entry.stored_at > coolledx.CACHE_TTL_CATALOG_S:
+        domain_data = hass.data.setdefault(DOMAIN, {})
+        tasks = domain_data.setdefault("gallery_categories_refresh_tasks", {})
+        task = tasks.get(key)
+        if task is None or task.done():
+            async def refresh() -> None:
+                try:
+                    await _coolledx_categories(hass, language=language)
+                except Exception:
+                    _LOGGER.debug("Could not refresh iLedClock categories %s", key, exc_info=True)
+
+            task = hass.async_create_task(refresh())
+            tasks[key] = task
+            task.add_done_callback(
+                lambda done: tasks.pop(key, None) if tasks.get(key) is done else None
+            )
+    return categories
+
+
 async def _coolledx_catalog(hass: HomeAssistant) -> coolledx.Catalog:
     language = coolledx.normalize_language(getattr(hass.config, "language", "en"))
     rows, cols = DISPLAY_HEIGHT, DISPLAY_WIDTH
@@ -273,11 +305,7 @@ async def _coolledx_anim_catalog(hass: HomeAssistant) -> coolledx_anim.Catalog:
 
 async def _source_infos(hass: HomeAssistant, entry_id: str) -> list[SourceInfo]:
     _require_entry(hass, entry_id)
-    try:
-        categories = await _coolledx_categories(hass)
-    except SourceError:
-        _LOGGER.debug("Could not load iLedClock material categories", exc_info=True)
-        categories = ()
+    categories = await _available_coolledx_categories(hass)
     return [
         coolledx.source_info(categories=categories),
         coolledx_anim.source_info(),
@@ -566,11 +594,7 @@ async def ws_gallery_sources(hass: HomeAssistant, connection: websocket_api.Acti
 async def async_shelves(hass: HomeAssistant, entry_id: str) -> list[dict[str, str]]:
     """Return the independent shelf plan used by Pixel Studio’s For-you view."""
     _require_entry(hass, entry_id)
-    try:
-        categories = await _coolledx_categories(hass)
-    except SourceError:
-        _LOGGER.debug("Could not load iLedClock shelf category labels", exc_info=True)
-        categories = ()
+    categories = await _available_coolledx_categories(hass)
     labels = {category.id: category.label for category in categories}
     featured_categories = (
         ("trending", "Trending"),

@@ -3,6 +3,8 @@ import { LitElement, css, html, nothing, type PropertyValues } from "lit";
 import type { ClockStateEnvelope, HomeAssistant, RenderResult, StoredDesign, UploadProgressEvent } from "../types.ts";
 import type { StudioRoute } from "../lib/route.ts";
 import { designToFrames } from "../lib/design-codec.ts";
+import { brightnessToPercent, percentToWireBrightness } from "../lib/brightness.ts";
+import { clockFacePreviewFrames } from "../lib/clock-faces.ts";
 import { createFrame, GRID_HEIGHT, GRID_WIDTH, type PixelFrame } from "../lib/grid.ts";
 import { renderRequest, commandRequest, designsListRequest } from "../lib/ws-api.ts";
 import { showItemFromDescriptor, type ShowHistoryDescriptor } from "../lib/studio-history.ts";
@@ -26,6 +28,8 @@ interface NowDescriptor extends ShowHistoryDescriptor {
   text?: string;
   speed?: number;
   effect?: string;
+  frames?: string[];
+  delays?: number[];
 }
 interface NowEnvelope extends ClockStateEnvelope {
   now_showing?: NowDescriptor | null;
@@ -35,7 +39,7 @@ type NowSubscribeEvent = (NowEnvelope & { type?: undefined }) | (UploadProgressE
 const EMPTY_FRAME = createFrame(GRID_WIDTH, GRID_HEIGHT);
 const EMPTY_FRAMES: PixelFrame[] = [EMPTY_FRAME];
 
-function decodeFrames(result: RenderResult): PixelFrame[] {
+function decodeFrames(result: Pick<RenderResult, "frames" | "delays">): PixelFrame[] {
   return result.frames.map((encoded, index) => {
     const binary = atob(encoded);
     const pixels = new Uint8Array(GRID_WIDTH * GRID_HEIGHT * 3);
@@ -46,7 +50,7 @@ function decodeFrames(result: RenderResult): PixelFrame[] {
 
 function descriptorKey(descriptor: NowDescriptor | null | undefined): string {
   if (!descriptor) return "empty";
-  return [descriptor.kind, descriptor.shown_at ?? "", descriptor.design_id ?? "", descriptor.style ?? "", descriptor.text ?? ""].join("|");
+  return [descriptor.kind, descriptor.shown_at ?? "", descriptor.design_id ?? "", descriptor.style ?? "", descriptor.text ?? "", descriptor.speed ?? "", JSON.stringify(descriptor.color ?? null), descriptor.h24 ?? "", descriptor.hours24 ?? "", descriptor.effect ?? "", descriptor.frames?.length ?? 0].join("|");
 }
 
 function timeRange(state: ClockStateEnvelope["state"] | null): string {
@@ -74,6 +78,7 @@ export class IledclockDestNow extends LitElement {
     _loading: { state: true },
     _error: { state: true },
     _previewLoading: { state: true },
+    _previewAvailable: { state: true },
     _previewError: { state: true },
     _upload: { state: true },
     _busy: { state: true },
@@ -89,6 +94,7 @@ export class IledclockDestNow extends LitElement {
   declare _loading: boolean;
   declare _error: string | null;
   declare _previewLoading: boolean;
+  declare _previewAvailable: boolean;
   declare _previewError: string | null;
   declare _upload: (UploadProgressEvent & { upload?: { done: number; total: number } | null }) | null;
   declare _busy: string | null;
@@ -109,6 +115,7 @@ export class IledclockDestNow extends LitElement {
     this._loading = false;
     this._error = null;
     this._previewLoading = false;
+    this._previewAvailable = false;
     this._previewError = null;
     this._upload = null;
     this._busy = null;
@@ -159,6 +166,9 @@ export class IledclockDestNow extends LitElement {
     this._setFrames(EMPTY_FRAMES);
     this._previewKey = "";
     this._error = null;
+    this._previewError = null;
+    this._previewAvailable = false;
+    this._previewLoading = false;
     this._upload = null;
     if (!entryId || !this.hass?.callWS) return;
     this._loading = true;
@@ -198,6 +208,7 @@ export class IledclockDestNow extends LitElement {
     const revision = ++this._previewRevision;
     const entryId = this.entryId;
     this._previewError = null;
+    this._previewAvailable = false;
     if (!descriptor || !entryId || !this.hass?.callWS) {
       this._setFrames(EMPTY_FRAMES);
       this._previewLoading = false;
@@ -213,19 +224,26 @@ export class IledclockDestNow extends LitElement {
         if (!design) throw new Error("This saved design is no longer in the library.");
         frames = designToFrames(design);
       } else if (descriptor.kind === "clock") {
+        const style = Number(descriptor.style) || 1;
         const color = Array.isArray(descriptor.color) && descriptor.color.length >= 3 ? descriptor.color.slice(0, 3).map(Number) as [number, number, number] : [255, 255, 255] as [number, number, number];
-        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "clock", style: Number(descriptor.style) || 1, color, h24: descriptor.h24 ?? descriptor.hours24 !== false }));
-        frames = decodeFrames(result);
+        const hours24 = descriptor.h24 ?? descriptor.hours24 !== false;
+        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "clock", style, color, h24: hours24 }));
+        frames = result.approximate ? clockFacePreviewFrames(style, color, hours24) : decodeFrames(result);
+      } else if (descriptor.kind === "image" && Array.isArray(descriptor.frames) && descriptor.frames.length > 0) {
+        frames = decodeFrames({ frames: descriptor.frames, delays: descriptor.delays ?? [] });
       } else if (descriptor.kind === "text" && typeof descriptor.text === "string") {
         const color = Array.isArray(descriptor.color) && descriptor.color.length >= 3 ? descriptor.color.slice(0, 3).map(Number) as [number, number, number] : [255, 255, 255] as [number, number, number];
         const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "text", text: descriptor.text, color, speed: typeof descriptor.speed === "number" ? descriptor.speed : 128 }));
         frames = decodeFrames(result);
       } else {
-        throw new Error("A live preview is not available for this item; keeping the last known image.");
+        throw new Error("A live preview is not available for this item.");
       }
-      if (revision === this._previewRevision) this._setFrames(frames);
+      if (revision === this._previewRevision) {
+        this._setFrames(frames);
+        this._previewAvailable = frames.length > 0;
+      }
     } catch (error) {
-      if (revision === this._previewRevision) this._previewError = error instanceof Error ? error.message : "Preview unavailable; keeping the last known image.";
+      if (revision === this._previewRevision) this._previewError = error instanceof Error ? error.message : "Preview unavailable.";
     } finally {
       if (revision === this._previewRevision) this._previewLoading = false;
     }
@@ -249,25 +267,25 @@ export class IledclockDestNow extends LitElement {
     }
   }
 
-  private _setBrightness(event: Event): void { void this._runCommand("brightness", { value: Number((event.target as HTMLInputElement).value) }); }
+  private _setBrightness(event: Event): void { void this._runCommand("brightness", { value: percentToWireBrightness(Number((event.target as HTMLInputElement).value)) }); }
   private _toggleDisplay(): void { void this._runCommand("power", { on: !this._envelope?.state.power }); }
-  private _editRotation(): void { navigateStudioRoute({ destination: "library" }); }
+  private _openLibrary(): void { navigateStudioRoute({ destination: "library" }); }
   private _openNightMode(): void { this.dispatchEvent(new CustomEvent("settings-requested", { detail: { section: "night-mode" }, bubbles: true, composed: true })); }
 
   private _headline(): string {
-    const state = this._envelope?.state;
-    if (state && !state.power) return "Display is off";
     const descriptor = this._envelope?.now_showing;
-    if (descriptor) return "Showing " + (descriptor.title || descriptor.kind);
-    return state ? "Clock is ready" : "Clock status unavailable";
+    if (descriptor?.title) return "Showing " + descriptor.title;
+    if (descriptor?.kind) return "Showing " + descriptor.kind;
+    return "Showing something set before Pixel Studio 2";
   }
 
   private _subline(): string {
     const state = this._envelope?.state;
     if (!state) return "Waiting for clock status.";
     const connected = this._envelope?.connected ? "Connected" : "Out of range";
-    const brightness = "Brightness " + Math.round(state.brightness) + "%";
-    return connected + " · " + brightness + " · " + timeRange(state);
+    const brightness = "Brightness " + brightnessToPercent(state.brightness) + "%";
+    const power = state.power ? "Display on" : "Display off";
+    return connected + " · " + brightness + " · " + power + " · " + timeRange(state);
   }
 
   private _historyReason(item: NowDescriptor): string | null { return historyUnavailable(item); }
@@ -281,14 +299,12 @@ export class IledclockDestNow extends LitElement {
     const connected = Boolean(envelope?.connected);
     const progress = this._upload?.upload;
     const percent = progress && progress.total > 0 ? Math.max(0, Math.min(100, Math.round((progress.done / progress.total) * 100))) : null;
-    const status = percent !== null ? "Sending " + percent + "%" : this._upload ? "Sending" : connected ? "Connected" : "Out of range";
-    const statusKind = this._upload ? "info" : connected ? "positive" : "warning";
     const frames = this._frames.length ? this._frames : EMPTY_FRAMES;
     
     const history = envelope?.history?.slice(0, 8) ?? [];
     return html`<div class="destination">
-      <lu-status-sheet icon="mdi:television-play" headline=${this._headline()} subline=${this._subline()} status=${status} status-kind=${statusKind}>
-        <div slot="hero" class="hero-preview ${connected ? "" : "offline"}"><iledclock-led-preview context="hero" .frames=${frames} .delays=${this._delays} .playing=${Boolean(state?.power && connected && !this._upload)} label="Current clock display"></iledclock-led-preview></div>
+      <lu-status-sheet icon="mdi:television-play" headline=${this._headline()} subline=${this._subline()}>
+        <div slot="hero" class="hero-preview ${connected ? "" : "offline"}">${this._previewAvailable ? html`<iledclock-led-preview context="hero" .frames=${frames} .delays=${this._delays} .playing=${Boolean(state?.power && connected && !this._upload)} label="Current clock display"></iledclock-led-preview>` : html`<div class="hero-placeholder" role="img" aria-label=${this._headline()}><span>No live preview is available yet.</span><lu-pill-button variant="primary" label="Show a design" icon="mdi:view-grid-outline" @lu-press=${this._openLibrary}></lu-pill-button></div>`}</div>
         ${!connected ? html`<p class="state-note" role="status">Clock is out of range. The dimmed image is the last known display.</p>` : nothing}
         ${this._previewLoading ? html`<p class="state-note" role="status">Updating the display preview…</p>` : nothing}
         ${this._previewError ? html`<p class="state-note" role="status">${this._previewError}</p>` : nothing}
@@ -297,9 +313,9 @@ export class IledclockDestNow extends LitElement {
       <iledclock-mode-deck .hass=${this.hass} .entryId=${this.entryId} .state=${state}></iledclock-mode-deck>
       <lu-section title="Quick controls" icon="mdi:tune-variant">
         ${state ? html`<div class="quick-controls">
-          <label class="field"><span>Brightness <strong>${Math.round(state.brightness)}%</strong></span><input type="range" min="5" max="100" .value=${String(Math.round(state.brightness))} ?disabled=${!connected || this._busy !== null} @input=${this._setBrightness} aria-label="Display brightness"></label>
+          <label class="field"><span>Brightness <strong>${brightnessToPercent(state.brightness)}%</strong></span><input type="range" min="5" max="100" .value=${String(brightnessToPercent(state.brightness))} ?disabled=${!connected || this._busy !== null} @input=${this._setBrightness} aria-label="Display brightness"></label>
           <button type="button" class="quick-row" role="switch" aria-checked=${state.power ? "true" : "false"} ?disabled=${!connected || this._busy !== null} @click=${this._toggleDisplay}><span>Display</span><span class="row-value">${state.power ? "On" : "Off"}</span><span class="switch ${state.power ? "on" : ""}" aria-hidden="true"></span></button>
-          <button type="button" class="night-row" @click=${this._editRotation}><span><strong>Rotation</strong><small>Designs the clock cycles through · edit in Library</small></span><ha-icon icon="mdi:chevron-right"></ha-icon></button>
+          <button type="button" class="night-row" @click=${this._openLibrary}><span><strong>Rotation</strong><small>Designs the clock cycles through · edit in Library</small></span><ha-icon icon="mdi:chevron-right"></ha-icon></button>
           <button type="button" class="night-row" @click=${this._openNightMode}><span><strong>Night mode</strong><small>${timeRange(state)}</small></span><ha-icon icon="mdi:chevron-right"></ha-icon></button>
           ${!connected ? html`<p class="state-note">Controls are unavailable while the clock is out of range.</p>` : nothing}
         </div>` : html`<p class="state-note">Clock controls will appear when status is available.</p>`}
@@ -318,6 +334,7 @@ export class IledclockDestNow extends LitElement {
     .hero-preview { width: 100%; max-width: 384px; }
     .hero-preview.offline { opacity: .56; filter: grayscale(.45) brightness(.72); }
     .hero-preview iledclock-led-preview { width: 100%; }
+    .hero-placeholder { display: grid; aspect-ratio: 2 / 1; place-content: center; justify-items: center; gap: var(--lu-space-3); padding: var(--lu-space-4); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); color: var(--lu-ink-2); background: var(--lu-glass-raised); text-align: center; font: 400 var(--lu-type-label)/1.4 var(--lu-font); }
     .state-note { margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.45 var(--lu-font); }
     .upload { margin: var(--lu-space-3) 0 var(--lu-space-1); color: var(--lu-ink-2); font: 500 var(--lu-type-label)/1.4 var(--lu-font); }
     .progress { height: var(--lu-space-1); overflow: hidden; border-radius: var(--lu-radius-pill); background: var(--lu-track-off); }

@@ -192,7 +192,7 @@ export class IledclockFrameTimeline extends LitElement {
     .counter { color: var(--lu-ink); font: 500 var(--lu-type-label)/1.2 var(--lu-font); font-variant-numeric: tabular-nums; }
     .fps { margin-left: auto; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); font-variant-numeric: tabular-nums; }
     .strip { display: flex; align-items: stretch; gap: var(--lu-space-2); min-width: 0; overflow-x: auto; padding: var(--lu-space-1) var(--lu-space-1) var(--lu-space-2); overscroll-behavior-inline: contain; scrollbar-width: thin; }
-    .frame-item { flex: 0 0 144px; display: grid; align-content: start; gap: var(--lu-space-1); min-width: 0; padding: var(--lu-space-1); border: 1px solid transparent; border-radius: var(--lu-radius-tile); background: transparent; outline: none; }
+    .frame-item { flex: 0 0 168px; display: grid; align-content: start; gap: var(--lu-space-1); min-width: 0; padding: var(--lu-space-1); border: 1px solid transparent; border-radius: var(--lu-radius-tile); background: transparent; outline: none; }
     .frame-item.active { border-color: var(--lu-accent); background: var(--lu-tile); box-shadow: var(--lu-highlight-raised); }
     .frame-item.drop-target { border-color: var(--lu-accent); }
     .frame-item:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }

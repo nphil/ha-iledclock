@@ -10,7 +10,7 @@ from typing import Any
 from PIL import Image
 
 from custom_components.iledclock.gallery import coolledx_anim
-from custom_components.iledclock.gallery.models import SourceDecodeError, SourceNotFound
+from custom_components.iledclock.gallery.models import SourceDecodeError, SourceNotFound, SourceRequestError
 
 _FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "coolledx"
 
@@ -125,6 +125,32 @@ class AnimationFeedTests(unittest.TestCase):
         self.assertEqual(info["kind"], "native")
         self.assertEqual(info["categories"], [{"id": "static", "label": "Static"},
                                                 {"id": "dynamic", "label": "Dynamic"}])
+
+
+class AnimationHttpTests(unittest.IsolatedAsyncioTestCase):
+    async def test_vendor_redirect_is_not_followed(self) -> None:
+        class Response:
+            status = 302
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_):
+                return None
+
+        class Session:
+            def __init__(self):
+                self.calls = []
+
+            def get(self, url, **options):
+                self.calls.append((url, options))
+                return Response()
+
+        session = Session()
+        with self.assertRaises(SourceRequestError):
+            await coolledx_anim._get_json(session, "static", 1)
+        self.assertEqual(len(session.calls), 1)
+        self.assertIs(session.calls[0][1]["allow_redirects"], False)
 
 
 if __name__ == "__main__":

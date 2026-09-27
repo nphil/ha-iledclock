@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { exploreLayoutLabel, exploreLayoutOptions, exploreSearchRequest, exploreSourceLabel, fitsClockExactly, orderedExploreSources, type ExploreSource } from "../../frontend/src/lib/gallery-explore-api.ts";
+import { exploreLayoutLabel, exploreLayoutOptions, exploreSearchRequest, exploreSourceLabel, exploreTileAspect, fitsClockExactly, orderedExploreSources, type ExploreSource } from "../../frontend/src/lib/gallery-explore-api.ts";
 
 function source(id: string, configured = true): ExploreSource {
   return { id, name: id, configured, requires_account: id === "divoom", sorts: [], default_sort: "featured", sizes: [], supports_search: true, homepage: "https://example.test" };
@@ -39,6 +39,12 @@ test("explicit non-native metadata overrides matching dimensions", () => {
   assert.equal(fitsClockExactly({ native_fit: false, width: 32, height: 16 }), false);
   assert.equal(fitsClockExactly({ width: 32, height: 16 }), true);
   assert.equal(fitsClockExactly({ width: 16, height: 16 }), false);
+});
+test("Explore tile aspect follows artwork dimensions", () => {
+  assert.equal(exploreTileAspect({ width: 32, height: 16 }), "design");
+  assert.equal(exploreTileAspect({ width: 8, height: 8 }), "square");
+  assert.equal(exploreTileAspect({ width: 16, height: 16 }), "square");
+  assert.equal(exploreTileAspect({ width: 32, height: 8 }), "design");
 });
 
 test("layout pills include only supported Explore choices in display order", () => {

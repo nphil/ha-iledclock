@@ -113,20 +113,31 @@ class IledClockShowStore:
         self.now_showing: dict[str, Any] | None = None
         self.history: list[dict[str, Any]] = []
 
+    @staticmethod
+    def _without_image_source(item: dict[str, Any]) -> dict[str, Any]:
+        cleaned = {key: value for key, value in item.items() if key not in {"data_b64", "url"}}
+        if cleaned.get("kind") == "image" and not cleaned.get("frames"):
+            cleaned["unavailable"] = True
+        return cleaned
+
     async def async_load(self) -> None:
         data = await self._store.async_load() or {}
         raw_history = data.get("history", [])
         if not isinstance(raw_history, list):
             raw_history = []
-        self.history = [dict(item) for item in raw_history if isinstance(item, dict)][:self.LIMIT]
+        valid_history = [dict(item) for item in raw_history if isinstance(item, dict)][:self.LIMIT]
+        self.history = [self._without_image_source(item) for item in valid_history]
         raw_current = data.get("now_showing")
-        self.now_showing = dict(raw_current) if isinstance(raw_current, dict) else (
+        valid_current = dict(raw_current) if isinstance(raw_current, dict) else None
+        self.now_showing = self._without_image_source(valid_current) if valid_current is not None else (
             dict(self.history[0]) if self.history else None
         )
+        if data.get("history", []) != self.history or data.get("now_showing") != self.now_showing:
+            await self.async_save()
 
     async def async_record(self, descriptor: dict[str, Any]) -> None:
         """Make descriptor current and move its distinct item to the front of history."""
-        entry = dict(descriptor)
+        entry = self._without_image_source(dict(descriptor))
         identity = {key: value for key, value in entry.items() if key != "shown_at"}
         self.history = [
             old for old in self.history
@@ -151,4 +162,6 @@ class IledClockShowStore:
         await self.async_save()
 
     async def async_save(self) -> None:
+        self.history = [self._without_image_source(item) for item in self.history]
+        self.now_showing = self._without_image_source(self.now_showing) if self.now_showing is not None else None
         await self._store.async_save({"now_showing": self.now_showing, "history": self.history})

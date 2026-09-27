@@ -5,6 +5,7 @@ and one invalid-payload check per command."""
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import json
@@ -72,15 +73,42 @@ async def test_ws_gallery_sources_shape(hass, hass_ws_client, config_entry, aioc
     assert ids == {"iledclock", "iledclock_anim", "lametric", "awtrix", "divoom"}
     originals = next(s for s in sources if s["id"] == "iledclock")
     assert originals["kind"] == "native"
-    assert {category["id"] for category in originals["categories"]} == {
-        "trending", "creative", "emoji", "life", "festival", "sport", "flag", "business", "default"
-    }
+    assert {category["id"] for category in originals["categories"]} in (
+        set(), {"trending", "creative", "emoji", "life", "festival", "sport", "flag", "business", "default"}
+    )
     animations = next(s for s in sources if s["id"] == "iledclock_anim")
     assert animations["kind"] == "native"
     assert animations["categories"] == [{"id": "static", "label": "Static"}, {"id": "dynamic", "label": "Dynamic"}]
     divoom = next(s for s in sources if s["id"] == "divoom")
     assert divoom["configured"] is False
 
+
+
+async def test_sources_and_shelves_do_not_wait_for_slow_coolledx(hass, config_entry, monkeypatch) -> None:
+    started = asyncio.Event()
+    calls = 0
+
+    async def slow_categories(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        started.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(gallery, "_coolledx_categories", slow_categories)
+    sources = await gallery._source_infos(hass, config_entry.entry_id)
+    shelves = await gallery.async_shelves(hass, config_entry.entry_id)
+    await asyncio.wait_for(started.wait(), timeout=1)
+
+    assert {source.id for source in sources} >= {"iledclock", "awtrix", "lametric"}
+    assert {shelf["id"] for shelf in shelves} >= {"iledclock-trending", "awtrix-new"}
+    assert calls == 1
+    tasks = hass.data[gallery.DOMAIN]["gallery_categories_refresh_tasks"]
+    task = next(iter(tasks.values()))
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 async def test_ws_gallery_sources_unknown_entry_errors(hass, hass_ws_client) -> None:

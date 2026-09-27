@@ -11,6 +11,7 @@ export class IledclockEditorInspector extends LitElement {
     onionSkin: { type: Boolean, attribute: "onion-skin" },
     frameDelay: { type: Number, attribute: "frame-delay" },
     clockRegion: { type: Boolean, attribute: "clock-region" },
+    _moreColors: { state: true },
   };
 
   declare activeColor: RGB;
@@ -19,6 +20,7 @@ export class IledclockEditorInspector extends LitElement {
   declare onionSkin: boolean;
   declare frameDelay: number;
   declare clockRegion: boolean;
+  declare _moreColors: boolean;
 
   constructor() {
     super();
@@ -44,11 +46,13 @@ export class IledclockEditorInspector extends LitElement {
 
   render() {
     const recents = this.recentColors.slice(0, 10);
+    const colors = this._moreColors ? RGB444_SWATCHES : RGB444_SWATCHES.slice(0, 12);
     return html`<aside class="panel" aria-label="Editor inspector">
       <h2>Inspector</h2>
       <section aria-labelledby="colour-heading">
         <div class="section-heading"><h3 id="colour-heading">Colour</h3><button type="button" class="current-color" style=${`--swatch: ${rgbToCss(quantizePreviewRgb(this.activeColor))}`} aria-label="Open colour sheet" @click=${() => this._send("inspector-color-requested", {})}></button></div>
-        <div class="swatches" role="group" aria-label="RGB444-safe colour palette">${RGB444_SWATCHES.map((color) => this._renderSwatch(color, `Colour ${rgbToHex(quantizePreviewRgb(color))}`))}</div>
+        <div class="swatches" role="group" aria-label="RGB444-safe colour palette">${colors.map((color) => this._renderSwatch(color, `Colour ${rgbToHex(quantizePreviewRgb(color))}`))}</div>
+        <button type="button" class="more-colors" aria-expanded=${String(this._moreColors)} @click=${() => { this._moreColors = !this._moreColors; }}>${this._moreColors ? "Fewer colours" : "More colours"}</button>
         ${recents.length ? html`<h4>Recent</h4><div class="swatches recent" role="group" aria-label="Recent colours">${recents.map((color, index) => this._renderSwatch(color, `Recent colour ${index + 1}`))}</div>` : nothing}
         <label class="native-picker"><span>Custom colour</span><input type="color" aria-label="Custom drawing colour" .value=${rgbToHex(quantizePreviewRgb(this.activeColor))} @input=${(event: Event) => this._pick(hexToRgb((event.target as HTMLInputElement).value))}></label>
       </section>
@@ -82,6 +86,12 @@ export class IledclockEditorInspector extends LitElement {
     .toggle-mark { color: var(--lu-accent); font-size: var(--lu-type-numeral); }
     .toggle-state { margin-left: auto; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); }
     .hint { margin: 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .swatches { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: var(--lu-space-1); }
+    .swatch { position: relative; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 6px; border: 0; background: transparent; }
+    .swatch::before { content: ""; position: absolute; inset: 6px; border: 1px solid var(--lu-edge); border-radius: 10px; background: var(--swatch); }
+    .swatch[aria-pressed="true"] { outline: none; }
+    .swatch[aria-pressed="true"]::before { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .more-colors { justify-self: start; min-height: 44px; padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-tile); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); cursor: pointer; }
     button:focus-visible, input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
   `];
 }

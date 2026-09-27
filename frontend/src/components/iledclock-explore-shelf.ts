@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing } from "lit";
-import { fitsClockExactly, type ExploreGalleryItem, type ExploreSource } from "../lib/gallery-explore-api.ts";
+import { exploreTileAspect, fitsClockExactly, type ExploreGalleryItem, type ExploreSource } from "../lib/gallery-explore-api.ts";
 import type { GalleryShelfDescriptor, ShelfStatus } from "../lib/gallery-shelf-state.ts";
 import { itemKey, tileMetaLine } from "../lib/gallery-browse-state.ts";
 import { TOKENS_CSS } from "../styles/tokens.ts";
@@ -82,19 +82,26 @@ export class IledclockExploreShelf extends LitElement {
                 ${this.items.map((item) => {
                   const size = `${item.width}×${item.height}`;
                   const exact = fitsClockExactly(item);
+                  const noTitle = !item.title || /^Trending\s+\d+$/i.test(item.title);
+                  const category = this.source?.categories?.find((entry) => entry.id === item.category)?.label;
                   return html`<div class="tile-wrap" role="listitem">
                     <iledclock-art-tile
                       .itemId=${itemKey(item)}
                       .imageUrl=${this.signedPaths[itemKey(item)] ?? ""}
                       .mediaPath=${item.media_path}
+                      .pixelWidth=${item.width}
+                      .pixelHeight=${item.height}
+                      .aspect=${exploreTileAspect(item)}
                       .animated=${item.animated}
-                      .title=${item.title}
-                      .subtitle=${meta(item) ?? ""}
+                      .title=${noTitle ? "" : item.title}
+                      .subtitle=${noTitle ? "" : meta(item) ?? ""}
                       @tile-selected=${() => this._open(item)}
                     >
-                      ${exact ? html`<span class="badge exact">Fits exactly</span>` : nothing}
-                      ${item.animated ? html`<span class="badge">${item.frames && item.frames > 1 ? `${item.frames} frames` : "Animated"}</span>` : nothing}
-                      <span class="badge size">${size}</span>
+                      ${noTitle
+                        ? category ? html`<span slot="badges" class="tile-badge">${category}</span>` : nothing
+                        : html`${exact ? html`<span slot="badges" class="tile-badge exact">Fits exactly</span>` : nothing}
+                            ${item.animated ? html`<span slot="badges" class="tile-badge">${item.frames && item.frames > 1 ? `${item.frames} frames` : "Animated"}</span>` : nothing}
+                            <span slot="badges" class="tile-badge size">${size}</span>`}
                     </iledclock-art-tile>
                   </div>`;
                 })}
@@ -117,12 +124,9 @@ export class IledclockExploreShelf extends LitElement {
     .see-all span { padding-left: var(--lu-space-1); color: var(--lu-accent); font-size: 20px; }
     .arrows { display: none; }
     .rail { display: flex; gap: var(--lu-space-3); min-width: 0; overflow-x: auto; padding: 2px 2px var(--lu-space-2); scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: thin; }
-    .tile-wrap { flex: 0 0 clamp(148px, 32cqi, 208px); scroll-snap-align: start; }
-    .badge { display: inline-flex; min-height: 24px; align-items: center; padding: 0 var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-glass-raised, var(--lu-tile)); color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1 var(--lu-font); }
-    .badge.exact { color: var(--lu-positive); }
-    .badge.size { color: var(--lu-ink-3); }
+    .tile-wrap { flex: 0 0 clamp(148px, 18cqi, 224px); scroll-snap-align: start; }
     .empty { margin: 0; padding: var(--lu-space-3) 0; color: var(--lu-ink-3); font: 400 var(--lu-type-body)/1.4 var(--lu-font); }
-    .skeleton-card { flex: 0 0 clamp(148px, 32cqi, 208px); aspect-ratio: .78; }
+    .skeleton-card { flex: 0 0 clamp(148px, 18cqi, 224px); aspect-ratio: 1.7; }
     .skeleton-card lu-skeleton { display: block; height: 100%; }
     @container (min-width: 720px) {
       .arrows { display: flex; gap: var(--lu-space-1); }

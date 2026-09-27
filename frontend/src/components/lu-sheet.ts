@@ -4,6 +4,12 @@ import "./lu-icon-button.ts";
 
 const FOCUSABLE = "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
 
+function deepestActiveElement(): HTMLElement | null {
+  let active: Element | null = document.activeElement;
+  while (active instanceof HTMLElement && active.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+  return active instanceof HTMLElement ? active : null;
+}
+
 export class LuSheet extends LitElement {
   static properties = {
     open: { type: Boolean, reflect: true },
@@ -29,7 +35,7 @@ export class LuSheet extends LitElement {
   protected updated(changed: PropertyValues): void {
     if (!changed.has("open")) return;
     if (this.open) {
-      this._previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      this._previousFocus = deepestActiveElement();
       document.addEventListener("keydown", this._onKeydown, true);
       this.updateComplete.then(() => this._focusFirst());
     } else {

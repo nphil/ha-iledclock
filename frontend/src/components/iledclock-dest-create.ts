@@ -12,9 +12,10 @@ import { buildTextRenderSpec, designsListRequest, designsSaveRequest, renderRequ
 import { hexToRgb, type RGB } from "../lib/color.ts";
 import { mdiIcon } from "../lib/mdi-icons.ts";
 import { clearEditorDraft, editorStateFingerprint, isEditorDraftDirty, makeEditorDraft, readEditorDraft, writeEditorDraft } from "../lib/draft-store.ts";
-import { setFrameDelay } from "../lib/timeline.ts";
+import { isEditorSessionCurrent } from "../lib/editor-session.ts";
 import { showWithUndo } from "../lib/show-with-undo.ts";
 import { encodeAnimationGif } from "../lib/editor-export.ts";
+import { setFrameDelay } from "../lib/timeline.ts";
 import type { NewDesignOption } from "./iledclock-editor-new-sheet.ts";
 import "./iledclock-pixel-editor.ts";
 import "./iledclock-frame-timeline.ts";
@@ -76,7 +77,7 @@ export class IledclockDestCreate extends LitElement {
     hass: { attribute: false },
     entryId: { attribute: false },
     route: { attribute: false },
-    narrow: { type: Boolean },
+    active: { type: Boolean },
     _history: { state: true },
     _activeFrameIndex: { state: true },
     _activeColor: { state: true },
@@ -111,6 +112,7 @@ export class IledclockDestCreate extends LitElement {
   declare entryId: string | undefined;
   declare route: StudioRoute;
   declare narrow: boolean;
+  declare active: boolean;
   declare _history: History<PixelFrame[]>;
   declare _activeFrameIndex: number;
   declare _activeColor: RGB;
@@ -146,6 +148,7 @@ export class IledclockDestCreate extends LitElement {
   private _pendingReplacement: ReplaceAction | null = null;
   private _autosaveTimer: ReturnType<typeof setTimeout> | undefined;
   private _designLoadToken = 0;
+  private _sessionRevision = 0;
   private _resizeObserver: ResizeObserver | null = null;
   private _retryAction: (() => void) | null = null;
 
@@ -154,6 +157,7 @@ export class IledclockDestCreate extends LitElement {
     const blank = [createFrame(GRID_WIDTH, GRID_HEIGHT)];
     this.narrow = false;
     this._history = historyInit(blank);
+    this.active = true;
     this._activeFrameIndex = 0;
     this._activeColor = [255, 255, 255];
     this._recentColors = [];
@@ -194,6 +198,7 @@ export class IledclockDestCreate extends LitElement {
     super.disconnectedCallback();
     this.removeEventListener("iledclock-designs-changed", this._onDesignsChanged);
     this.removeEventListener("iledclock-open-design", this._onOpenDesign as unknown as EventListener);
+    this._flushDraftSave(this._openedEntryId);
     clearTimeout(this._autosaveTimer);
     this._resizeObserver?.disconnect();
     this._resizeObserver = null;
@@ -213,6 +218,7 @@ export class IledclockDestCreate extends LitElement {
   protected updated(changed: PropertyValues): void {
     if (changed.has("entryId") && this.entryId) void this._openEntry(this.entryId);
     if (changed.has("route")) this._resolveRouteDesign();
+    if (changed.has("active") && !this.active) this._playing = false;
     if (changed.has("_history") || changed.has("_designName") || changed.has("_clockRegion")) this._scheduleDraftSave();
   }
 
@@ -228,6 +234,10 @@ export class IledclockDestCreate extends LitElement {
     try { return window.localStorage; } catch { return null; }
   }
 
+  private _isCurrentSession(entryId: string, revision: number): boolean {
+    return this.entryId === entryId && isEditorSessionCurrent(this._openedEntryId, this._sessionRevision, entryId, revision);
+  }
+
   private _draftState() {
     return { name: this._designName, frames: this._frames, clockRegion: this._clockRegion, designId: this._currentDesignId };
   }
@@ -235,6 +245,10 @@ export class IledclockDestCreate extends LitElement {
   private _openEntry(entryId: string): void {
     if (this._openedEntryId === entryId) return;
     this._flushDraftSave(this._openedEntryId);
+    this._sessionRevision++;
+    this._pendingReplacement = null;
+    this._replacementSheetOpen = false;
+    this._busy = null;
     this._openedEntryId = entryId;
     const blank = [createFrame()];
     this._history = historyInit(blank);
@@ -251,7 +265,7 @@ export class IledclockDestCreate extends LitElement {
     this._error = null;
     this._retryAction = null;
     this._lastRouteDesign = "";
-    this._restoreDraft(entryId);
+    this._restoreDraft(entryId, this._sessionRevision);
     if (this.route?.design) this._resolveRouteDesign();
     else void this._loadDesigns(entryId);
   }
@@ -264,7 +278,7 @@ export class IledclockDestCreate extends LitElement {
     if (storage) writeEditorDraft(storage, makeEditorDraft(entryId, this._draftState(), this._savedFingerprint));
   }
 
-  private _restoreDraft(entryId: string): void {
+  private _restoreDraft(entryId: string, revision: number): void {
     const storage = this._storage();
     if (!storage) return;
     const draft = readEditorDraft(storage, entryId);
@@ -288,18 +302,20 @@ export class IledclockDestCreate extends LitElement {
         message: "Restored your unsaved drawing",
         actionLabel: "Discard",
         timeoutMs: 8000,
-        action: () => void this._discardRestoredDraft(entryId),
+        action: () => void this._discardRestoredDraft(entryId, revision),
       },
       bubbles: true,
       composed: true,
     }));
   }
 
-  private async _discardRestoredDraft(entryId: string): Promise<void> {
+  private async _discardRestoredDraft(entryId: string, revision: number): Promise<void> {
+    if (!this._isCurrentSession(entryId, revision)) return;
     const storage = this._storage();
     if (storage) clearEditorDraft(storage, entryId);
     if (this._currentDesignId) {
       if (!this._designs.length) await this._loadDesigns(entryId);
+      if (!this._isCurrentSession(entryId, revision)) return;
       const saved = this._designs.find((design) => design.id === this._currentDesignId);
       if (saved) {
         this._applyDesign(saved);
@@ -423,7 +439,7 @@ export class IledclockDestCreate extends LitElement {
   };
 
   private _onPlayToggled = (event: CustomEvent<{ playing: boolean }>): void => {
-    this._playing = event.detail.playing;
+    this._playing = this.active && event.detail.playing;
   };
 
   private _onInspectorDelay = (event: CustomEvent<{ delayMs: number }>): void => {
@@ -493,12 +509,25 @@ export class IledclockDestCreate extends LitElement {
 
   private async _saveBeforeReplacement(): Promise<void> {
     const action = this._pendingReplacement;
-    this._pendingReplacement = null;
+    const entryId = this.entryId;
+    if (!action || !entryId) return;
+    const revision = this._sessionRevision;
+    const fingerprint = editorStateFingerprint({ name: this._designName, frames: this._frames, clockRegion: this._clockRegion });
     this._replacementSheetOpen = false;
     this._busy = "save";
     const saved = await this._saveDesign();
+    if (!this._isCurrentSession(entryId, revision)) return;
     this._busy = null;
-    if (saved && action) await action();
+    if (!saved) {
+      this._replacementSheetOpen = Boolean(action);
+      return;
+    }
+    if (editorStateFingerprint({ name: this._designName, frames: this._frames, clockRegion: this._clockRegion }) !== fingerprint) {
+      this._replacementSheetOpen = true;
+      return;
+    }
+    this._pendingReplacement = null;
+    await action();
   }
 
   private async _discardAndReplace(): Promise<void> {
@@ -512,6 +541,7 @@ export class IledclockDestCreate extends LitElement {
 
   private async _saveDesign(): Promise<{ id: string; name: string } | null> {
     const entryId = this.entryId;
+    const revision = this._sessionRevision;
     const callWS = this.hass?.callWS?.bind(this.hass);
     if (!entryId || !callWS) return null;
     const frames = this._frames.slice();
@@ -533,6 +563,7 @@ export class IledclockDestCreate extends LitElement {
     design.clock_region = clockRegionForDesign(clockRegion);
     try {
       const result = await callWS<{ id: string }>(designsSaveRequest(design));
+      if (!this._isCurrentSession(entryId, revision)) return null;
       const id = result.id || design.id;
       this._currentDesignId = id;
       this._savedFingerprint = fingerprint;
@@ -548,6 +579,7 @@ export class IledclockDestCreate extends LitElement {
       this._error = null;
       return { id, name };
     } catch (error) {
+      if (!this._isCurrentSession(entryId, revision)) return null;
       this._error = error instanceof Error ? error.message : "Could not save the design.";
       this._retryAction = () => { void this._saveClick(); };
       this._saveState = "unsaved";
@@ -558,40 +590,49 @@ export class IledclockDestCreate extends LitElement {
 
   private _saveClick = async (): Promise<void> => {
     if (this._busy) return;
+    const entryId = this.entryId;
+    const revision = this._sessionRevision;
     this._busy = "save";
     this._error = null;
     await this._saveDesign();
+    if (!entryId || !this._isCurrentSession(entryId, revision)) return;
     this._busy = null;
   };
 
   private _showClick = async (): Promise<void> => {
-    if (!this.entryId || this._busy) return;
+    const entryId = this.entryId;
+    if (!entryId || this._busy) return;
+    const revision = this._sessionRevision;
+    const hass = this.hass;
     this._busy = "show";
     this._error = null;
     try {
       const saved = await this._saveDesign();
-      if (saved) await showWithUndo(this, this.hass, this.entryId, { design_id: saved.id }, saved.name);
+      if (saved && this._isCurrentSession(entryId, revision)) await showWithUndo(this, hass, entryId, { design_id: saved.id }, saved.name);
     } finally {
-      this._busy = null;
+      if (this._isCurrentSession(entryId, revision)) this._busy = null;
     }
   };
 
   private async _renderInto(spec: RenderSpec, name: string, clockRegion = false): Promise<void> {
     const entryId = this.entryId;
+    const revision = this._sessionRevision;
     const callWS = this.hass?.callWS?.bind(this.hass);
     if (!entryId || !callWS) return;
     this._busy = "render";
     this._error = null;
     try {
       const result = await callWS<RenderResult>(renderRequest(entryId, spec));
+      if (!this._isCurrentSession(entryId, revision)) return;
       const frames = result.frames.slice(0, 64).map((encoded, index) => base64ToFrame(encoded, GRID_WIDTH, GRID_HEIGHT, result.delays[index] ?? 100));
       if (frames.length) this._replaceDesign(frames, name, clockRegion);
     } catch (error) {
+      if (!this._isCurrentSession(entryId, revision)) return;
       this._error = error instanceof Error ? error.message : "Could not generate the design.";
       this._retryAction = () => { void this._renderInto(spec, name, clockRegion); };
       this._scheduleDraftSave();
     } finally {
-      this._busy = null;
+      if (this._isCurrentSession(entryId, revision)) this._busy = null;
     }
   }
 
@@ -644,6 +685,7 @@ export class IledclockDestCreate extends LitElement {
   private _onTextPlaceRequested = async (event: CustomEvent<{ x: number; y: number }>): Promise<void> => {
     const stamp = this._stampText;
     const entryId = this.entryId;
+    const revision = this._sessionRevision;
     const callWS = this.hass?.callWS?.bind(this.hass);
     if (!stamp || !entryId || !callWS || this._busy) return;
     const spec = buildTextRenderSpec(stamp.text, stamp.color);
@@ -651,6 +693,7 @@ export class IledclockDestCreate extends LitElement {
     this._busy = "stamp";
     try {
       const rendered = await callWS<RenderResult>(renderRequest(entryId, spec));
+      if (!this._isCurrentSession(entryId, revision)) return;
       const encoded = rendered.frames[0];
       if (!encoded) return;
       const stampFrame = base64ToFrame(encoded, GRID_WIDTH, GRID_HEIGHT, rendered.delays[0] ?? 100);
@@ -668,10 +711,11 @@ export class IledclockDestCreate extends LitElement {
       }
       this._onFrameChanged({ detail: { frame: next } } as CustomEvent<{ frame: PixelFrame }>);
     } catch (error) {
+      if (!this._isCurrentSession(entryId, revision)) return;
       this._error = error instanceof Error ? error.message : "Could not stamp the text.";
       this._retryAction = () => { void this._onTextPlaceRequested(event); };
     } finally {
-      this._busy = null;
+      if (this._isCurrentSession(entryId, revision)) this._busy = null;
     }
   };
 
@@ -763,8 +807,8 @@ export class IledclockDestCreate extends LitElement {
       ${this._error ? html`<lu-error message=${this._error} retry-label="Retry" @retry=${this._onRetry}></lu-error>` : nothing}
       <header class="editor-header">
         <div class="identity-row">
-          <label class="name-field"><span>Design name</span><input type="text" aria-label="Design name" maxlength="80" .value=${this._designName} @input=${(event: Event) => { this._designName = (event.target as HTMLInputElement).value; }}></label>
-          <lu-chip class="save-chip" label=${this._statusLabel()} kind=${this._saveState === "saved" ? "positive" : this._saveState === "draft" ? "neutral" : "warning"}></lu-chip>
+          <div class="name-block"><label class="name-field"><span class="sr-only">Design name</span><input type="text" aria-label="Design name" maxlength="80" .value=${this._designName} @input=${(event: Event) => { this._designName = (event.target as HTMLInputElement).value; }}>
+          </label><span class="save-state">${this._statusLabel()}</span></div>
           <div class="icon-actions" role="group" aria-label="Edit history">
             <lu-icon-button icon="mdi:undo" tooltip="Undo" aria-label="Undo" ?disabled=${this._history.past.length === 0 || this._busy === "render"} @lu-press=${this._onUndoRequested}></lu-icon-button>
             <lu-icon-button icon="mdi:redo" tooltip="Redo" aria-label="Redo" ?disabled=${this._history.future.length === 0 || this._busy === "render"} @lu-press=${this._onRedoRequested}></lu-icon-button>
@@ -836,9 +880,26 @@ export class IledclockDestCreate extends LitElement {
     .replace-button { min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-tile); color: var(--lu-ink); font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
     .replace-button:disabled { opacity: .45; cursor: default; }
     .replace-discard { display: block; width: 100%; }
+    .destination { gap: var(--lu-space-2); }
+    .identity-row { flex-wrap: nowrap; }
+    .name-block { display: grid; flex: 1 1 auto; min-width: 0; gap: 2px; }
+    .name-field { display: block; flex: 1 1 auto; min-width: 0; max-width: none; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.15 var(--lu-font); }
+    .name-field input { display: block; min-height: 30px; padding: 0; border: 0; border-bottom: 1px solid transparent; border-radius: 0; background: transparent; color: inherit; font: inherit; letter-spacing: -0.01em; }
+    .name-field input:focus { border-bottom-color: var(--lu-accent); outline: none; }
+    .save-state { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .icon-actions { gap: 0; }
+    .overflow-button { border-radius: var(--lu-radius-control); }
+    @container (max-width: 899px) {
+      .destination { padding-bottom: 80px; }
+      .workspace { grid-template-columns: minmax(0, 1fr); gap: var(--lu-space-2); }
+      .inspector { display: none; }
+      .primary-actions { position: fixed; z-index: 30; inset-inline: 8px; bottom: calc(64px + env(safe-area-inset-bottom)); justify-content: stretch; padding: var(--lu-space-1); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); background: var(--lu-glass); backdrop-filter: blur(var(--lu-blur)) saturate(1.2); box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest); }
+      .primary-actions lu-pill-button { flex: 1 1 0; min-width: 0 !important; }
+      .primary-actions lu-pill-button:last-child { min-width: 0; }
+    }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     button:focus-visible, input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
     @container (max-width: 899px) { .workspace { grid-template-columns: minmax(0, 1fr); } .inspector { display: none; } .editor-header { gap: var(--lu-space-2); } }
-    @container (max-width: 380px) { .identity-row { gap: var(--lu-space-1); } .name-field { flex: 1 1 100%; max-width: none; } .primary-actions { justify-content: stretch; } .primary-actions lu-pill-button { flex: 1 1 0; min-width: 0 !important; } }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   `];
 }

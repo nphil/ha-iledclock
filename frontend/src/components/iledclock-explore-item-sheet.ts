@@ -98,6 +98,14 @@ export class IledclockExploreItemSheet extends LitElement {
     this._requestId++;
   }
 
+  protected willUpdate(changed: PropertyValues): void {
+    if (changed.has("_preview")) {
+      this._pixelFrames = this._preview
+        ? this._preview.frames.map((frame, index) => base64ToFrame(frame, GRID_WIDTH, GRID_HEIGHT, this._preview!.delays_ms[index] ?? 100))
+        : [];
+    }
+  }
+
   protected updated(changed: PropertyValues): void {
     if (changed.has("imageUrl") || changed.has("item")) this._originalFailed = false;
     if (changed.has("open") || changed.has("item")) {
@@ -113,11 +121,6 @@ export class IledclockExploreItemSheet extends LitElement {
         this._pixelFrames = [];
         void this._loadPreview();
       }
-    }
-    if (changed.has("_preview")) {
-      this._pixelFrames = this._preview
-        ? this._preview.frames.map((frame, index) => base64ToFrame(frame, GRID_WIDTH, GRID_HEIGHT, this._preview!.delays_ms[index] ?? 100))
-        : [];
     }
   }
   private _updateAdjust(patch: Partial<GalleryAdjustOptions>): void {
@@ -232,7 +235,6 @@ export class IledclockExploreItemSheet extends LitElement {
       const designId = await this._importDesign();
       this.dispatchEvent(new CustomEvent("iledclock-designs-changed", { bubbles: true, composed: true }));
       this._openDesign(designId);
-      this._close();
     } catch (err) {
       this._actionError = describeWsError(err);
     } finally {

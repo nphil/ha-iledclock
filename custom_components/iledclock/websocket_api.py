@@ -55,7 +55,7 @@ def _coordinator(hass: HomeAssistant, entry_id: str) -> IledClockCoordinator:
 
 def _state_event(coordinator: IledClockCoordinator) -> dict[str, Any]:
     return shape_state_event(
-        connected=coordinator.client.is_connected,
+        connected=coordinator.data.connected,
         busy=coordinator.busy,
         state=coordinator.data,
         playlist=coordinator.playlist_store.playlist,

@@ -110,6 +110,13 @@ export class IledclockEditorToolbox extends LitElement {
     .dock-color { position: relative; border: 1px solid var(--lu-edge); background: var(--swatch); }
     .dock-color:after { content: ""; position: absolute; inset: 6px; border: 2px solid color-mix(in srgb, var(--lu-ink) 42%, transparent); border-radius: var(--lu-radius-control); }
     .more-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--lu-space-2); }
+    .tool-group { border: 1px solid var(--lu-edge); }
+    .rail .tool { box-sizing: border-box; width: 48px; min-width: 48px; height: 48px; min-height: 48px; padding: 2px; gap: 0; font-size: var(--lu-type-caption); }
+    .rail .tool svg { width: 24px; height: 24px; flex: none; }
+    .rail .tool span:not(.wrap-mark) { max-width: 46px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: var(--lu-type-caption); line-height: 1.1; }
+    .rail { display: flex; flex-direction: column; align-items: center; gap: var(--lu-space-2); }
+    .tool-group { display: grid; grid-template-columns: repeat(3, 48px); align-items: start; gap: var(--lu-space-1); padding: var(--lu-space-1); }
+    .rail .wrap-toggle { box-sizing: border-box; width: 48px; min-width: 48px; padding: 2px; }
     :host([narrow]) .rail { display: none; }
     :host([narrow]) .dock { display: flex; }
     button:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }

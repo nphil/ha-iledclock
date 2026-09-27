@@ -46,6 +46,7 @@ export class IledclockHoldButton extends LitElement {
   private _rafId: number | null = null;
   private _lastTs = 0;
   private _settleTimer: ReturnType<typeof setTimeout> | undefined = undefined;
+  private _keyboardHold = false;
 
   constructor() {
     super();
@@ -56,8 +57,15 @@ export class IledclockHoldButton extends LitElement {
     this.config = DEFAULT_HOLD_CONFIG;
   }
 
+  connectedCallback(): void {
+    super.connectedCallback();
+    window.addEventListener("blur", this._onWindowBlur);
+  }
+
   disconnectedCallback(): void {
     super.disconnectedCallback();
+    window.removeEventListener("blur", this._onWindowBlur);
+    this._cancelHold();
     this._stopLoop();
     clearTimeout(this._settleTimer);
   }
@@ -99,6 +107,7 @@ export class IledclockHoldButton extends LitElement {
 
   private _onCompleted(): void {
     this._settled = true;
+    this._keyboardHold = false;
     fireHaptic("success");
     this.dispatchEvent(new CustomEvent("confirmed", { bubbles: true, composed: true }));
     this._settleTimer = setTimeout(() => {
@@ -123,16 +132,30 @@ export class IledclockHoldButton extends LitElement {
     this._startLoop();
   }
 
+  private _cancelHold = (): void => {
+    if (this._hold.phase !== "charging") return;
+    this._stopLoop();
+    this._hold = HOLD_IDLE;
+    this._keyboardHold = false;
+    this.requestUpdate();
+  };
+
+  private _onWindowBlur = (): void => this._cancelHold();
+  private _onFocusOut = (): void => { if (this._keyboardHold) this._cancelHold(); };
+
   private _onKeyDown = (event: KeyboardEvent): void => {
-    if ((event.key !== " " && event.key !== "Enter") || this.disabled || this._settled || this._hold.phase === "charging") return;
+    if (event.repeat || (event.key !== " " && event.key !== "Enter") || this.disabled || this._settled || this._hold.phase === "charging") return;
     event.preventDefault();
+    this._keyboardHold = true;
     this._hold = holdPress();
     fireHaptic("light");
     this._startLoop();
   };
 
   private _onKeyUp = (event: KeyboardEvent): void => {
-    if (event.key === " " || event.key === "Enter") this._release();
+    if (!this._keyboardHold || (event.key !== " " && event.key !== "Enter")) return;
+    this._keyboardHold = false;
+    this._release();
   };
 
   private _onPointerUp = (): void => this._release();
@@ -151,6 +174,7 @@ export class IledclockHoldButton extends LitElement {
         @pointerdown=${this._onPointerDown}
         @keydown=${this._onKeyDown}
         @keyup=${this._onKeyUp}
+        @focusout=${this._onFocusOut}
         @pointerup=${this._onPointerUp}
         @pointercancel=${this._onPointerUp}
         @pointerleave=${this._onPointerLeave}

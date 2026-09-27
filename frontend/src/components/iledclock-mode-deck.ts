@@ -100,6 +100,7 @@ export class IledclockModeDeck extends LitElement {
   private _designsRevision = 0;
   private _textTimer: ReturnType<typeof setTimeout> | undefined;
   private _textPreviewRevision = 0;
+  private _modeResizeObserver: ResizeObserver | null = null;
 
   constructor() {
     super();
@@ -140,8 +141,19 @@ export class IledclockModeDeck extends LitElement {
     if ((changed.has("_mode") && this._mode === "art") || (changed.has("entryId") && this._mode === "art")) void this._loadDesigns();
   }
 
+  connectedCallback(): void {
+    super.connectedCallback();
+    if (typeof ResizeObserver === "undefined") return;
+    this._modeResizeObserver = new ResizeObserver((entries) => {
+      this.toggleAttribute("compact", (entries[0]?.contentRect.width ?? 0) < 360);
+    });
+    this._modeResizeObserver.observe(this);
+  }
+
   disconnectedCallback(): void {
     super.disconnectedCallback();
+    this._modeResizeObserver?.disconnect();
+    this._modeResizeObserver = null;
     clearTimeout(this._textTimer);
     this._textPreviewRevision++;
   }
@@ -197,9 +209,24 @@ export class IledclockModeDeck extends LitElement {
     }
   }
 
-  private _selectMode(event: CustomEvent<{ value: string }>): void {
-    this._mode = event.detail.value as Mode;
+  private _setMode(mode: Mode): void {
+    this._mode = mode;
     this._error = null;
+  }
+
+  private _onModeKeydown(event: KeyboardEvent, index: number): void {
+    const last = MODE_OPTIONS.length - 1;
+    let next = index;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % MODE_OPTIONS.length;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index + last) % MODE_OPTIONS.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = last;
+    else return;
+    event.preventDefault();
+    const option = MODE_OPTIONS[next];
+    if (!option) return;
+    this._setMode(option.value);
+    this.updateComplete.then(() => this.renderRoot.querySelector<HTMLButtonElement>(`[data-mode-index="${next}"]`)?.focus());
   }
 
   private _clockSpec(): RenderSpec {
@@ -427,7 +454,8 @@ export class IledclockModeDeck extends LitElement {
     const modePanel = this._mode === "clock" ? this._renderClockMode() : this._mode === "text" ? this._renderTextMode() : this._mode === "art" ? this._renderArtMode() : this._mode === "timer" ? this._renderTimerMode() : this._renderScoreMode();
     return html`<section class="deck" aria-label="Clock controls">
       <header class="deck-heading"><div><h2>Choose a mode</h2><p>Set up what appears on your clock.</p></div></header>
-      <iledclock-segmented-picker group-label="Mode" .options=${MODE_OPTIONS} .value=${this._mode} @option-selected=${this._selectMode}></iledclock-segmented-picker>
+      <div class="mode-tabs" role="tablist" aria-label="Mode">${MODE_OPTIONS.map((option, index) => html`<button type="button" class="mode-tab ${option.value === this._mode ? "selected" : ""}" role="tab" aria-selected=${option.value === this._mode ? "true" : "false"} tabindex=${option.value === this._mode ? "0" : "-1"} data-mode-index=${index} @click=${() => this._setMode(option.value)} @keydown=${(event: KeyboardEvent) => this._onModeKeydown(event, index)}>${option.label}</button>`)}</div>
+      <label class="mode-select-label"><span class="visually-hidden">Choose a mode</span><select class="mode-select" aria-label="Choose a mode" .value=${this._mode} @change=${(event: Event) => this._setMode((event.target as HTMLSelectElement).value as Mode)}>${MODE_OPTIONS.map((option) => html`<option value=${option.value}>${option.label}</option>`)}</select></label>
       ${this._error ? html`<p class="error" role="alert">${this._error}</p>` : nothing}
       <div class="mode-panel">${modePanel}</div>
     </section>`;
@@ -438,6 +466,15 @@ export class IledclockModeDeck extends LitElement {
     .deck { display: grid; gap: var(--lu-space-3); min-width: 0; padding: var(--lu-space-4); color: var(--lu-ink); background: var(--lu-card); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); box-shadow: var(--lu-highlight-rest); }
     .deck-heading h2 { margin: 0; color: var(--lu-ink); font: 600 var(--lu-type-title)/1.25 var(--lu-font); letter-spacing: -0.01em; }
     .deck-heading p { margin: var(--lu-space-1) 0 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
+    .mode-tabs { display: flex; min-width: 0; gap: var(--lu-space-1); overflow-x: auto; padding: 2px; scrollbar-width: thin; }
+    .mode-tab { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: var(--lu-glass-raised); font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
+    .mode-tab.selected { border-color: var(--lu-accent); color: var(--lu-accent-ink); background: var(--lu-accent); }
+    .mode-tab:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .mode-select-label { display: none; }
+    .mode-select { box-sizing: border-box; width: 100%; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 500 var(--lu-type-label)/1.2 var(--lu-font); }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    :host([compact]) .mode-tabs { display: none; }
+    :host([compact]) .mode-select-label { display: block; }
     .mode-panel, .panel-content { min-width: 0; }
     .panel-content { display: grid; gap: var(--lu-space-3); }
     .control-label { display: flex; align-items: baseline; justify-content: space-between; gap: var(--lu-space-2); }

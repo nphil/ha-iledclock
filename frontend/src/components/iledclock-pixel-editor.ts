@@ -11,6 +11,7 @@ import type { MatrixPointerDetail } from "./iledclock-matrix-canvas.ts";
 import "./iledclock-matrix-canvas.ts";
 import "./iledclock-editor-toolbox.ts";
 
+import { RGB444_SWATCHES } from "./iledclock-editor-color-sheet.ts";
 type EditorTool = "pen" | "eraser" | "fill" | "line" | "rectangle" | "ellipse" | "eyedropper" | "text" | "pan" | "shift";
 interface TextStamp { text: string; color: RGB; }
 interface PointerPoint { x: number; y: number; }
@@ -47,6 +48,7 @@ export class IledclockPixelEditor extends LitElement {
     onionSkin: { attribute: false },
     wrap: { type: Boolean },
     activeColor: { attribute: false },
+    recentColors: { attribute: false },
     brushSize: { type: Number, attribute: "brush-size" },
     clockRegion: { type: Boolean, attribute: "clock-region" },
     stampText: { attribute: false },
@@ -66,6 +68,7 @@ export class IledclockPixelEditor extends LitElement {
   declare onionSkin: PixelFrame | null;
   declare wrap: boolean;
   declare activeColor: RGB;
+  declare recentColors: RGB[];
   declare brushSize: number;
   declare clockRegion: boolean;
   declare stampText: TextStamp | null;
@@ -94,6 +97,7 @@ export class IledclockPixelEditor extends LitElement {
     super();
     this.wrap = false;
     this.activeColor = [255, 255, 255];
+    this.recentColors = [];
     this.brushSize = 1;
     this.clockRegion = false;
     this.stampText = null;
@@ -156,7 +160,7 @@ export class IledclockPixelEditor extends LitElement {
     const viewport = this._viewportRef.value;
     const box = viewport?.getBoundingClientRect();
     if (!box || box.width <= 0 || box.height <= 0) return;
-    const fit = ledSizeFor("editor", box.width, box.height, { maxPitch: 22 }).pitch;
+    const fit = ledSizeFor("editor", box.width, box.width / 2, { maxPitch: 22 }).pitch;
     this._fitPitch = fit;
     if (this._pitch < 8 || !this._userZoomed) this._pitch = fit;
   };
@@ -406,9 +410,16 @@ export class IledclockPixelEditor extends LitElement {
     const worldStyle = `width: max(100%, ${stageWidth}px); height: max(100%, ${stageHeight}px);`;
     const matrixStyle = `width: ${stageWidth}px; height: ${stageHeight}px;`;
     const cursorStyle = `left: ${this._keyboardCell.x * this._pitch}px; top: ${this._keyboardCell.y * this._pitch}px; width: ${this._pitch}px; height: ${this._pitch}px;`;
+    const viewportStyle = `height: ${this._fitPitch * displayFrame.height}px;`;
     const cursorStatus = `Column ${this._keyboardCell.x + 1} of ${displayFrame.width}, row ${this._keyboardCell.y + 1} of ${displayFrame.height}. ${this._tool} tool; colour ${this.activeColor.join(", ")}.`;
+    const compactColors = [this.activeColor, ...(this.recentColors.length ? this.recentColors : RGB444_SWATCHES)].filter((color, index, colors) => colors.findIndex((candidate) => candidate.join(",") === color.join(",")) === index).slice(0, 6);
     return html`<div class="workbench ${this._tool === "pan" ? "pan-tool" : ""}">
       <iledclock-editor-toolbox .tool=${this._tool} .narrow=${this.narrow} .filled=${this._filled} .wrap=${this.wrap} .activeColor=${this.activeColor} @editor-tool-selected=${this._selectTool} @editor-mirror-requested=${this._onMirror} @editor-filled-changed=${this._onFilled} @editor-wrap-changed=${this._onWrap} @editor-color-requested=${() => this._emit("color-requested")}></iledclock-editor-toolbox>
+      <div class="mobile-colors" aria-label="Recent drawing colours">
+        <span class="mobile-colour-label">Colour</span>
+        ${compactColors.map((color, index) => html`<button type="button" class="mobile-swatch" style=${`--swatch: rgb(${color.join(",")})`} aria-label=${`Use colour ${index + 1}`} aria-pressed=${String(color.join(",") === this.activeColor.join(","))} @click=${() => this._emit("color-picked", { color })}></button>`)}
+        <button type="button" class="mobile-more-colours" aria-label="More colours" @click=${() => this._emit("color-requested")}>More</button>
+      </div>
       <section class="canvas-panel" aria-label="Pixel drawing canvas">
         <div class="canvas-controls">
           <span class="pitch-label" aria-live="polite">${this._pitch} px / LED</span>
@@ -416,7 +427,7 @@ export class IledclockPixelEditor extends LitElement {
           <button type="button" class="zoom-control" aria-label="Zoom in" ?disabled=${this._pitch >= 40} @click=${() => this._zoomBy(1)}>+</button>
           <button type="button" class="fit-control" @click=${this._fit}>Fit</button>
         </div>
-        <div class="canvas-viewport" ${ref(this._viewportRef)} @wheel=${this._onWheel} @pointerdown=${this._onViewportPointerDown} @pointermove=${this._onViewportPointerMove} @pointerup=${this._onViewportPointerUp} @pointercancel=${this._onViewportPointerUp}>
+      <div class="canvas-viewport" style=${viewportStyle} ${ref(this._viewportRef)} @wheel=${this._onWheel} @pointerdown=${this._onViewportPointerDown} @pointermove=${this._onViewportPointerMove} @pointerup=${this._onViewportPointerUp} @pointercancel=${this._onViewportPointerUp}>
           <div class="canvas-world" style=${worldStyle}>
             <div class="canvas-stage" style=${matrixStyle}>
               <iledclock-matrix-canvas class="active-canvas" .frame=${displayFrame} interactive show-grid role="application" aria-roledescription="pixel editor canvas" aria-label=${`Pixel art canvas, ${displayFrame.width} columns by ${displayFrame.height} rows. Use arrow keys to move and Space or Enter to use the ${this._tool} tool.`} aria-describedby="canvas-help canvas-cursor-status" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Space Enter" aria-disabled=${String(this.disabled)} tabindex="0" @focus=${this._onCanvasFocus} @blur=${this._onCanvasBlur} @keydown=${this._onCanvasKeydown} @matrix-pointer=${this._onMatrixPointer}></iledclock-matrix-canvas>
@@ -434,14 +445,14 @@ export class IledclockPixelEditor extends LitElement {
 
   static styles = [TOKENS_CSS, css`
     :host { display: block; min-width: 0; container-type: inline-size; }
-    .workbench { display: grid; grid-template-columns: var(--lu-target) minmax(0, 1fr); align-items: start; gap: var(--lu-space-3); min-width: 0; }
+    .workbench { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: start; gap: var(--lu-space-3); min-width: 0; }
     .canvas-panel { display: grid; min-width: 0; gap: var(--lu-space-2); }
     .canvas-controls { display: flex; align-items: center; justify-content: flex-end; gap: var(--lu-space-1); min-height: var(--lu-target); }
     .pitch-label { margin-right: auto; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); font-variant-numeric: tabular-nums; }
     .zoom-control, .fit-control { min-width: var(--lu-target); min-height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-tile); color: var(--lu-ink); font: 500 var(--lu-type-label)/1 var(--lu-font); cursor: pointer; }
     .zoom-control { font-size: var(--lu-type-title); }
     .zoom-control:disabled { opacity: .45; cursor: default; }
-    .canvas-viewport { width: 100%; height: min(calc(100dvh - 360px), 42rem); min-height: 128px; overflow: auto; overscroll-behavior: contain; touch-action: none; border-radius: var(--lu-radius-tile); background: color-mix(in srgb, var(--lu-card) 60%, transparent); scrollbar-width: thin; }
+    .canvas-viewport { width: 100%; min-height: 128px; overflow: auto; overscroll-behavior: contain; touch-action: none; border-radius: var(--lu-radius-tile); background: color-mix(in srgb, var(--lu-card) 60%, transparent); scrollbar-width: thin; }
     .canvas-world { display: grid; min-width: 100%; min-height: 100%; place-items: center; }
     .canvas-stage { position: relative; flex: none; max-width: none; max-height: none; }
     .active-canvas, .onion-layer { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
@@ -455,6 +466,15 @@ export class IledclockPixelEditor extends LitElement {
     .canvas-help { margin: 0; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.35 var(--lu-font); }
     .pan-tool .canvas-viewport { cursor: grab; }
     .pan-tool .canvas-viewport:active { cursor: grabbing; }
+    .mobile-colors { display: none; }
+    .mobile-swatch, .mobile-more-colours { flex: 0 0 44px; width: 44px; height: 44px; box-sizing: border-box; border: 0; border-radius: var(--lu-radius-control); background: transparent; cursor: pointer; }
+    .mobile-swatch { position: relative; }
+    .mobile-swatch::before { content: ""; position: absolute; inset: 6px; border: 1px solid var(--lu-edge); border-radius: 10px; background: var(--swatch); }
+    .mobile-swatch[aria-pressed="true"]::before { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .mobile-colour-label { flex: none; color: var(--lu-ink-3); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .mobile-more-colours { border: 1px solid var(--lu-edge); color: var(--lu-ink); font: 500 var(--lu-type-caption)/1 var(--lu-font); }
+    :host([narrow]) { overflow-x: clip; }
+    :host([narrow]) .mobile-colors { display: flex; order: 2; align-items: center; gap: var(--lu-space-1); min-width: 0; overflow-x: auto; padding: 0 var(--lu-space-1); }
     :host([narrow]) .workbench { display: flex; flex-direction: column; gap: var(--lu-space-2); }
     :host([narrow]) .canvas-panel { order: 0; width: 100%; }
     :host([narrow]) iledclock-editor-toolbox { order: 1; width: 100%; }

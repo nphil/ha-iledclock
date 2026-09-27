@@ -32,8 +32,9 @@ from .models import (
 
 ID = "iledclock"
 NAME = "iLedClock originals"
-HOMEPAGE = "http://www.coolledx.com/CoolLEDX/iLedClock/material"
+HOMEPAGE = "https://www.coolledx.com/CoolLEDX/iLedClock/material"
 CONFIG_URL = "http://www.coolledx.com/CoolLEDX/iLedClock/config.json"
+VENDOR_HOSTS = frozenset(("www.coolledx.com", "coolledx.com"))
 DEFAULT_SORT = "featured"
 SORTS = (SortOption(DEFAULT_SORT, "Featured"),)
 SIZES = ("32x16",)
@@ -99,6 +100,21 @@ def _category_slug(url: str, index: int) -> str:
     return slug or f"category-{index + 1}"
 
 
+def is_vendor_url(url: str) -> bool:
+    """Accept only HTTP(S) URLs on the two vendor hosts, without custom ports or userinfo."""
+    try:
+        parsed = urlparse(url)
+        return (
+            parsed.scheme.lower() in ("http", "https")
+            and parsed.hostname in VENDOR_HOSTS
+            and parsed.port in (None, 80 if parsed.scheme.lower() == "http" else 443)
+            and parsed.username is None
+            and parsed.password is None
+        )
+    except (TypeError, ValueError):
+        return False
+
+
 def parse_categories(payload: Mapping[str, Any], language: str | None = "en") -> tuple[Category, ...]:
     raw_categories = payload.get("category")
     if not isinstance(raw_categories, list):
@@ -110,7 +126,7 @@ def parse_categories(payload: Mapping[str, Any], language: str | None = "en") ->
         if not isinstance(raw, Mapping):
             continue
         url = raw.get("url")
-        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+        if not isinstance(url, str) or not is_vendor_url(url):
             continue
         category_id = _category_slug(url, index)
         if category_id in seen:
@@ -140,11 +156,15 @@ def source_info(*, categories: Sequence[Category] = (), configured: bool = True)
 
 
 async def _get_json(session: Any, url: str, timeout_s: float) -> Any:
+    if not is_vendor_url(url):
+        raise SourceRequestError("CoolLEDX URL is not an approved vendor URL")
     try:
-        async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout_s)) as response:
+        async with session.get(
+            url, timeout=aiohttp.ClientTimeout(total=timeout_s), allow_redirects=False
+        ) as response:
             if response.status == 404:
                 raise SourceNotFound(f"CoolLEDX resource not found: {url}")
-            if response.status >= 400:
+            if response.status >= 300:
                 raise SourceRequestError(f"CoolLEDX returned HTTP {response.status}")
             try:
                 return await response.json(content_type=None)
@@ -157,11 +177,15 @@ async def _get_json(session: Any, url: str, timeout_s: float) -> Any:
 
 
 async def _get_bytes(session: Any, url: str, timeout_s: float) -> bytes:
+    if not is_vendor_url(url):
+        raise SourceRequestError("CoolLEDX URL is not an approved vendor URL")
     try:
-        async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout_s)) as response:
+        async with session.get(
+            url, timeout=aiohttp.ClientTimeout(total=timeout_s), allow_redirects=False
+        ) as response:
             if response.status == 404:
                 raise SourceNotFound(f"CoolLEDX media not found: {url}")
-            if response.status >= 400:
+            if response.status >= 300:
                 raise SourceRequestError(f"CoolLEDX returned HTTP {response.status} for media")
             return await response.read()
     except (asyncio.TimeoutError, aiohttp.ServerTimeoutError) as err:
@@ -180,7 +204,7 @@ async def fetch_categories(
 ) -> tuple[Category, ...]:
     config = await _get_json(session, CONFIG_URL, timeout_s)
     material_url = config.get("material_url") if isinstance(config, Mapping) else None
-    if not isinstance(material_url, str) or not material_url.startswith(("http://", "https://")):
+    if not isinstance(material_url, str) or not is_vendor_url(material_url):
         raise SourceRequestError("CoolLEDX device config has no material_url")
     category_url = f"{material_url.rstrip('/')}/fc/{rows}x{cols}/category.json"
     payload = await _get_json(session, category_url, timeout_s)
@@ -212,11 +236,11 @@ def build_catalog(
             continue
         base_url = manifest.get("baseUrl")
         files = manifest.get("list")
-        if not isinstance(base_url, str) or not base_url.startswith(("http://", "https://")):
+        if not isinstance(base_url, str) or not is_vendor_url(base_url):
             continue
         if not isinstance(files, list):
             continue
-        for index, raw_filename in enumerate(files):
+        for raw_filename in files:
             filename = _filename(raw_filename)
             if filename is None:
                 continue
@@ -226,7 +250,7 @@ def build_catalog(
                 GalleryItem(
                     source=ID,
                     id=item_id,
-                    title=f"{category.label} {index + 1}",
+                    title="",
                     width=cols,
                     height=rows,
                     # The feed contains GIFs. The HA search layer replaces this hint with

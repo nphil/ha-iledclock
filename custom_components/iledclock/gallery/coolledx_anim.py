@@ -13,6 +13,7 @@ from typing import Any, Mapping
 import aiohttp
 from PIL import Image
 
+from .coolledx import is_vendor_url
 from .models import (
     CategoryInfo,
     GalleryItem,
@@ -28,7 +29,7 @@ from .models import (
 
 ID = "iledclock_anim"
 NAME = "Animations"
-BASE_URL = "http://coolledx.com/appDownload/CoolLED1248/animation_update_data/1632"
+BASE_URL = "https://coolledx.com/appDownload/CoolLED1248/animation_update_data/1632"
 HOMEPAGE = BASE_URL
 KINDS = ("static", "dynamic")
 CATEGORIES = (CategoryInfo("static", "Static"), CategoryInfo("dynamic", "Dynamic"))
@@ -80,11 +81,15 @@ def source_info(*, configured: bool = True) -> SourceInfo:
 
 async def _get_json(session: Any, kind: str, timeout_s: float) -> Any:
     url = f"{BASE_URL}/data1632_{kind}.json"
+    if not is_vendor_url(url):
+        raise SourceRequestError("iLedClock animation URL is not an approved vendor URL")
     try:
-        async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout_s)) as response:
+        async with session.get(
+            url, timeout=aiohttp.ClientTimeout(total=timeout_s), allow_redirects=False
+        ) as response:
             if response.status == 404:
                 raise SourceNotFound(f"iLedClock {kind} animation feed not found")
-            if response.status >= 400:
+            if response.status >= 300:
                 raise SourceRequestError(f"iLedClock animation feed returned HTTP {response.status}")
             try:
                 return await response.json(content_type=None)

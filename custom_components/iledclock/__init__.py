@@ -101,6 +101,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: IledClockConfigEntry) ->
         now_showing=coordinator.show_store.now_showing,
         show_history=tuple(dict(item) for item in coordinator.show_store.history),
     )
+    await coordinator.async_seed_showing_from_playlist()
 
     await coordinator.async_config_entry_first_refresh()
 

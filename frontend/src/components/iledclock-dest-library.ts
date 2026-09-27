@@ -3,6 +3,7 @@ import type { HomeAssistant, PlaylistItem, StoredDesign, ClockStateEnvelope } fr
 import type { StudioRoute } from "../lib/route.ts";
 import { designsDeleteRequest, designsListRequest, designsSaveRequest, normalizePlaylist, playlistGetRequest, playlistSetRequest } from "../lib/ws-api.ts";
 import { appendDesignsToRotation, cloneRotation, rotationIsDirty } from "../lib/library-state.ts";
+import { GalleryImportCache } from "../lib/gallery-import-cache.ts";
 import { showWithUndo } from "../lib/show-with-undo.ts";
 import { SURFACES_CSS, TOKENS_CSS } from "../styles/tokens.ts";
 import type { LuToastRequest } from "./lu-toast.ts";
@@ -50,6 +51,8 @@ export class IledclockDestLibrary extends LitElement {
 
   private _designRequestId = 0;
   private _playlistRequestId = 0;
+  private _loadedEntryId: string | undefined;
+  private _loadedConnection: HomeAssistant["connection"] | undefined;
 
   constructor() {
     super();
@@ -68,8 +71,18 @@ export class IledclockDestLibrary extends LitElement {
   }
 
   protected willUpdate(changed: PropertyValues): void {
+    const entryChanged = this.entryId !== this._loadedEntryId;
+    const connection = this.hass?.connection;
+    const connectionChanged = connection !== this._loadedConnection;
     if (changed.has("entryId")) this._maxItems = 9;
-    if (!changed.has("entryId") && !changed.has("hass")) return;
+    if (!entryChanged && !connectionChanged) return;
+
+    this._loadedEntryId = this.entryId;
+    this._loadedConnection = connection;
+    if (entryChanged) {
+      this._playlist = [];
+      this._savedPlaylist = [];
+    }
     if (this.entryId) {
       void this._loadAll(this.entryId);
       return;
@@ -103,6 +116,7 @@ export class IledclockDestLibrary extends LitElement {
   }
 
   private async _loadPlaylist(entryId: string): Promise<void> {
+    if (entryId === this.entryId && rotationIsDirty(this._playlist, this._savedPlaylist)) return;
     const requestId = ++this._playlistRequestId;
     this._playlistLoading = true;
     this._playlistError = null;
@@ -111,6 +125,7 @@ export class IledclockDestLibrary extends LitElement {
       const result = await this.hass.callWS<{ playlist: PlaylistItem[] }>(playlistGetRequest(entryId));
       if (requestId !== this._playlistRequestId || entryId !== this.entryId) return;
       if (!result || !Array.isArray(result.playlist)) throw new Error("The rotation list returned an unexpected response.");
+      if (rotationIsDirty(this._playlist, this._savedPlaylist)) return;
       this._playlist = cloneRotation(result.playlist);
       this._savedPlaylist = cloneRotation(result.playlist);
     } catch (error) {
@@ -189,6 +204,7 @@ export class IledclockDestLibrary extends LitElement {
     this._busy = true;
     try {
       await this.hass.callWS(designsDeleteRequest(id));
+      GalleryImportCache.clearAll();
       if (this.entryId) await this._loadDesigns(this.entryId);
       this._toast({ message: "Design deleted", timeoutMs: 2500 });
     } catch (error) {
@@ -206,6 +222,7 @@ export class IledclockDestLibrary extends LitElement {
     try {
       const results = await Promise.allSettled(event.detail.ids.map(async (id) => this.hass.callWS!(designsDeleteRequest(id))));
       const removed = results.filter((result) => result.status === "fulfilled").length;
+      if (removed > 0) GalleryImportCache.clearAll();
       if (this.entryId) await this._loadDesigns(this.entryId);
       const failed = results.length - removed;
       this._toast({ message: failed ? `Deleted ${removed}; ${failed} couldn't be deleted.` : `${removed} designs deleted`, timeoutMs: failed ? 7000 : 3000 });

@@ -1,13 +1,12 @@
 import { LitElement, css, html, type PropertyValues } from "lit";
-import type { HomeAssistant, RenderResult } from "../types.ts";
+import type { HomeAssistant } from "../types.ts";
 import type { PixelFrame } from "../lib/grid.ts";
-import { buildClockRenderSpec, renderRequest } from "../lib/ws-api.ts";
-import { CLOCK_FACE_COUNT, clockFaceLabel } from "../lib/clock-faces.ts";
+import { clockFaceLabel, clockFacePreviewFrames } from "../lib/clock-faces.ts";
 import { GRID_HEIGHT, GRID_WIDTH, createFrame } from "../lib/grid.ts";
 import { TOKENS_CSS } from "../styles/tokens.ts";
 import "./iledclock-led-preview.ts";
 
-/** A clock face thumbnail requests its preview only after it enters the horizontal picker viewport. */
+/** A clock face thumbnail is rendered from the firmware geometry only when it enters the picker. */
 export class IledclockClockFaceThumb extends LitElement {
   static properties = {
     hass: { attribute: false },
@@ -17,7 +16,6 @@ export class IledclockClockFaceThumb extends LitElement {
     hours24: { type: Boolean, attribute: "hours24" },
     selected: { type: Boolean, reflect: true },
     _frames: { state: true },
-    _loading: { state: true },
   };
 
   declare hass: HomeAssistant;
@@ -27,14 +25,10 @@ export class IledclockClockFaceThumb extends LitElement {
   declare hours24: boolean;
   declare selected: boolean;
   declare _frames: PixelFrame[];
-  declare _loading: boolean;
 
   private _observer: IntersectionObserver | null = null;
   private _visible = typeof IntersectionObserver === "undefined";
   private _loadedKey = "";
-  private _revision = 0;
-  private _inFlight = false;
-  private _loadQueued = false;
 
   constructor() {
     super();
@@ -43,7 +37,6 @@ export class IledclockClockFaceThumb extends LitElement {
     this.hours24 = true;
     this.selected = false;
     this._frames = [createFrame(GRID_WIDTH, GRID_HEIGHT)];
-    this._loading = false;
   }
 
   connectedCallback(): void {
@@ -51,60 +44,29 @@ export class IledclockClockFaceThumb extends LitElement {
     if (typeof IntersectionObserver !== "undefined") {
       this._observer = new IntersectionObserver((entries) => {
         this._visible = entries[0]?.isIntersecting ?? false;
-        if (this._visible) void this._loadPreview();
+        if (this._visible) this._loadPreview();
       }, { rootMargin: "48px" });
+      this._observer.observe(this);
+    } else {
+      this._loadPreview();
     }
   }
 
-  protected firstUpdated(): void {
-    this._observer?.observe(this);
-    if (this._visible) void this._loadPreview();
-  }
-
   protected updated(changed: PropertyValues): void {
-    if ((changed.has("entryId") || changed.has("faceStyle") || changed.has("color") || changed.has("hours24")) && this._visible) void this._loadPreview();
+    if ((changed.has("entryId") || changed.has("faceStyle") || changed.has("color") || changed.has("hours24")) && this._visible) this._loadPreview();
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    this._revision++;
     this._observer?.disconnect();
     this._observer = null;
   }
 
-  private async _loadPreview(): Promise<void> {
-    if (!this.entryId || !this.hass?.callWS) return;
-    const key = [this.entryId, this.faceStyle, this.color.join(","), this.hours24 ? "24" : "12"].join("|");
+  private _loadPreview(): void {
+    const key = [this.entryId ?? "", this.faceStyle, this.color.join(","), this.hours24 ? "24" : "12"].join("|");
     if (key === this._loadedKey) return;
-    if (this._inFlight) {
-      this._loadQueued = true;
-      return;
-    }
-    const revision = ++this._revision;
-    this._inFlight = true;
-    this._loading = true;
-    try {
-      const result = await this.hass.callWS<RenderResult>(renderRequest(this.entryId, buildClockRenderSpec(this.faceStyle, this.color, this.hours24, CLOCK_FACE_COUNT)));
-      if (revision !== this._revision) return;
-      this._frames = result.frames.map((encoded, index) => {
-        const binary = atob(encoded);
-        const pixels = new Uint8Array(GRID_WIDTH * GRID_HEIGHT * 3);
-        for (let i = 0; i < Math.min(binary.length, pixels.length); i++) pixels[i] = binary.charCodeAt(i);
-        return { width: GRID_WIDTH, height: GRID_HEIGHT, pixels, durationMs: result.delays[index] ?? 100 };
-      });
-      if (!this._frames.length) this._frames = [createFrame(GRID_WIDTH, GRID_HEIGHT)];
-      this._loadedKey = key;
-    } catch {
-      // Keep the last thumbnail; a face choice must remain usable if preview rendering is unavailable.
-      this._loadedKey = "";
-    } finally {
-      this._inFlight = false;
-      if (revision === this._revision) this._loading = false;
-      if (this._loadQueued) {
-        this._loadQueued = false;
-        void this._loadPreview();
-      }
-    }
+    this._frames = clockFacePreviewFrames(this.faceStyle, this.color, this.hours24);
+    this._loadedKey = key;
   }
 
   private _select(): void {
@@ -115,7 +77,6 @@ export class IledclockClockFaceThumb extends LitElement {
     return html`<button type="button" class="face" aria-label=${clockFaceLabel(this.faceStyle)} aria-pressed=${this.selected ? "true" : "false"} ?disabled=${!this.entryId} @click=${this._select}>
       <iledclock-led-preview context="thumb" .frames=${this._frames} .playing=${false} label=${clockFaceLabel(this.faceStyle)}></iledclock-led-preview>
       <span>${clockFaceLabel(this.faceStyle)}</span>
-      ${this._loading ? html`<span class="loading" role="status">Loading preview</span>` : ""}
     </button>`;
   }
 
@@ -125,7 +86,6 @@ export class IledclockClockFaceThumb extends LitElement {
     :host([selected]) .face { border-color: var(--lu-accent); color: var(--lu-ink); background: var(--lu-glass-raised); box-shadow: var(--lu-highlight-raised); }
     .face:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
     .face span { text-align: center; }
-    .loading { color: var(--lu-ink-3); font-size: var(--lu-type-caption); }
     iledclock-led-preview { width: 100%; }
   `];
 }
