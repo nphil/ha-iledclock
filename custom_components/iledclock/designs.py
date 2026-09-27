@@ -83,6 +83,9 @@ class Design:
     updated: float
     tags: tuple[str, ...] = field(default_factory=tuple)
     origin: DesignOrigin | None = None
+    #: (x, y, w, h) reserved for the firmware's own live clock (the gallery's "Icon with clock"
+    #: layout). None for ordinary full-screen art.
+    clock_region: tuple[int, int, int, int] | None = None
 
     def to_storage(self) -> dict[str, Any]:
         """JSON-safe dict for `homeassistant.helpers.storage.Store`."""
@@ -98,6 +101,7 @@ class Design:
             "updated": self.updated,
             "tags": list(self.tags),
             "origin": self.origin.to_dict() if self.origin is not None else None,
+            "clock_region": list(self.clock_region) if self.clock_region else None,
         }
 
     def to_json(self) -> dict[str, Any]:
@@ -115,6 +119,7 @@ class Design:
             "updated": self.updated,
             "tags": list(self.tags),
             "origin": self.origin.to_dict() if self.origin is not None else None,
+            "clock_region": _region_json(self.clock_region),
         }
 
     @classmethod
@@ -131,7 +136,33 @@ class Design:
             updated=data.get("updated", 0.0),
             tags=tuple(data.get("tags", ())),
             origin=DesignOrigin.from_dict(data["origin"]) if data.get("origin") else None,
+            clock_region=tuple(data["clock_region"]) if data.get("clock_region") else None,
         )
+
+
+def _region_json(region: tuple[int, int, int, int] | None) -> dict[str, int] | None:
+    if not region:
+        return None
+    x, y, w, h = region
+    return {"x": x, "y": y, "w": w, "h": h}
+
+
+def _validate_clock_region(raw: Any) -> tuple[int, int, int, int] | None:
+    """`{x, y, w, h}` (or [x, y, w, h]) inside the display, at least 16x7 so HH:MM fits."""
+    if raw is None:
+        return None
+    if isinstance(raw, Mapping):
+        values = [raw.get(k) for k in ("x", "y", "w", "h")]
+    elif isinstance(raw, (list, tuple)) and len(raw) == 4:
+        values = list(raw)
+    else:
+        raise DesignValidationError("clock_region must be {x, y, w, h}", "clock_region")
+    if not all(isinstance(v, int) and not isinstance(v, bool) for v in values):
+        raise DesignValidationError("clock_region values must be integers", "clock_region")
+    x, y, w, h = values
+    if x < 0 or y < 0 or w < 16 or h < 7 or x + w > DISPLAY_WIDTH or y + h > DISPLAY_HEIGHT:
+        raise DesignValidationError("clock_region must lie inside the display and fit HH:MM (16x7)", "clock_region")
+    return (x, y, w, h)
 
 
 def _decode_frame(raw: Any, index: int) -> bytes:
@@ -249,4 +280,5 @@ def validate_design_payload(raw: Any, *, existing_id: str | None = None) -> Desi
         updated=now,
         tags=tuple(tags_raw),
         origin=origin,
+        clock_region=_validate_clock_region(raw.get("clock_region")),
     )

@@ -289,21 +289,55 @@ def design_to_frames(design: Design) -> list[Frame]:
     ]
 
 
-def _design_content(params: Mapping[str, Any], designs: Mapping[str, Design]) -> Content:
+def _crop_columns(frame: Frame, width: int) -> Frame:
+    return replace(frame, pixels=[row[:width] for row in frame.pixels], width=width)
+
+
+def _clock_in_region(region: tuple[int, int, int, int], params: Mapping[str, Any]) -> ClockContent:
+    """A live HH:MM firmware clock confined to `region` (x, y, w, h), centred in it."""
+    x, y, w, h = region
+    color = _resolve_color(params.get("clock_color"))
+    left = x + max(0, (w - 16) // 2)
+    row = y + max(0, (h - _DIGIT_H) // 2)
+    hour = Segment(color=color, start_column=left, start_row=row, width=_DIGIT_W, height=_DIGIT_H)
+    left += _DIGIT_W + _GAP
+    space_hour = Segment(color=color, start_column=left, start_row=row, width=_COLON_W, height=_DIGIT_H)
+    left += _COLON_W + _GAP
+    minute = Segment(color=color, start_column=left, start_row=row, width=_DIGIT_W, height=_DIGIT_H)
+    return ClockContent(
+        style_index=int(params.get("clock_style", 1)),
+        is_24_hour=bool(params.get("hours24", True)),
+        hour=hour,
+        space_hour=space_hour,
+        minute=minute,
+    )
+
+
+def _design_content(params: Mapping[str, Any], designs: Mapping[str, Design]) -> Content | list[Content]:
     design_id = _require(params, "design_id")
     design = designs.get(design_id)
     if design is None:
         raise ProgramBuildError(f"no saved design with id {design_id!r}")
     frames = design_to_frames(design)
+    width = design.width
+    if design.clock_region is not None:
+        # "Icon with clock": the art only occupies the columns left of the clock, so the two
+        # layers never overlap (overlap/transparency semantics are unconfirmed on this firmware).
+        width = design.clock_region[0]
+        frames = [_crop_columns(f, width) for f in frames]
     if design.kind == "image":
-        return GraffitiContent(
-            start_column=0, start_row=0, show_width=design.width, show_height=design.height,
+        art: Content = GraffitiContent(
+            start_column=0, start_row=0, show_width=width, show_height=design.height,
             pixels=frames[0],
         )
-    return AnimationContent(
-        start_column=0, start_row=0, show_width=design.width, show_height=design.height,
-        frames=frames,
-    )
+    else:
+        art = AnimationContent(
+            start_column=0, start_row=0, show_width=width, show_height=design.height,
+            frames=frames,
+        )
+    if design.clock_region is None:
+        return art
+    return [art, _clock_in_region(design.clock_region, params)]
 
 
 def frames_to_content(frames: Sequence[Frame], *, still: bool) -> Content:
@@ -334,12 +368,15 @@ _BUILDERS = {
 }
 
 
-def build_content(item: PlaylistItem, *, designs: Mapping[str, Design]) -> Content:
+def build_contents(item: PlaylistItem, *, designs: Mapping[str, Design]) -> list[Content]:
+    """Every content layer one playlist item uploads as (usually one; an "Icon with clock"
+    design is two: its art and a live firmware clock beside it)."""
     try:
         builder = _BUILDERS[item.kind]
     except KeyError as err:
         raise ProgramBuildError(f"unsupported playlist kind: {item.kind!r}") from err
-    return builder(item.params, designs)
+    built = builder(item.params, designs)
+    return list(built) if isinstance(built, list) else [built]
 
 
 def build_programs(
@@ -351,14 +388,18 @@ def build_programs(
     just "how many seconds", the `_count` in its name notwithstanding. `is_clock_in_list` is set
     on every program when any item in the whole playlist is a clock, matching the vendor's own
     per-list (not per-program) flag."""
-    has_clock = any(item.kind == "clock" for item in items)
+    built = [build_contents(item, designs=designs) for item in items]
+    has_clock = any(isinstance(c, ClockContent) for contents in built for c in contents)
     return [
         Program(
-            contents=[build_content(item, designs=designs)],
+            contents=contents,
             show_count=item.duration_s,
             is_clock_in_list=has_clock,
+            # Art + live clock is a clock program, exactly like the vendor's animated clock faces
+            # (ILedClockClockTimeActivity: [animation, clock], programType 7).
+            program_type=7 if len(contents) > 1 and isinstance(contents[-1], ClockContent) else None,
         )
-        for item in items
+        for item, contents in zip(items, built)
     ]
 
 

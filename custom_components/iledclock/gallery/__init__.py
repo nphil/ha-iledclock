@@ -267,6 +267,9 @@ async def _async_save_adapted(
         raw["delays"] = list(adapted.delays_ms)
     if origin is not None:
         raw["origin"] = origin
+    if adapted.report.get("native_region"):
+        # "Icon with clock": keep the reserved area so the upload adds the live firmware clock.
+        raw["clock_region"] = adapted.report["native_region"]
     library = async_get_design_library(hass)
     await library.async_load()
     try:
