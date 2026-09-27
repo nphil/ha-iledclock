@@ -575,11 +575,11 @@ class HardwareProfile:
     package_size_max: int = PACKAGE_SIZE_MAX
 
     # --- Brightness --- [VENDOR ILedClockSettingsFragment.java + ILedClockUtils.java:4749-4754]
-    #: Wire byte range accepted by `getSetBrightness` (opcode 0x04); the UI seekbar displays
-    #: this exact range (its own internal widget position is offset by -5, purely a widget
-    #: detail -- the byte actually sent equals the displayed number, 5-100).
+    #: Brightness byte range (opcode 0x04). The vendor UI seekbar only offers 5-100, but the
+    #: firmware keeps getting brighter to 255: [DEVICE] compared by eye on the live clock
+    #: 2026-09-26, 100 < 163 < 255 (the unit had been left at 163, which is how this surfaced).
     brightness_wire_min: int = 5
-    brightness_wire_max: int = 100
+    brightness_wire_max: int = 255
     #: [DEVICE] our unit's 0x1f reply reported brightness byte = 0xa3 = 163, OUTSIDE the
     #: 5-100 SET range above -- an unresolved, evidence-flagged inconsistency (the byte is
     #: assigned unconditionally by `ILedClockManager.brightNess = list[2]`

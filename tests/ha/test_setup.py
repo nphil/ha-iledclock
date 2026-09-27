@@ -62,8 +62,9 @@ async def test_setup_reads_device_info_into_coordinator(hass, config_entry, cloc
 
 
 async def test_setup_light_reflects_device_state(hass, config_entry, clock: FakeClockDevice) -> None:
-    """`light.<title>_display`: on, with the live brightness (163, clamped to the app's own
-    5-100 range then mapped onto HA's 1-255 scale -- 100 app units -> 255)."""
+    """`light.<title>_display`: on, with the live brightness 163 on the device's full 5-255 range
+    mapped onto HA's 1-255 scale. Regression: it used to be clamped to the vendor slider's 100,
+    so HA showed "full" while the clock could still go much brighter."""
     registry = er.async_get(hass)
     entries = er.async_entries_for_config_entry(registry, config_entry.entry_id)
     light_entity_id = next(e.entity_id for e in entries if e.unique_id == f"{clock.address}_display")
@@ -71,7 +72,7 @@ async def test_setup_light_reflects_device_state(hass, config_entry, clock: Fake
     state = hass.states.get(light_entity_id)
     assert state is not None
     assert state.state == STATE_ON
-    assert state.attributes["brightness"] == 255
+    assert state.attributes["brightness"] == 162
 
 
 async def test_setup_no_temperature_humidity_entities(hass, config_entry, clock: FakeClockDevice) -> None:

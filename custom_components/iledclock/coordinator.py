@@ -49,7 +49,13 @@ from .const import (
 from .designs import Design
 from .options import normalize_options, validate_password
 from .playlist import PlaylistItem
-from .program_builder import ProgramBuildError, build_programs, design_to_frames, frames_to_content
+from .program_builder import (
+    ProgramBuildError,
+    build_programs,
+    design_to_frames,
+    frames_to_content,
+    power_limit_programs,
+)
 from .protocol import commands
 from .protocol import render as protocol_render
 from .protocol.models import AlarmItem, Frame, NightMode, TimerSwitchItem
@@ -469,6 +475,7 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             self._restore_unsub = None
 
     async def _async_upload_programs(self, programs: list[Program]) -> None:
+        programs = power_limit_programs(programs, self.data.brightness)
         entry_id = self.entry.entry_id
         total = len(programs)
 

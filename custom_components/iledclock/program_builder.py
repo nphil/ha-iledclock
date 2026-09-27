@@ -21,10 +21,12 @@ features, so no dedicated user-facing control was added for it.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any, Mapping, Sequence
 
 from .const import CLOCK_COLOR_RGB, DISPLAY_HEIGHT, DISPLAY_WIDTH
 from .designs import Design
+from .hardware import power_limited_frame
 from .playlist import PlaylistItem
 from .protocol.models import Frame, Segment
 from .protocol.programs import (
@@ -363,3 +365,36 @@ def build_programs(
 def build_single_program(content: Content, *, duration_s: int, is_clock: bool = False) -> Program:
     """For `show_*` (a one-item playlist override, Contract D's `iledclock/show`)."""
     return Program(contents=[content], show_count=duration_s, is_clock_in_list=is_clock)
+
+
+def _power_limit_frame(frame: Frame, brightness: int) -> Frame:
+    flat = [px for row in frame.pixels for px in row]
+    limited = power_limited_frame(flat, brightness)
+    if limited == flat:
+        return frame
+    w = len(frame.pixels[0]) if frame.pixels else 0
+    return replace(frame, pixels=[limited[i * w:(i + 1) * w] for i in range(len(frame.pixels))])
+
+
+def power_limit_programs(programs: Sequence[Program], brightness: int | None) -> list[Program]:
+    """Apply the vendor's own LED current budget (`adjustPowerGraffiti`/`adjustPowerAnimation`,
+    `hardware.power_limited_frame`) to every pixel frame about to be uploaded.
+
+    The vendor app never calls it because its slider stops at 100, but the firmware accepts
+    brightness up to 255 and is much brighter there (confirmed on the live clock 2026-09-26).
+    The rule only engages above brightness 96 and only for frames whose average pixel is near
+    white, so normal art is untouched while a full-white frame at high brightness is scaled back
+    to the vendor's budget. Applied at upload time with the brightness in effect then."""
+    if brightness is None:
+        return list(programs)
+    out: list[Program] = []
+    for program in programs:
+        contents = []
+        for content in program.contents:
+            if isinstance(content, GraffitiContent):
+                content = replace(content, pixels=_power_limit_frame(content.pixels, brightness))
+            elif isinstance(content, AnimationContent):
+                content = replace(content, frames=[_power_limit_frame(f, brightness) for f in content.frames])
+            contents.append(content)
+        out.append(replace(program, contents=contents))
+    return out

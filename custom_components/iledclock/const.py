@@ -67,10 +67,11 @@ PASSWORD_LENGTH = 6
 WIRE_BYTE_MAX = 255
 
 # --- Device/display controls --------------------------------------------------------------
-#: docs/FEATURES-app.md #16: brightness seekbar range in the app is 5-100. HA's own brightness
-#: scale is 1-255; `brightness_to_ha`/`brightness_to_app` below convert between the two.
+#: Device brightness range. The vendor app's slider only offers 5-100, but the firmware takes the
+#: whole byte and keeps getting brighter to 255 (compared by eye on the live clock 2026-09-26:
+#: 100 < 163 < 255; the unit had been left at 163). HA's own 1-255 scale maps onto 5-255.
 BRIGHTNESS_APP_MIN = 5
-BRIGHTNESS_APP_MAX = 100
+BRIGHTNESS_APP_MAX = 255
 
 
 def brightness_to_ha(app_value: int) -> int:

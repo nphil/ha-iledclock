@@ -428,9 +428,10 @@ class HardwareProfileTests(unittest.TestCase):
         # [DEVICE] tests/live_replies_2026-09-25.json device_info -> byte[8] = 0x09.
         self.assertEqual(hardware.ILEDCLOCK_32x16.max_programs, 9)
 
-    def test_brightness_range_is_five_to_hundred(self) -> None:
+    def test_brightness_range_reaches_the_full_byte(self) -> None:
+        # [DEVICE] 255 is visibly brighter than 163, which is brighter than 100.
         self.assertEqual(hardware.ILEDCLOCK_32x16.brightness_wire_min, 5)
-        self.assertEqual(hardware.ILEDCLOCK_32x16.brightness_wire_max, 100)
+        self.assertEqual(hardware.ILEDCLOCK_32x16.brightness_wire_max, 255)
 
     def test_rotate_modes_has_all_four_documented_values(self) -> None:
         self.assertEqual(set(hardware.ILEDCLOCK_32x16.rotate_modes.keys()), {0, 1, 2, 3})
