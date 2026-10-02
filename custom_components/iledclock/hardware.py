@@ -1038,7 +1038,7 @@ LAYER_MODEL = LayerModel()
 #: (the clock-page store, start-frame kind byte 04) as a standalone type-7 program? The kind byte is
 #: the best guess for which store an upload lands in, and the vendor only ever writes clock, date and
 #: temperature pages there. False: screen B takes clock-type pages only and Pixel Studio says so.
-SLOT_B_ACCEPTS_ART: bool = False
+SLOT_B_ACCEPTS_ART: bool = True
 
 #: Art with a firmware clock beside it ("Icon with clock") has exactly the vendor Clock tab's page
 #: shape (an animation layer plus a clock layer, program type 7, `04 01 <10>` trailer), so screen B
@@ -1059,7 +1059,7 @@ REMINDER_CAPACITY: int = 14
 #: [LIVE TEST T7: weekday mask] May one reminder carry several weekdays (repeat type 1 with a partial
 #: week mask, e.g. Mon-Fri = 0x1F)? The vendor never sends one. False: a Mon-Fri item uses five clock
 #: slots (one weekly reminder per day); True: it uses one.
-REMINDER_WEEK_MASK_SUPPORTED: bool = False
+REMINDER_WEEK_MASK_SUPPORTED: bool = True
 
 #: [LIVE TEST T3: playlist safety] Does uploading a reminder (start frame index 0 / count 1, kind
 #: trailer `05 <id>`) leave screen A's program list and screen B untouched? The firmware most likely
