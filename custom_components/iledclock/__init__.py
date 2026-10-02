@@ -15,11 +15,12 @@ from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import CONF_ADDRESS, Platform
 from homeassistant.core import HassJob, HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 
-from . import services
+from . import services, shutdown
 from .const import (
     DOMAIN,
     FRONTEND_JS_FILENAME,
@@ -54,6 +55,10 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    # Registered first, before any await: Home Assistant reads its shutdown-job list once when the
+    # stage starts, and an entry set up or reloaded during the stage registers its own job too late.
+    # This domain job is never removed with an entry, so the latch always gets set.
+    hass.async_add_shutdown_job(HassJob(_async_latch_for_shutdown, "iledclock shutdown latch"), hass)
     services.async_setup_services(hass)
     async_setup_websocket_api(hass)
     await _async_register_frontend(hass)
@@ -88,7 +93,28 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     )
 
 
+async def _async_latch_for_shutdown(hass: HomeAssistant) -> None:
+    """Domain-wide latch: from now on nothing in this integration opens a Bluetooth link."""
+    shutdown.begin(hass)
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        coordinator = getattr(entry, "runtime_data", None)
+        if isinstance(coordinator, IledClockCoordinator):
+            coordinator.async_quiet_for_shutdown()
+
+
+async def _async_refuse_while_shutting_down(
+    hass: HomeAssistant, coordinator: IledClockCoordinator | None
+) -> None:
+    """Entry setup/reload during Home Assistant's shutdown: undo what was started, retry never."""
+    if not shutdown.in_progress(hass):
+        return
+    if coordinator is not None:
+        await coordinator.async_unload()
+    raise ConfigEntryNotReady("Home Assistant is shutting down")
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: IledClockConfigEntry) -> bool:
+    await _async_refuse_while_shutting_down(hass, None)
     address = entry.data[CONF_ADDRESS]
     coordinator = IledClockCoordinator(hass, entry, address)
     coordinator.async_setup()
@@ -107,13 +133,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: IledClockConfigEntry) ->
     await coordinator.show_store.async_load()
     await coordinator.slot_store.async_load()
     await coordinator.reminders.async_load()
+    await _async_refuse_while_shutting_down(hass, coordinator)
     coordinator.data = coordinator.data.merge(
         now_showing=coordinator.show_store.now_showing,
         show_history=tuple(dict(item) for item in coordinator.show_store.history),
     )
     await coordinator.async_seed_showing_from_playlist()
+    await _async_refuse_while_shutting_down(hass, coordinator)
 
     await coordinator.async_config_entry_first_refresh()
+    await _async_refuse_while_shutting_down(hass, coordinator)
 
     entry.runtime_data = coordinator
 

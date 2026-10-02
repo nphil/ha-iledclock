@@ -28,14 +28,15 @@ from functools import partial
 from typing import Any, Mapping
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import aiohttp_client
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .client import IledClockClient, IledClockError
+from . import shutdown
+from .client import IledClockClient, IledClockError, IledClockShuttingDownError
 from .const import (
     CONF_IDLE_TIMEOUT,
     CONF_PASSWORD,
@@ -348,11 +349,16 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             )
 
     async def async_unload(self) -> None:
+        self.async_quiet_for_shutdown()
+        await self.client.async_release()
+
+    @callback
+    def async_quiet_for_shutdown(self) -> None:
+        """Stop what could act on the link later: the daily time sync and any timed-show restore."""
         if self._unsub_daily_sync is not None:
             self._unsub_daily_sync()
             self._unsub_daily_sync = None
         self._cancel_pending_restore()
-        await self.client.async_release()
 
     async def async_release_at_shutdown(self) -> None:
         """Home Assistant shutdown job (Stage 1, before `bluetooth` and the ESPHome proxies go away).
@@ -360,9 +366,8 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         Latches the client so nothing reconnects, then releases the GATT link so the proxy
         is not left holding a ghost link. Bounded to 8 s, never raises, and deliberately does
         NOT unload the entry (that would write a wave of `unavailable` states)."""
-        if self._unsub_daily_sync is not None:
-            self._unsub_daily_sync()
-            self._unsub_daily_sync = None
+        shutdown.begin(self.hass)
+        self.async_quiet_for_shutdown()
         started = time.monotonic()
         try:
             async with asyncio.timeout(SHUTDOWN_RELEASE_TIMEOUT_S):
@@ -396,6 +401,9 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         base = self.data
         try:
             await self.client.async_connect()
+        except IledClockShuttingDownError:
+            # Not a fault of the clock: no failure counted, nothing marked unavailable.
+            return base
         except IledClockError as err:
             failures = base.consecutive_failures + 1
             if failures >= CONSECUTIVE_FAILURES_FOR_UNAVAILABLE:

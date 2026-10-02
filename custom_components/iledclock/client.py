@@ -34,6 +34,7 @@ from .const import (
     UPLOAD_PACKAGE_SIZE,
     WRITE_CHUNK_SPACING_S,
 )
+from . import shutdown
 from .protocol import commands, framing, responses
 from .protocol.framing import FrameAssembler
 from .protocol.programs import Program, UploadPlan, plan_upload
@@ -52,6 +53,10 @@ class IledClockError(Exception):
 
 class IledClockConnectionError(IledClockError):
     """Could not establish, or lost, the BLE link."""
+
+
+class IledClockShuttingDownError(IledClockConnectionError):
+    """Home Assistant is shutting down: no new link is opened. Not a fault of the clock."""
 
 
 class IledClockTimeoutError(IledClockError):
@@ -205,9 +210,13 @@ class IledClockClient:
 
     # -- Connection lifecycle -------------------------------------------------------------
 
+    @property
+    def _is_closing(self) -> bool:
+        return self._closing or shutdown.in_progress(self._hass)
+
     async def _async_ensure_connected_locked(self) -> None:
-        if self._closing:
-            raise IledClockConnectionError(
+        if self._is_closing:
+            raise IledClockShuttingDownError(
                 f"iLedClock {self._address}: Home Assistant is shutting down; not connecting"
             )
         if self.is_connected:
@@ -234,13 +243,13 @@ class IledClockClient:
                 f"could not connect to {self._address}: {err}"
             ) from err
 
-        if self._closing:
+        if self._is_closing:
             # Shutdown began while the connect was in flight: hand the link straight back.
             try:
                 await client.disconnect()
             except Exception as err:  # noqa: BLE001 - best effort, we are shutting down
                 _LOGGER.debug("iLedClock %s: disconnect raised %s", self._address, err)
-            raise IledClockConnectionError(
+            raise IledClockShuttingDownError(
                 f"iLedClock {self._address}: Home Assistant is shutting down; not connecting"
             )
 
@@ -469,7 +478,7 @@ class IledClockClient:
 
     def _schedule_idle_disconnect(self) -> None:
         self._cancel_scheduled_idle_disconnect()
-        if self._idle_timeout <= 0 or self._closing:
+        if self._idle_timeout <= 0 or self._is_closing:
             return  # 0 == keep connected indefinitely (Contract B); closing == already released
         self._cancel_idle_disconnect = async_call_later(
             self._hass, self._idle_timeout, self._async_on_idle_timeout

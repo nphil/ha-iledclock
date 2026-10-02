@@ -11,12 +11,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.helpers import device_registry as dr
 
+from custom_components.iledclock import shutdown
 from custom_components.iledclock.client import IledClockConnectionError
 from custom_components.iledclock.const import DOMAIN
 
@@ -170,3 +172,137 @@ async def test_failing_disconnect_does_not_raise(
         await _run_release_job(hass)
 
     assert "Could not release BLE link" in caplog.text
+
+
+# -- the domain-lifetime latch (Home Assistant reads its job list once, at the start of Stage 1) --
+
+
+def _latch_jobs(hass: HomeAssistant) -> list:
+    return [
+        job_with_args
+        for job_with_args in hass._shutdown_jobs  # noqa: SLF001 - no public accessor
+        if "iledclock shutdown latch" in str(job_with_args.job.name)
+    ]
+
+
+async def _run_latch_job(hass: HomeAssistant) -> None:
+    (job_with_args,) = _latch_jobs(hass)
+    await hass.async_run_hass_job(job_with_args.job, *job_with_args.args)
+
+
+async def test_domain_latch_job_outlives_entry_unload_and_quiets_timers(hass, config_entry) -> None:
+    """A: registered once by `async_setup`, not tied to any entry, so an entry that was unloaded
+    (and lost its own job) still finds the latch set."""
+    assert len(_latch_jobs(hass)) == 1
+    coordinator = config_entry.runtime_data
+    restore = MagicMock()
+    coordinator._restore_unsub = restore  # noqa: SLF001 - a timed show is waiting to restore
+
+    assert await hass.config_entries.async_unload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert _release_jobs(hass) == []
+    assert len(_latch_jobs(hass)) == 1
+    restore.assert_called_once()  # unloading cancelled it already; the latch job must not need it
+
+    await _run_latch_job(hass)
+    assert shutdown.in_progress(hass)
+
+
+async def test_domain_latch_job_latches_loaded_entries_and_cancels_their_timers(
+    hass, config_entry, clock: FakeClockDevice
+) -> None:
+    coordinator = config_entry.runtime_data
+    restore = MagicMock()
+    coordinator._restore_unsub = restore  # noqa: SLF001
+
+    await _run_latch_job(hass)
+
+    restore.assert_called_once()
+    assert coordinator._unsub_daily_sync is None  # noqa: SLF001
+    await coordinator.client.async_release()
+    with pytest.raises(IledClockConnectionError):
+        await coordinator.client.async_connect()  # refused by the domain latch alone, no entry job ran
+    assert clock.connected is False
+
+
+async def test_setup_refuses_while_latched_and_never_connects(hass, make_config_entry, clock: FakeClockDevice) -> None:
+    """B: an entry set up (or reloaded) during Stage 1 registers its job too late, so it must not start."""
+    entry = make_config_entry()
+    shutdown.begin(hass)
+
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert clock.connected is False
+    assert _release_jobs(hass) == []
+
+
+async def test_setup_that_becomes_latched_midway_tears_down_what_it_started(
+    hass, make_config_entry, clock: FakeClockDevice
+) -> None:
+    """B: re-checked after every await, not only on entry."""
+    from custom_components.iledclock.coordinator import IledClockCoordinator
+
+    entry = make_config_entry()
+    real_seed = IledClockCoordinator.async_seed_showing_from_playlist
+    seen: dict = {}
+
+    async def _latch_during_setup(self) -> None:
+        seen["coordinator"] = self
+        await real_seed(self)
+        shutdown.begin(self.hass)
+
+    with patch.object(IledClockCoordinator, "async_seed_showing_from_playlist", _latch_during_setup):
+        assert not await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert clock.connected is False
+    assert seen["coordinator"]._unsub_daily_sync is None  # noqa: SLF001 - daily sync was started, then undone
+    assert _release_jobs(hass) == []  # the entry's own job went away with the failed setup
+
+
+async def test_reload_during_shutdown_does_not_reconnect(hass, config_entry, clock: FakeClockDevice) -> None:
+    await _run_latch_job(hass)
+    await config_entry.runtime_data.client.async_release()
+    assert clock.connected is False
+
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert clock.connected is False
+
+
+async def test_per_entry_job_registered_before_the_first_await(hass, make_config_entry, clock: FakeClockDevice) -> None:
+    """C: nothing awaited in setup may run before the job exists (the list is read once)."""
+    from custom_components.iledclock.store import IledClockDesignLibrary
+
+    entry = make_config_entry()
+    real_load = IledClockDesignLibrary.async_load
+    count_at_first_await: list[int] = []
+
+    async def _spy(self) -> None:
+        count_at_first_await.append(len(_release_jobs(hass)))
+        await real_load(self)
+
+    with patch.object(IledClockDesignLibrary, "async_load", _spy):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+
+    assert count_at_first_await[0] == 1
+
+
+async def test_refusals_during_shutdown_are_not_failures(hass, config_entry, clock: FakeClockDevice) -> None:
+    """D: refused refreshes leave the failure counter alone and never mark the clock unavailable."""
+    coordinator = config_entry.runtime_data
+    before = coordinator.data.consecutive_failures
+    await _run_latch_job(hass)
+    await coordinator.client.async_release()
+
+    for _ in range(5):  # CONSECUTIVE_FAILURES_FOR_UNAVAILABLE is 3
+        await coordinator.async_refresh()
+
+    assert coordinator.last_update_success is True
+    assert coordinator.data.consecutive_failures == before
+    assert clock.connected is False
