@@ -239,6 +239,12 @@ class TextUploadTest(unittest.TestCase):
             self.assertIn(tag, (0x02, 0x03))  # graffiti / animation: not the glyph (01) or colour (05, 06) layers
             self.assertEqual(plan_upload(program, 0, 1, 1024).start[20], 0)  # start-frame kind 00: the program list
 
+    def test_a_still_picture_is_sent_static_not_as_the_scroll_effect(self) -> None:
+        # mode 0 made a still "A1" scroll in, pause and scroll out on the clock, and hid a neighbouring animation
+        still = self._program("A1").contents[0]
+        self.assertIsInstance(still, GraffitiContent)
+        self.assertEqual((still.mode, still.speed, still.stay_time), (1, 0, 2))
+
     def test_speed_reaches_the_uploaded_frames(self) -> None:
         fast = self._program("A LONG MESSAGE TO SCROLL", speed=100).contents[0].frames
         self.assertEqual({frame.duration_ms for frame in fast}, {7 * 1.5})

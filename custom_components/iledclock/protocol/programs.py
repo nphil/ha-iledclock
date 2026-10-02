@@ -221,7 +221,13 @@ class HumidityContent:
 
 @dataclass(frozen=True)
 class GraffitiContent:
-    """``ILedClockGraffitiProgramContent`` (tag 02): one still frame."""
+    """``ILedClockGraffitiProgramContent`` (tag 02): one still frame.
+
+    Defaults are the vendor's still-picture values (``mode=1, speed=0, stayTime=2``, every iLedClock
+    material/word-game/import path, e.g. ILedClockMaterialDetailFragment.java:270-272). ``mode=0`` is
+    a scroll-in / pause / scroll-out effect [DEVICE 2026-10-02: a still "A1" scrolled across, paused
+    mid-panel, scrolled out] and, in a three-program rotation, an animation next to it stopped being
+    shown."""
 
     start_column: int
     start_row: int
@@ -229,9 +235,9 @@ class GraffitiContent:
     show_height: int
     pixels: Frame
     layer_type: int = 0
-    mode: int = 0
-    speed: int = 5
-    stay_time: int = 3
+    mode: int = 1
+    speed: int = 0
+    stay_time: int = 2
 
 
 @dataclass(frozen=True)
