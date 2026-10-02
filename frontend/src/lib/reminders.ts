@@ -36,9 +36,9 @@ export const REMINDER_REPEATS: readonly ReminderRepeat[] = ["once", "daily", "we
 
 /** What the screen assumes until `capabilities.reminders` says otherwise (the server's own defaults). */
 export const DEFAULT_REMINDER_CAPABILITIES: ReminderCapabilities = {
-  capacity: 16,
+  capacity: 14,
   id_min: 1,
-  id_max: 16,
+  id_max: 15,
   week_mask: false,
   name_max: 20,
   durations: [30, 60, 120, 180],

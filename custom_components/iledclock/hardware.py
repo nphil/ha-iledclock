@@ -357,9 +357,10 @@ def device_delay_units(real_ms: float) -> int:
 # and the upload all follow, because `retime.py` reads nothing else.
 
 #: Fewest delay units one frame may last. [DEVICE] 7 units = 10.5 ms real (~95 frames a second) is the
-#: fastest setting seen to play smoothly. Whether the panel really shows every frame at or below this
-#: is unmeasured (the true ceiling may be the panel refresh, not the delay field), so the slider's
-#: 100% ("Max") is exactly this and no faster.
+#: fastest setting seen to play smoothly. [DEVICE 2026-10-02] It is also the clock's real ceiling: a
+#: 32-frame sweep at 4 units and at 1 unit per frame looked no faster than at 7, and one loop of the
+#: sweep at 7 units (cyan) followed by the same sweep at 1 unit (red) showed both colours for about the
+#: same time. So the slider's 100% ("Max") is exactly this; going lower gains nothing.
 ANIMATION_MIN_FRAME_UNITS: int = 7
 
 #: Pace of the Speed slider's 100% position, in frames a second, derived from the two constants above.
@@ -1044,11 +1045,16 @@ SLOT_B_ACCEPTS_ART: bool = False
 #: takes it by default. Set False if the slot-B art test shows the clock page store rejects it.
 SLOT_B_ACCEPTS_ART_WITH_CLOCK: bool = True
 
-#: [LIVE TEST T6: reminder id range] Ids the clock accepts for a reminder. The vendor app only ever
-#: makes 1..16, but a reminder made in the vendor app read back as id 0 on the live clock. Allocation
-#: uses the lowest free id in this range. If test T6 shows 0..15, set MIN=0, MAX=15.
+#: Ids the clock accepts for a reminder, and how many reminders it holds in all. [DEVICE 2026-10-02, T6]
+#: The clock reports back exactly the ids written (1..15 all accepted and listed), and the vendor app's
+#: own reminder reads back as id 0, so 0 works too. The limit is a COUNT, not an id: with 14 reminders
+#: stored (ids 0..13) id 14 was refused (start answer error 2); after deleting two, ids 14 and 15 were
+#: accepted, and a 15th reminder (id 2, accepted earlier) was refused again. Allocation uses the lowest
+#: free id in MIN..MAX and never lets the clock hold more than REMINDER_CAPACITY, counting reminders
+#: Home Assistant did not make.
 REMINDER_ID_MIN: int = 1
-REMINDER_ID_MAX: int = 16
+REMINDER_ID_MAX: int = 15
+REMINDER_CAPACITY: int = 14
 
 #: [LIVE TEST T7: weekday mask] May one reminder carry several weekdays (repeat type 1 with a partial
 #: week mask, e.g. Mon-Fri = 0x1F)? The vendor never sends one. False: a Mon-Fri item uses five clock

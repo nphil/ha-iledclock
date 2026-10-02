@@ -335,30 +335,35 @@ class AllocationTests(unittest.TestCase):
 
     def test_a_full_clock_raises_a_capacity_error_with_the_numbers(self) -> None:
         with self.assertRaises(ReminderCapacityError) as caught:
-            allocate_ids((), 1, set(range(1, 17)))
+            allocate_ids((), 1, set(range(1, 15)))
         self.assertEqual((caught.exception.needed, caught.exception.free, caught.exception.field), (1, 0, "slots"))
         self.assertIn("needs 1 clock slot, only 0 free", str(caught.exception))
         self.assertIsInstance(caught.exception, ReminderValidationError)
 
     def test_it_does_not_fit_message_says_how_many_are_needed_and_free(self) -> None:
         with self.assertRaises(ReminderCapacityError) as caught:
-            allocate_ids((), 5, set(range(1, 15)))  # only 15 and 16 are free
+            allocate_ids((), 5, set(range(1, 13)))  # twelve of fourteen used
         self.assertIn("needs 5 clock slots, only 2 free", str(caught.exception))
 
     def test_exactly_filling_the_clock_is_fine(self) -> None:
-        self.assertEqual(allocate_ids((), 16, ()), list(range(1, 17)))
-        self.assertEqual(allocate_ids((), 2, set(range(1, 15))), [15, 16])
+        self.assertEqual(allocate_ids((), 14, ()), list(range(1, 15)))
+        self.assertEqual(allocate_ids((), 2, set(range(1, 13))), [13, 14])
 
     def test_every_reminder_on_the_clock_takes_room_also_one_outside_the_id_range(self) -> None:
-        """The clock holds sixteen in all. Id 0 (the vendor app's own on the live clock) is outside 1-16 but still takes
-        a slot: sixteen reminders numbered 0-15 leave no room although id 16 is unused."""
+        """The clock holds fourteen in all (live T6). Id 0 (the vendor app's own on the live clock) is outside 1-15 but
+        still takes a slot: fourteen reminders numbered 0-13 leave no room although ids 14 and 15 are unused."""
         with self.assertRaises(ReminderCapacityError) as caught:
-            allocate_ids((), 1, set(range(0, 16)))
+            allocate_ids((), 1, set(range(0, 14)))
         self.assertEqual((caught.exception.needed, caught.exception.free), (1, 0))
-        self.assertEqual(allocate_ids((), 1, set(range(0, 15))), [15])  # fifteen taken: one slot left, the lowest free id
+        self.assertEqual(allocate_ids((), 1, set(range(0, 13))), [13])  # thirteen taken: one slot left, the lowest free id
         with self.assertRaises(ReminderCapacityError) as caught:
-            allocate_ids((), 2, {0, *range(2, 16)})  # ids 1 and 16 are unused, but only one slot is free
-        self.assertIn("needs 2 clock slots, only 1 free", str(caught.exception))
+            allocate_ids((), 2, {0, *range(2, 15)})  # ids 1 and 15 are unused, but no slot is free
+        self.assertIn("needs 2 clock slots, only 0 free", str(caught.exception))
+
+    def test_ids_above_fourteen_are_handed_out_when_lower_ones_are_held(self) -> None:
+        # live T6: ids 14 and 15 were accepted with 0, 1 and 4-13 on the clock
+        self.assertEqual(allocate_ids((), 2, {0, 1, *range(4, 14)}), [2, 3])
+        self.assertEqual(allocate_ids([14, 15], 2, {0, 1, *range(4, 14)}), [14, 15])
 
     def test_more_taken_than_the_clock_can_hold_means_nothing_is_free(self) -> None:
         with self.assertRaises(ReminderCapacityError) as caught:
@@ -371,7 +376,7 @@ class AllocationTests(unittest.TestCase):
             self.assertEqual(allocate_ids([0], 1, {1}), [0])
             with self.assertRaises(ReminderCapacityError):
                 allocate_ids((), 1, set(range(0, 16)))
-        self.assertEqual(allocate_ids([0], 1, ()), [1])  # back to 1..16: 0 is out of range
+        self.assertEqual(allocate_ids([0], 1, ()), [1])  # back to 1..15: 0 is out of range
 
 
 class ReconcileTests(unittest.TestCase):

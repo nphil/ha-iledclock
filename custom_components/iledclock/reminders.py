@@ -563,13 +563,12 @@ def allocate_ids(preferred: Iterable[int], count: int, taken: Iterable[int]) -> 
     `preferred` ones that are free and in range (an edit keeps its ids, switching on again tries its old
     ones), then the lowest free ones.
 
-    The clock holds `MAX - MIN + 1` reminders in all, and EVERY id in `taken` uses up one of those slots, also one
-    outside the range we hand out (the vendor app's own reminder reads back as id 0 on the live clock): sixteen
-    reminders numbered 0-15 leave no room although id 16 is unused. Raises `ReminderCapacityError` when fewer
-    than `count` slots are free."""
+    The clock holds `hardware.REMINDER_CAPACITY` reminders in all, and EVERY id in `taken` uses up one of them,
+    also one outside the range we hand out (the vendor app's own reminder reads back as id 0 on the live clock).
+    Raises `ReminderCapacityError` when fewer than `count` slots are free."""
     low, high = hardware.REMINDER_ID_MIN, hardware.REMINDER_ID_MAX
     blocked = set(taken)
-    room = max(0, (high - low + 1) - len(blocked))
+    room = max(0, hardware.REMINDER_CAPACITY - len(blocked))
     if count > room:
         raise ReminderCapacityError(count, room)
     free = [reminder_id for reminder_id in range(low, high + 1) if reminder_id not in blocked]  # len(free) >= room

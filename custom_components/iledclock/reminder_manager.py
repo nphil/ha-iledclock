@@ -154,7 +154,7 @@ class ReminderManager:
         (then `used` is what the definitions believe they hold)."""
         items = self._store.items
         result = reconcile(items, self._device, now=self._local_now())
-        capacity = hardware.REMINDER_ID_MAX - hardware.REMINDER_ID_MIN + 1
+        capacity = hardware.REMINDER_CAPACITY
         if self._device is None:
             used = len({reminder_id for item in items for reminder_id in item.device_ids})
         else:

@@ -121,7 +121,7 @@ async def test_creating_an_alarm_stores_one_reminder_on_the_clock_and_lists_it(
 
     state = await full_state(ws, config_entry)
     listed = state["reminder_list"]
-    assert (listed["capacity"], listed["used"], listed["free"], listed["foreign"]) == (16, 1, 15, [])
+    assert (listed["capacity"], listed["used"], listed["free"], listed["foreign"]) == (14, 1, 13, [])
     assert [row["key"] for row in listed["items"]] == [item["key"]]
     assert listed["synced_at"] is not None
     assert (state["now_showing"], state["history"], state["playlist"]) == (None, [], [])
@@ -204,7 +204,7 @@ async def test_switching_off_removes_it_from_the_clock_and_on_again_prefers_its_
     assert (off["status"], off["enabled"], off["device_ids"], off["last_error"]) == ("disabled", False, [], None)
     assert sorted(clock.reminders) == [3]
     listed = await listing(ws, config_entry)
-    assert (listed["used"], listed["free"], len(listed["items"])) == (1, 15, 3)  # the definitions stay
+    assert (listed["used"], listed["free"], len(listed["items"])) == (1, 13, 3)  # the definitions stay
 
     again = await item_of(ws, config_entry, "reminder_set_enabled", key=second["key"], enabled=True)
     assert (again["status"], again["device_ids"]) == ("synced", [2])  # its old slot, not the lowest free one (1)
@@ -302,7 +302,7 @@ async def test_switching_the_week_mask_flag_makes_old_sends_show_as_changed(
 async def test_a_full_clock_refuses_but_keeps_the_definition_and_resend_works_once_there_is_room(
     ws, config_entry, clock: FakeClockDevice
 ) -> None:
-    for reminder_id in range(1, 17):
+    for reminder_id in range(1, 15):
         clock.add_reminder(reminder_id, f"Old {reminder_id}")
 
     message = await fail_of(ws, config_entry, "reminder_set", **ALARM)
@@ -320,24 +320,24 @@ async def test_a_full_clock_refuses_but_keeps_the_definition_and_resend_works_on
 async def test_an_item_that_needs_more_slots_than_are_free_says_how_many(
     ws, config_entry, clock: FakeClockDevice
 ) -> None:
-    for reminder_id in range(1, 13):
+    for reminder_id in range(1, 11):
         clock.add_reminder(reminder_id, f"Old {reminder_id}")
     message = await fail_of(ws, config_entry, "reminder_set", name="Gym", hour=7, minute=0, repeat="weekdays")
     assert "needs 5 clock slots, only 4 free" in message
-    assert sorted(clock.reminders) == list(range(1, 13))
+    assert sorted(clock.reminders) == list(range(1, 11))
 
 
-async def test_sixteen_reminders_numbered_0_to_15_leave_no_room_even_though_id_16_is_unused(
+async def test_fourteen_reminders_numbered_0_to_13_leave_no_room_even_though_ids_14_and_15_are_unused(
     ws, config_entry, clock: FakeClockDevice
 ) -> None:
-    """The clock holds sixteen reminders in all. One of them (the vendor app's own, id 0) is outside the 1-16 range we
-    hand out, but it still takes a slot: id 16 must not be used as if there were room."""
-    for reminder_id in range(0, 16):
+    """The clock holds fourteen reminders in all (live T6). One of them (the vendor app's own, id 0) is outside the 1-15
+    range we hand out, but it still takes a slot: ids 14 and 15 must not be used as if there were room."""
+    for reminder_id in range(0, 14):
         clock.add_reminder(reminder_id, f"Old {reminder_id}")
 
     message = await fail_of(ws, config_entry, "reminder_set", **ALARM)
     assert "needs 1 clock slot, only 0 free" in message
-    assert sorted(clock.reminders) == list(range(16)) and len(clock.uploads) == 0
+    assert sorted(clock.reminders) == list(range(14)) and len(clock.uploads) == 0
 
 
 async def test_growing_an_alarm_counts_every_reminder_on_the_clock_not_just_the_ids_in_range(
@@ -345,13 +345,13 @@ async def test_growing_an_alarm_counts_every_reminder_on_the_clock_not_just_the_
 ) -> None:
     item = await item_of(ws, config_entry, "reminder_set", name="Gym", hour=7, minute=0, repeat="weekly", days=[2])
     assert item["device_ids"] == [1]
-    clock.add_reminder(0, "Vendor")  # outside 1..16, but it takes a slot
-    for reminder_id in range(2, 16):
-        clock.add_reminder(reminder_id, f"Old {reminder_id}")  # sixteen on the clock now: 0, 1 (the alarm), 2..15
+    clock.add_reminder(0, "Vendor")  # outside 1..15, but it takes a slot
+    for reminder_id in range(2, 14):
+        clock.add_reminder(reminder_id, f"Old {reminder_id}")  # fourteen on the clock now: 0, 1 (the alarm), 2..13
 
     message = await fail_of(ws, config_entry, "reminder_set", key=item["key"], repeat="weekends")  # one slot more
     assert "needs 2 clock slots, only 1 free" in message
-    assert sorted(clock.reminders) == list(range(16))
+    assert sorted(clock.reminders) == list(range(14))
     assert item_row(await listing(ws, config_entry), item["key"])["device_ids"] == [1]  # still holds its one slot
 
 
@@ -613,7 +613,7 @@ async def test_reminders_made_in_the_vendor_app_are_listed_and_can_be_deleted_by
     await config_entry.runtime_data.async_refresh()
 
     listed = await listing(ws, config_entry)
-    assert (listed["used"], listed["free"], listed["items"]) == (1, 15, [])
+    assert (listed["used"], listed["free"], listed["items"]) == (1, 13, [])
     assert listed["foreign"] == [
         {"id": 0, "content": "Testing testing ", "year": 2026, "month": 10, "day": 1, "hour": 23, "minute": 32,
          "repeat_type": 0, "week_mask": 0, "duration": 30, "sound": 1}

@@ -163,6 +163,23 @@ Order: **T3 first** (it decides whether a reminder write can disturb the rotatio
 - **Screen switch (optional)**: `iledclock.switch_screen` once with the display on; confirm it toggles and the display stays on; do not
   test with the display off until the firmware analysis says what it does.
 
+### Results, 2026-10-02 (v0.3.0/0.3.1, Nitin at the clock)
+- **Text**: `A1` holds still in the middle; `Good morning Nitin` scrolls. Before 0.3.1 a still picture went out with
+  graffiti mode 0 (scroll in, pause, scroll out), and in a rotation [animation, A1, long text] the animation stopped
+  showing. 0.3.1 sends the vendor's still values (mode 1, speed 0, stay 2); the same rotation then played all three.
+- **T1/T2 create + ring**: a one-time alarm made by `reminder_set` took id 1, rang on time, showed its design as the
+  picture, and the wide button stopped it. A finished one-time alarm **stays in the clock's list** (still counts
+  against the 16); Home Assistant shows it as `done`.
+- **T3 rotation**: the rotation kept playing normally before and after the alarm was written. The automatic re-send of
+  screen A answered "already present" for every program, so no data went out. `REMINDER_UPLOAD_PRESERVES_SLOTS`
+  stays False (not isolated; the re-send costs nothing).
+- **T4 edit**: changing name and time kept id 1 and the count at 2; the edited alarm rang at the new time with its
+  picture.
+- **Screen B**: "Icon with clock" (Heart + clock) shown with `slot: "b"` displayed; a power press then showed
+  screen A's rotation unchanged. Plain art on B (`SLOT_B_ACCEPTS_ART`) not tested.
+- **Speed**: 100% is the clock's real ceiling (see `hardware.ANIMATION_MIN_FRAME_UNITS`).
+- Not yet tested: T6 id range, T7 week mask, plain art on screen B.
+
 ## 7. What this build does NOT do (boundaries)
 - It does not replace the clock's built-in pomodoro. The pomodoro runs inside the firmware, is started and paused only by the clock's
   buttons (which send nothing over Bluetooth), and Home Assistant can only change its list of durations (`set_pomodoro`). Reminders
