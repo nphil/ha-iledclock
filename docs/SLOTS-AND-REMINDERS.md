@@ -134,10 +134,10 @@ documented as not matching the vendor glyph layer.
 
 | Flag | Default | Meaning | Test that decides it |
 |---|---|---|---|
-| `SLOT_B_ACCEPTS_ART` | False | screen B takes plain art / animation / text as a standalone type-7 program | slot-B art test |
+| `SLOT_B_ACCEPTS_ART` | **True** (live 2026-10-02) | screen B takes plain art / animation / text as a standalone type-7 program | slot-B art test |
 | `SLOT_B_ACCEPTS_ART_WITH_CLOCK` | True | screen B takes "Icon with clock" (the vendor Clock tab's own page shape) | slot-B art test |
-| `REMINDER_ID_MIN` / `REMINDER_ID_MAX` | 1 / 16 | ids the clock accepts (the vendor app makes 1-16; a vendor-app reminder read back as id 0) | T6 |
-| `REMINDER_WEEK_MASK_SUPPORTED` | False | one reminder may carry several weekdays (repeat 1 + partial mask) | T7 |
+| `REMINDER_ID_MIN` / `REMINDER_ID_MAX` / `REMINDER_CAPACITY` | **1 / 15 / 14** (live 2026-10-02) | ids we hand out, and how many reminders the clock holds in all (counting ones HA did not make) | T6 |
+| `REMINDER_WEEK_MASK_SUPPORTED` | **True** (live 2026-10-02) | one reminder may carry several weekdays (repeat 1 + partial mask, bit 0 = Monday) | T7 |
 | `REMINDER_UPLOAD_PRESERVES_SLOTS` | False | a reminder upload leaves screens A and B untouched; while False every reminder write is followed by re-sending screen A's last program list (an unchanged program is answered "already present", no data goes out, but the clock may switch to screen A) | T3 |
 | `REMINDER_SAVE_SETTLE_S` | 1.0 | seconds to wait before reading a reminder back | T1 |
 
@@ -176,9 +176,14 @@ Order: **T3 first** (it decides whether a reminder write can disturb the rotatio
 - **T4 edit**: changing name and time kept id 1 and the count at 2; the edited alarm rang at the new time with its
   picture.
 - **Screen B**: "Icon with clock" (Heart + clock) shown with `slot: "b"` displayed; a power press then showed
-  screen A's rotation unchanged. Plain art on B (`SLOT_B_ACCEPTS_ART`) not tested.
+  screen A's rotation unchanged.
 - **Speed**: 100% is the clock's real ceiling (see `hardware.ANIMATION_MIN_FRAME_UNITS`).
-- Not yet tested: T6 id range, T7 week mask, plain art on screen B.
+- **T6 id range / capacity**: the clock reports back exactly the ids written (1-15 all accepted); the vendor reminder is
+  really id 0. The limit is a count: with 14 stored (ids 0-13) id 14 was refused (start answer error 2); after two
+  deletes, ids 14 and 15 were accepted; a 15th reminder (id 2, accepted before) was refused again. So 14 in all.
+- **T7 week mask**: on a Friday, a Mon+Tue reminder (mask 0b11) and a Fri+Sat one (0b110000) set for the same minute with
+  different pictures: only the Fri+Sat picture rang. A Mon-Fri alarm now uses one slot instead of five.
+- **Plain art on screen B**: the Landscape animation shown with `slot: "b"` played; a power press showed screen A unchanged.
 
 ## 7. What this build does NOT do (boundaries)
 - It does not replace the clock's built-in pomodoro. The pomodoro runs inside the firmware, is started and paused only by the clock's

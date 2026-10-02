@@ -104,11 +104,11 @@ The **Alarms** screen of Pixel Studio is one iOS-style list of named alarms and 
 name, how often it repeats, a small picture and an on/off switch. Tap a row to edit it: name, time,
 repeat (never, every day, weekdays, weekends, custom days, weekly, monthly, yearly), how long it rings
 (30, 60, 120 or 180 seconds) and what it shows while it rings (a Library design of up to 40 frames, or
-the name as scrolling text). Each one is stored in the clock's own reminder slots (it has 16), so it
+the name as scrolling text). Each one is stored in the clock's own reminder slots (it holds 14 in all), so it
 rings **without Home Assistant**. Switching one off removes it from the clock and keeps it here. Reminders
 that the vendor app put on the clock are listed too, read-only, with delete, and an item that is no
-longer on the clock says "Re-send". Weekdays, weekends and custom days use one slot per day until the
-clock is shown to take several days in one reminder (`REMINDER_WEEK_MASK_SUPPORTED`). Services:
+longer on the clock says "Re-send". Weekdays, weekends and custom days fit in one slot (the clock takes a
+weekday mask). A finished one-time alarm stays on the clock and keeps its slot until deleted. Services:
 `iledclock.reminder_set`, `reminder_set_enabled` and `reminder_delete`.
 
 ### Text
@@ -145,11 +145,11 @@ columns is one still picture; longer text scrolls and never uses more than 40 fr
 
 ## Known limitations (honestly disclosed)
 
-- **Alarms and reminders, screen B and the screen switch are new and not yet verified on the real
-  clock.** Everything the clock has not been seen doing sits behind a named flag in `hardware.py` with
-  the cautious default: reminder ids 1-16 (a vendor-app reminder read back as id 0), one slot per
-  weekday, screen A re-sent after every reminder write, screen B refusing plain pictures.
-  `docs/SLOTS-AND-REMINDERS.md` has the live test plan.
+- **Alarms and reminders, screen B and the screen switch were verified on the real clock on
+  2026-10-02.** Each capability sits behind a named flag in `hardware.py`; the reminder limits (14 in
+  all, ids 1-15), weekday masks and plain art on screen B were confirmed live. Screen A is still
+  re-sent after every reminder write (cheap: nothing changed means no data is sent).
+  `docs/SLOTS-AND-REMINDERS.md` has the test plan and results.
 - **Home Assistant cannot see which screen is showing** or react to the clock's buttons (they send
   nothing over Bluetooth), so the screen tiles show what was sent last, not what is on display.
 - **The clock's built-in pomodoro is not replaced.** It runs inside the firmware and is started and

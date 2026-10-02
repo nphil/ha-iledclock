@@ -95,16 +95,18 @@ class ScreenPolicyTest(unittest.TestCase):
     def test_screen_a_takes_everything(self) -> None:
         self.assertEqual(slot_accepts(SLOT_A), CONTENT_CLASSES)
 
-    def test_screen_b_takes_clock_pages_and_art_with_a_clock_until_art_is_proven(self) -> None:
-        self.assertEqual(slot_accepts(SLOT_B), ("clock", "date", "temperature", "humidity", "art_clock"))
+    def test_screen_b_takes_clock_pages_art_with_a_clock_and_plain_art(self) -> None:
+        self.assertEqual(slot_accepts(SLOT_B), ("clock", "date", "temperature", "humidity", "art_clock", "art"))
 
-    def test_flipping_the_art_flag_opens_screen_b_to_pictures_and_back(self) -> None:
-        with patch.object(hardware, "SLOT_B_ACCEPTS_ART", True):
-            self.assertIn("art", slot_accepts(SLOT_B))
-            require_slot_accepts(SLOT_B, "art")
-        with self.assertRaises(SlotUnsupportedError) as caught:
-            require_slot_accepts(SLOT_B, "art")
-        self.assertEqual(str(caught.exception), PICTURES_REASON)
+    def test_flipping_the_art_flag_closes_screen_b_to_pictures_and_back(self) -> None:
+        self.assertIn("art", slot_accepts(SLOT_B))
+        require_slot_accepts(SLOT_B, "art")
+        with patch.object(hardware, "SLOT_B_ACCEPTS_ART", False):
+            self.assertNotIn("art", slot_accepts(SLOT_B))
+            with self.assertRaises(SlotUnsupportedError) as caught:
+                require_slot_accepts(SLOT_B, "art")
+            self.assertEqual(str(caught.exception), PICTURES_REASON)
+        require_slot_accepts(SLOT_B, "art")
 
     def test_flipping_the_clock_art_flag_closes_screen_b_to_art_with_a_clock(self) -> None:
         with patch.object(hardware, "SLOT_B_ACCEPTS_ART_WITH_CLOCK", False):
@@ -112,11 +114,12 @@ class ScreenPolicyTest(unittest.TestCase):
                 require_slot_accepts(SLOT_B, "art_clock")
 
     def test_timers_and_scoreboards_never_go_to_screen_b(self) -> None:
-        with patch.object(hardware, "SLOT_B_ACCEPTS_ART", True):
-            for content_class in ("timer", "scoreboard"):
-                with self.assertRaises(SlotUnsupportedError) as caught:
-                    require_slot_accepts(SLOT_B, content_class)
-                self.assertEqual(str(caught.exception), TIMERS_REASON)
+        for art_flag in (True, False):
+            with patch.object(hardware, "SLOT_B_ACCEPTS_ART", art_flag):
+                for content_class in ("timer", "scoreboard"):
+                    with self.assertRaises(SlotUnsupportedError) as caught:
+                        require_slot_accepts(SLOT_B, content_class)
+                    self.assertEqual(str(caught.exception), TIMERS_REASON)
 
     def test_a_message_that_goes_away_by_itself_needs_screen_a(self) -> None:
         require_screen_a_for_timed_show(SLOT_A)
@@ -178,28 +181,29 @@ class ScreenBProgramTest(unittest.TestCase):
 
     def test_pictures_are_refused_before_anything_is_built_while_the_art_flag_is_off(self) -> None:
         plain = design()
-        for kind, params in (("text", {"text": "HI"}), ("design", {"design_id": plain.id})):
-            with self.assertRaises(SlotUnsupportedError, msg=kind) as caught:
-                build_slot_b_program(kind, params, designs={plain.id: plain})
-            self.assertEqual(str(caught.exception), PICTURES_REASON)
-
-    def test_with_the_art_flag_on_pictures_become_a_type_7_page(self) -> None:
-        plain = design()
-        with patch.object(hardware, "SLOT_B_ACCEPTS_ART", True):
+        with patch.object(hardware, "SLOT_B_ACCEPTS_ART", False):
             for kind, params in (("text", {"text": "HI"}), ("design", {"design_id": plain.id})):
-                program = build_slot_b_program(kind, params, designs={plain.id: plain})
-                self.assertIsInstance(program.contents[0], GraffitiContent)
-                self._check_page(program, 7, 10)
-            art = GraffitiContent(start_column=0, start_row=0, show_width=32, show_height=16, pixels=Frame.blank())
-            rendered = build_slot_b_program("image", {}, designs={}, art=art)
-            self.assertEqual(rendered.contents, [art])
-            self._check_page(rendered, 7, 10)
+                with self.assertRaises(SlotUnsupportedError, msg=kind) as caught:
+                    build_slot_b_program(kind, params, designs={plain.id: plain})
+                self.assertEqual(str(caught.exception), PICTURES_REASON)
 
-    def test_timers_and_scoreboards_are_refused_even_with_the_art_flag_on(self) -> None:
-        with patch.object(hardware, "SLOT_B_ACCEPTS_ART", True):
-            for kind, params in (("timer", {"mode": "countdown"}), ("scoreboard", {})):
-                with self.assertRaises(SlotUnsupportedError, msg=kind):
-                    build_slot_b_program(kind, params, designs={})
+    def test_by_default_pictures_become_a_type_7_page(self) -> None:
+        plain = design()
+        for kind, params in (("text", {"text": "HI"}), ("design", {"design_id": plain.id})):
+            program = build_slot_b_program(kind, params, designs={plain.id: plain})
+            self.assertIsInstance(program.contents[0], GraffitiContent)
+            self._check_page(program, 7, 10)
+        art = GraffitiContent(start_column=0, start_row=0, show_width=32, show_height=16, pixels=Frame.blank())
+        rendered = build_slot_b_program("image", {}, designs={}, art=art)
+        self.assertEqual(rendered.contents, [art])
+        self._check_page(rendered, 7, 10)
+
+    def test_timers_and_scoreboards_are_refused_whatever_the_art_flag_says(self) -> None:
+        for art_flag in (True, False):
+            with patch.object(hardware, "SLOT_B_ACCEPTS_ART", art_flag):
+                for kind, params in (("timer", {"mode": "countdown"}), ("scoreboard", {})):
+                    with self.assertRaises(SlotUnsupportedError, msg=kind):
+                        build_slot_b_program(kind, params, designs={})
 
     def test_an_unknown_design_or_type_is_a_build_error(self) -> None:
         with self.assertRaises(ProgramBuildError):

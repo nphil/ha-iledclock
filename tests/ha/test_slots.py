@@ -103,7 +103,7 @@ async def test_a_show_to_screen_b_is_a_kind_04_page_and_leaves_screen_a_alone(ha
     state = (await send(client, {"type": "iledclock/state", "entry_id": config_entry.entry_id}))["result"]
     assert state["slots"] == slots
     assert state["now_showing"]["slot"] == "b"
-    assert state["capabilities"]["slots"] == {"ids": ["a", "b"], "b_accepts": ["clock", "date", "temperature", "humidity", "art_clock"]}
+    assert state["capabilities"]["slots"] == {"ids": ["a", "b"], "b_accepts": ["clock", "date", "temperature", "humidity", "art_clock", "art"]}
 
 
 async def test_every_clock_page_kind_and_art_with_a_clock_go_to_screen_b(hass, hass_ws_client, config_entry, clock) -> None:
@@ -125,7 +125,7 @@ async def test_every_clock_page_kind_and_art_with_a_clock_go_to_screen_b(hass, h
     assert trailers == [bytes([4, 1, 0, 0, 0, n]) for n in (10, 5, 5, 5, 10)]  # clock 10 s; date, temp+humidity 5 s; icon 10 s
 
 
-async def test_screen_b_refuses_pictures_and_timers_before_anything_is_sent(hass, hass_ws_client, config_entry, clock) -> None:
+async def test_screen_b_refuses_pictures_with_the_art_flag_off_and_timers_always_before_anything_is_sent(hass, hass_ws_client, config_entry, clock) -> None:
     client = await hass_ws_client(hass)
     plain = await save_design(client)
     clock.written.clear()
@@ -137,10 +137,14 @@ async def test_screen_b_refuses_pictures_and_timers_before_anything_is_sent(hass
         ({"spec": {"type": "timer", "mode": "countdown"}}, TIMERS_REASON),
         ({"spec": {"type": "scoreboard"}}, TIMERS_REASON),
     ]
-    for item, reason in refused:
+    with patch.object(hardware, "SLOT_B_ACCEPTS_ART", False):
+        for item, reason in refused:
+            response = await show(client, config_entry, item, slot="b")
+            assert response["success"] is False and response["error"]["code"] == "slot_unsupported", (item, response)
+            assert response["error"]["message"] == reason
+    for item, reason in refused[3:]:  # timers and scoreboards are refused with the art flag on too
         response = await show(client, config_entry, item, slot="b")
-        assert response["success"] is False and response["error"]["code"] == "slot_unsupported", (item, response)
-        assert response["error"]["message"] == reason
+        assert response["success"] is False and response["error"]["message"] == reason, (item, response)
     assert clock.uploads == []
     assert coordinator.slots_json() == {"a": None, "b": None, "last_written": None}
     assert coordinator.show_store.history == []
@@ -164,11 +168,10 @@ async def test_a_replayed_descriptor_that_names_its_screen_goes_back_there(hass,
     assert kinds(clock) == [4, 4]
 
 
-async def test_flipping_the_art_flag_lets_text_onto_screen_b_as_a_type_7_page(hass, hass_ws_client, config_entry, clock, sent) -> None:
+async def test_text_goes_onto_screen_b_as_a_type_7_page(hass, hass_ws_client, config_entry, clock, sent) -> None:
     client = await hass_ws_client(hass)
     clock.written.clear()
-    with patch.object(hardware, "SLOT_B_ACCEPTS_ART", True):
-        response = await show(client, config_entry, {"spec": {"type": "text", "text": "HI"}}, slot="b")
+    response = await show(client, config_entry, {"spec": {"type": "text", "text": "HI"}}, slot="b")
     assert response["success"] is True, response
     program = sent[0][0]
     assert (program.resolved_program_type(), program.is_clock_in_list) == (7, False)
@@ -206,23 +209,25 @@ async def test_clock_face_and_show_design_services_can_write_screen_b(hass, hass
 
 async def test_show_services_refuse_screen_b_in_plain_words(hass, config_entry, clock, device_id) -> None:
     clock.written.clear()
-    for service, data in (
-        (const.SERVICE_SHOW_TEXT, {"text": "HI"}),
-        (const.SERVICE_SHOW_GENERATIVE, {"kind": "plasma"}),
-        (const.SERVICE_SHOW_IMAGE, {"data_b64": SOLID}),
-    ):
-        with pytest.raises(ServiceValidationError, match="pictures go on screen A"):
-            await hass.services.async_call(DOMAIN, service, {"device_id": device_id, "slot": "b", **data}, blocking=True)
+    with patch.object(hardware, "SLOT_B_ACCEPTS_ART", False):
+        for service, data in (
+            (const.SERVICE_SHOW_TEXT, {"text": "HI"}),
+            (const.SERVICE_SHOW_GENERATIVE, {"kind": "plasma"}),
+            (const.SERVICE_SHOW_IMAGE, {"data_b64": SOLID}),
+        ):
+            with pytest.raises(ServiceValidationError, match="pictures go on screen A"):
+                await hass.services.async_call(
+                    DOMAIN, service, {"device_id": device_id, "slot": "b", **data}, blocking=True
+                )
     assert clock.uploads == []
 
 
 async def test_a_timed_message_needs_screen_a(hass, config_entry, clock, device_id) -> None:
-    with patch.object(hardware, "SLOT_B_ACCEPTS_ART", True):
-        with pytest.raises(ServiceValidationError, match="only works on screen A"):
-            await hass.services.async_call(
-                DOMAIN, const.SERVICE_SHOW_TEXT,
-                {"device_id": device_id, "text": "HI", "slot": "b", "duration_s": 30}, blocking=True,
-            )
+    with pytest.raises(ServiceValidationError, match="only works on screen A"):
+        await hass.services.async_call(
+            DOMAIN, const.SERVICE_SHOW_TEXT,
+            {"device_id": device_id, "text": "HI", "slot": "b", "duration_s": 30}, blocking=True,
+        )
 
 
 async def test_every_show_service_takes_a_screen_and_rejects_an_unknown_one(hass, config_entry, device_id) -> None:

@@ -40,6 +40,13 @@ def _no_settle_delay(monkeypatch) -> None:
 
 
 @pytest.fixture
+def one_reminder_per_day(monkeypatch) -> None:
+    """The clock takes no week mask: a multi-weekday alarm costs one weekly reminder per weekday (the flag's False
+    path; the default is the week mask)."""
+    monkeypatch.setattr(hardware, "REMINDER_WEEK_MASK_SUPPORTED", False)
+
+
+@pytest.fixture
 async def ws(hass, hass_ws_client, config_entry):
     """An admin websocket connection, opened only after the integration is set up (the HTTP router freezes
     once the first client connects)."""
@@ -128,20 +135,24 @@ async def test_creating_an_alarm_stores_one_reminder_on_the_clock_and_lists_it(
 
 
 @pytest.mark.parametrize(
-    ("extra", "types", "slots"),
+    ("extra", "types", "slots", "per_day"),
     [
-        ({"repeat": "once", "date": "tomorrow"}, [0], 1),
-        ({"repeat": "daily"}, [1], 1),
-        ({"repeat": "weekly", "days": [2]}, [2], 1),
-        ({"repeat": "monthly", "date": "tomorrow"}, [3], 1),
-        ({"repeat": "yearly", "date": "2024-12-25"}, [4], 1),
-        ({"repeat": "weekends"}, [2, 2], 2),
-        ({"repeat": "custom", "days": [0, 3, 6]}, [2, 2, 2], 3),
+        ({"repeat": "once", "date": "tomorrow"}, [0], 1, False),
+        ({"repeat": "daily"}, [1], 1, False),
+        ({"repeat": "weekly", "days": [2]}, [2], 1, False),
+        ({"repeat": "monthly", "date": "tomorrow"}, [3], 1, False),
+        ({"repeat": "yearly", "date": "2024-12-25"}, [4], 1, False),
+        ({"repeat": "weekends"}, [1], 1, False),  # the default: one reminder with a week mask
+        ({"repeat": "custom", "days": [0, 3, 6]}, [1], 1, False),
+        ({"repeat": "weekends"}, [2, 2], 2, True),  # no week mask: one weekly reminder per weekday
+        ({"repeat": "custom", "days": [0, 3, 6]}, [2, 2, 2], 3, True),
     ],
 )
 async def test_every_repeat_reaches_the_clock_as_the_right_kind_and_number_of_reminders(
-    ws, config_entry, clock: FakeClockDevice, extra: dict, types: list[int], slots: int
+    ws, config_entry, clock: FakeClockDevice, monkeypatch, extra: dict, types: list[int], slots: int, per_day: bool
 ) -> None:
+    if per_day:
+        monkeypatch.setattr(hardware, "REMINDER_WEEK_MASK_SUPPORTED", False)
     extra = {key: (tomorrow().isoformat() if value == "tomorrow" else value) for key, value in extra.items()}
     if extra.get("repeat") == "monthly":
         extra["date"] = tomorrow().replace(day=min(tomorrow().day, 28)).isoformat()
@@ -150,12 +161,14 @@ async def test_every_repeat_reaches_the_clock_as_the_right_kind_and_number_of_re
     assert item["slots"] == slots == len(item["device_ids"])
     stored = [clock.reminders[reminder_id] for reminder_id in item["device_ids"]]
     assert [reminder.repeat_type for reminder in stored] == types
+    picked_days_mask = {"weekends": 0x60, "custom": 0x49}  # Mon = bit 0 .. Sun = bit 6
     for reminder in stored:  # the mask byte is the vendor's rule for that type
-        expected = {0: 0, 1: 0x7F, 2: 1 << stored_date(reminder).weekday(), 3: 0, 4: 0}[reminder.repeat_type]
+        every_day = picked_days_mask.get(extra["repeat"], 0x7F) if not per_day else 0x7F
+        expected = {0: 0, 1: every_day, 2: 1 << stored_date(reminder).weekday(), 3: 0, 4: 0}[reminder.repeat_type]
         assert reminder.week_mask == expected
     if extra["repeat"] == "once":
         assert stored_date(stored[0]) == tomorrow()
-    if extra["repeat"] in ("weekly", "weekends", "custom"):
+    if extra["repeat"] == "weekly" or per_day:
         wanted = {"weekly": [2], "weekends": [5, 6], "custom": [0, 3, 6]}[extra["repeat"]]
         assert [stored_date(reminder).weekday() for reminder in stored] == wanted
         assert all(stored_date(reminder) >= dt_util.now().date() for reminder in stored)
@@ -175,7 +188,7 @@ async def test_editing_keeps_the_same_slot_and_replaces_what_is_on_the_clock(
 
 
 async def test_a_plan_that_shrinks_frees_its_extra_slots_only_after_the_new_ones_are_up(
-    ws, config_entry, clock: FakeClockDevice
+    ws, config_entry, clock: FakeClockDevice, one_reminder_per_day
 ) -> None:
     item = await item_of(ws, config_entry, "reminder_set", name="Gym", hour=7, minute=0, repeat="weekdays")
     assert item["device_ids"] == [1, 2, 3, 4, 5]
@@ -222,7 +235,9 @@ async def test_switching_on_something_that_is_already_on_and_in_sync_does_not_to
     assert clock.written == []
 
 
-async def test_deleting_removes_every_slot_and_then_the_definition(ws, config_entry, clock: FakeClockDevice) -> None:
+async def test_deleting_removes_every_slot_and_then_the_definition(
+    ws, config_entry, clock: FakeClockDevice, one_reminder_per_day
+) -> None:
     item = await item_of(ws, config_entry, "reminder_set", name="Gym", hour=7, minute=0, repeat="weekdays")
     assert sorted(clock.reminders) == [1, 2, 3, 4, 5]
 
@@ -261,7 +276,7 @@ async def test_removing_an_alarm_the_clock_already_lost_still_refreshes_what_the
 
 
 async def test_weekdays_use_five_slots_when_the_clock_takes_no_week_mask(
-    ws, config_entry, clock: FakeClockDevice
+    ws, config_entry, clock: FakeClockDevice, one_reminder_per_day
 ) -> None:
     item = await item_of(ws, config_entry, "reminder_set", name="Gym", hour=7, minute=0, repeat="weekdays")
     assert (item["slots"], item["device_ids"]) == (5, [1, 2, 3, 4, 5])
@@ -271,10 +286,9 @@ async def test_weekdays_use_five_slots_when_the_clock_takes_no_week_mask(
     assert (state["capabilities"]["reminders"]["week_mask"], state["reminder_list"]["used"]) == (False, 5)
 
 
-async def test_weekdays_use_one_slot_when_the_clock_takes_a_week_mask(
-    ws, config_entry, clock: FakeClockDevice, monkeypatch
+async def test_weekdays_use_one_slot_by_default_because_the_clock_takes_a_week_mask(
+    ws, config_entry, clock: FakeClockDevice
 ) -> None:
-    monkeypatch.setattr(hardware, "REMINDER_WEEK_MASK_SUPPORTED", True)
     item = await item_of(ws, config_entry, "reminder_set", name="Gym", hour=7, minute=0, repeat="weekdays")
 
     assert (item["slots"], item["device_ids"], item["status"]) == (1, [1], "synced")
@@ -287,7 +301,9 @@ async def test_weekdays_use_one_slot_when_the_clock_takes_a_week_mask(
 async def test_switching_the_week_mask_flag_makes_old_sends_show_as_changed(
     ws, config_entry, clock: FakeClockDevice, monkeypatch
 ) -> None:
+    monkeypatch.setattr(hardware, "REMINDER_WEEK_MASK_SUPPORTED", False)
     item = await item_of(ws, config_entry, "reminder_set", name="Gym", hour=7, minute=0, repeat="weekdays")
+    assert item["device_ids"] == [1, 2, 3, 4, 5]
     monkeypatch.setattr(hardware, "REMINDER_WEEK_MASK_SUPPORTED", True)
     assert item_row(await listing(ws, config_entry), item["key"])["status"] == "changed"
 
@@ -318,7 +334,7 @@ async def test_a_full_clock_refuses_but_keeps_the_definition_and_resend_works_on
 
 
 async def test_an_item_that_needs_more_slots_than_are_free_says_how_many(
-    ws, config_entry, clock: FakeClockDevice
+    ws, config_entry, clock: FakeClockDevice, one_reminder_per_day
 ) -> None:
     for reminder_id in range(1, 11):
         clock.add_reminder(reminder_id, f"Old {reminder_id}")
@@ -341,7 +357,7 @@ async def test_fourteen_reminders_numbered_0_to_13_leave_no_room_even_though_ids
 
 
 async def test_growing_an_alarm_counts_every_reminder_on_the_clock_not_just_the_ids_in_range(
-    ws, config_entry, clock: FakeClockDevice
+    ws, config_entry, clock: FakeClockDevice, one_reminder_per_day
 ) -> None:
     item = await item_of(ws, config_entry, "reminder_set", name="Gym", hour=7, minute=0, repeat="weekly", days=[2])
     assert item["device_ids"] == [1]
@@ -586,7 +602,7 @@ async def test_an_unreachable_clock_keeps_the_definition_and_deleting_needs_the_
 
 
 async def test_a_clock_that_keeps_a_slot_when_told_to_delete_it_leaves_the_item_in_place_with_the_slot_held(
-    ws, config_entry, clock: FakeClockDevice
+    ws, config_entry, clock: FakeClockDevice, one_reminder_per_day
 ) -> None:
     item = await item_of(ws, config_entry, "reminder_set", name="Gym", hour=7, minute=0, repeat="weekends")
     clock.reminder_delete_results[2] = 1  # the clock refuses to delete slot 2
@@ -666,12 +682,12 @@ async def test_alarms_survive_a_restart_and_match_up_with_the_clock_again(
 
     listed = await listing(ws, config_entry)
     assert [(row["key"], row["status"], row["device_ids"]) for row in listed["items"]] == [
-        (item["key"], "synced", [1, 2, 3, 4, 5]),
+        (item["key"], "synced", [1]),  # one reminder with the week mask
         (off["key"], "disabled", []),
     ]
-    assert (listed["used"], listed["foreign"]) == (5, []) and listed["synced_at"] is not None
+    assert (listed["used"], listed["foreign"]) == (1, []) and listed["synced_at"] is not None
     resent = await item_of(ws, config_entry, "reminder_set", key=item["key"], hour=8)  # and still editable
-    assert (resent["status"], resent["device_ids"]) == ("synced", [1, 2, 3, 4, 5])
+    assert (resent["status"], resent["device_ids"]) == ("synced", [1])
 
 
 async def test_a_refresh_that_cannot_read_every_reminder_keeps_the_last_known_list(
@@ -900,7 +916,7 @@ async def test_a_failed_screen_a_restore_is_reported_but_the_alarm_stays_saved(
 
 
 async def test_progress_events_count_the_slots_of_a_multi_slot_save(
-    hass, ws, config_entry, clock: FakeClockDevice
+    hass, ws, config_entry, clock: FakeClockDevice, one_reminder_per_day
 ) -> None:
     events: list[dict] = []
 
@@ -984,7 +1000,7 @@ async def test_the_list_of_saved_alarms_is_capped(ws, config_entry) -> None:
 
 
 async def test_services_create_switch_and_delete_and_answer_with_the_item(
-    hass, config_entry, clock: FakeClockDevice, device_id: str
+    hass, config_entry, clock: FakeClockDevice, device_id: str, one_reminder_per_day
 ) -> None:
     made = await hass.services.async_call(
         DOMAIN, const.SERVICE_REMINDER_SET,

@@ -1034,11 +1034,11 @@ LAYER_MODEL = LayerModel()
 # `hardware.NAME`, never `from .hardware import NAME`, so tests can patch them), and the studio
 # learns the current values from `capabilities` in the `iledclock/state` payload.
 
-#: [LIVE TEST: slot-B art] May plain art / animation / text / generated effects be written to screen B
-#: (the clock-page store, start-frame kind byte 04) as a standalone type-7 program? The kind byte is
-#: the best guess for which store an upload lands in, and the vendor only ever writes clock, date and
-#: temperature pages there. False: screen B takes clock-type pages only and Pixel Studio says so.
-SLOT_B_ACCEPTS_ART: bool = False
+#: May plain art / animation / text / generated effects be written to screen B (the clock-page store,
+#: start-frame kind byte 04) as a standalone type-7 program? [DEVICE 2026-10-02, slot-B art test] Yes:
+#: the Landscape animation shown with `slot: "b"` played on screen B, and a power press showed screen
+#: A's content unchanged. Set False to restrict screen B to clock-type pages again.
+SLOT_B_ACCEPTS_ART: bool = True
 
 #: Art with a firmware clock beside it ("Icon with clock") has exactly the vendor Clock tab's page
 #: shape (an animation layer plus a clock layer, program type 7, `04 01 <10>` trailer), so screen B
@@ -1056,10 +1056,11 @@ REMINDER_ID_MIN: int = 1
 REMINDER_ID_MAX: int = 15
 REMINDER_CAPACITY: int = 14
 
-#: [LIVE TEST T7: weekday mask] May one reminder carry several weekdays (repeat type 1 with a partial
-#: week mask, e.g. Mon-Fri = 0x1F)? The vendor never sends one. False: a Mon-Fri item uses five clock
-#: slots (one weekly reminder per day); True: it uses one.
-REMINDER_WEEK_MASK_SUPPORTED: bool = False
+#: May one reminder carry several weekdays (repeat type 1 with a partial week mask, e.g. Mon-Fri = 0x1F,
+#: bit 0 = Monday)? The vendor never sends one. [DEVICE 2026-10-02, T7] Yes: on a Friday, a Mon+Tue
+#: reminder (mask 0b11) stayed silent and a Fri+Sat one (0b110000) set for the same minute rang. True:
+#: a Mon-Fri item uses one clock slot; False would cost one weekly reminder per day.
+REMINDER_WEEK_MASK_SUPPORTED: bool = True
 
 #: [LIVE TEST T3: playlist safety] Does uploading a reminder (start frame index 0 / count 1, kind
 #: trailer `05 <id>`) leave screen A's program list and screen B untouched? The firmware most likely

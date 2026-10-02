@@ -422,10 +422,11 @@ class ReconcileTests(unittest.TestCase):
 
     def test_a_multi_day_item_is_changed_when_the_slot_count_no_longer_matches_the_plan(self) -> None:
         item = make_item(repeat="weekdays", device_ids=(1, 2, 3, 4, 5))
-        devices = [device_like(item, plan, i + 1) for i, plan in enumerate(plans(item))]
-        self.assertEqual(self.status(item, devices), "synced")
-        with patch.object(hardware, "REMINDER_WEEK_MASK_SUPPORTED", True):  # now one reminder would be sent
-            self.assertEqual(self.status(item, devices), "changed")
+        with patch.object(hardware, "REMINDER_WEEK_MASK_SUPPORTED", False):  # five weekly reminders were sent
+            devices = [device_like(item, plan, i + 1) for i, plan in enumerate(plans(item))]
+            self.assertEqual(self.status(item, devices), "synced")
+        # with the default (week mask on) one reminder would be sent, so five no longer match
+        self.assertEqual(self.status(item, devices), "changed")
 
     def test_pending_error_and_disabled(self) -> None:
         self.assertEqual(self.status(make_item(), []), "pending")
@@ -488,9 +489,9 @@ class ReconcileTests(unittest.TestCase):
     def test_week_mask_flag_defaults_to_the_hardware_flag_at_call_time(self) -> None:
         item = make_item(repeat="weekdays", device_ids=(1,))
         device = device_like(item, plans(item, mask=True)[0], 1)
-        self.assertEqual(self.status(item, [device]), "changed")
-        with patch.object(hardware, "REMINDER_WEEK_MASK_SUPPORTED", True):
-            self.assertEqual(self.status(item, [device]), "synced")
+        self.assertEqual(self.status(item, [device]), "synced")  # the default is the week mask
+        with patch.object(hardware, "REMINDER_WEEK_MASK_SUPPORTED", False):
+            self.assertEqual(self.status(item, [device]), "changed")
         self.assertEqual(self.status(item, [device], week_mask_supported=True), "synced")
 
 
