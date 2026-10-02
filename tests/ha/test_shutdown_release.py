@@ -306,3 +306,71 @@ async def test_refusals_during_shutdown_are_not_failures(hass, config_entry, clo
     assert coordinator.last_update_success is True
     assert coordinator.data.consecutive_failures == before
     assert clock.connected is False
+
+
+# -- a release that lands in the middle of a refresh is not a failure ---------------------------
+
+
+async def test_release_during_password_handshake_is_not_a_failure(
+    hass, config_entry, clock: FakeClockDevice
+) -> None:
+    """The reviewed race: the shutdown release fails the pending handshake reply. That must
+    surface as a shutdown refusal (no failure counted, nothing unavailable), not a plain
+    connection error."""
+    from custom_components.iledclock.client import IledClockShuttingDownError
+
+    coordinator = config_entry.runtime_data
+    client = coordinator.client
+    await client.async_release()
+    assert clock.connected is False
+    before = coordinator.data
+
+    released: list[asyncio.Task] = []
+
+    async def _release_while_waiting_for_reply(self, *args, **kwargs) -> None:
+        # The handshake frame goes out but no reply comes (the shutdown lands first).
+        if not released:
+            released.append(asyncio.create_task(client.async_release_for_shutdown()))
+
+    with patch.object(FakeGattClient, "write_gatt_char", _release_while_waiting_for_reply):
+        with pytest.raises(IledClockShuttingDownError):
+            await client.async_connect()  # what the refresh runs
+    await released[0]
+
+    await coordinator.async_refresh()
+    assert coordinator.last_update_success is True
+    assert coordinator.data.consecutive_failures == before.consecutive_failures
+    assert coordinator.data.connected == before.connected
+
+
+async def test_refresh_whose_connect_fails_while_latched_is_not_counted(
+    hass, config_entry, clock: FakeClockDevice
+) -> None:
+    """Belt and braces: any IledClockError while the client is latched counts as no failure."""
+    coordinator = config_entry.runtime_data
+    before = coordinator.data
+    coordinator.client._closing = True  # noqa: SLF001
+
+    with patch.object(
+        type(coordinator.client), "async_connect", side_effect=IledClockConnectionError("plain error")
+    ):
+        for _ in range(5):
+            await coordinator.async_refresh()
+
+    assert coordinator.last_update_success is True
+    assert coordinator.data.consecutive_failures == before.consecutive_failures
+
+
+async def test_a_dropped_link_without_shutdown_still_counts_as_a_failure(
+    hass, config_entry, clock: FakeClockDevice
+) -> None:
+    """The ordinary path is untouched: outside shutdown a refused connect is counted."""
+    coordinator = config_entry.runtime_data
+    await coordinator.client.async_release()
+    from bleak.exc import BleakError
+
+    clock.connect_error = BleakError("out of range")
+    await coordinator.async_refresh()
+
+    assert coordinator.data.consecutive_failures == 1
+    assert coordinator.data.connected is False

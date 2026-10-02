@@ -202,7 +202,7 @@ class IledClockClient:
         self._closing = True
         self._cancel_scheduled_idle_disconnect()
         client, self._client = self._client, None
-        self._fail_all_pending(IledClockConnectionError("shutting down"))
+        self._fail_all_pending(self._link_error("shutting down"))
         if client is not None and client.is_connected:
             await client.disconnect()
         async with self._lock:
@@ -213,6 +213,18 @@ class IledClockClient:
     @property
     def _is_closing(self) -> bool:
         return self._closing or shutdown.in_progress(self._hass)
+
+    @property
+    def is_closing(self) -> bool:
+        """True once Home Assistant's shutdown has latched this client (or the whole integration)."""
+        return self._is_closing
+
+    def _link_error(self, message: str) -> IledClockConnectionError:
+        """The error for a link that is gone. Once shutdown has latched, the link was dropped on
+        purpose by the release, so it is `IledClockShuttingDownError` (never counted as a fault)."""
+        if self._is_closing:
+            return IledClockShuttingDownError(f"iLedClock {self._address}: {message} (Home Assistant is shutting down)")
+        return IledClockConnectionError(message)
 
     async def _async_ensure_connected_locked(self) -> None:
         if self._is_closing:
@@ -260,7 +272,7 @@ class IledClockClient:
             await client.start_notify(BLE_CHAR_UUID, self._on_notify)
         except BleakError as err:
             await self._async_disconnect_locked()
-            raise IledClockConnectionError(f"could not enable notifications: {err}") from err
+            raise self._link_error(f"could not enable notifications: {err}") from err
 
         try:
             result = await self._async_request_locked(commands.check_password(self._password))
@@ -275,7 +287,7 @@ class IledClockClient:
     def _on_disconnected(self, _client: BleakClient) -> None:
         _LOGGER.debug("iLedClock %s disconnected", self._address)
         self._client = None
-        self._fail_all_pending(IledClockConnectionError("disconnected"))
+        self._fail_all_pending(self._link_error("disconnected"))
 
     def _fail_all_pending(self, error: Exception) -> None:
         for future in self._pending.values():
@@ -290,7 +302,7 @@ class IledClockClient:
     async def _async_disconnect_locked(self) -> None:
         self._cancel_scheduled_idle_disconnect()
         client, self._client = self._client, None
-        self._fail_all_pending(IledClockConnectionError("disconnected"))
+        self._fail_all_pending(self._link_error("disconnected"))
         if client is not None and client.is_connected:
             try:
                 await client.disconnect()
@@ -344,17 +356,17 @@ class IledClockClient:
         A link that is gone (dropped between two writes of an upload, say) or a failed GATT
         write raises `IledClockConnectionError`, never a bare assertion or Bleak error."""
         if self._client is None or not self._client.is_connected:
-            raise IledClockConnectionError(f"iLedClock {self._address} disconnected")
+            raise self._link_error(f"iLedClock {self._address} disconnected")
         frame = framing.encode_frame(payload)
         size = chunk_size_for_mtu(self._client.mtu_size)
         for chunk in chunk_bytes(frame, size):
             client = self._client
             if client is None or not client.is_connected:
-                raise IledClockConnectionError(f"iLedClock {self._address} disconnected")
+                raise self._link_error(f"iLedClock {self._address} disconnected")
             try:
                 await client.write_gatt_char(BLE_CHAR_UUID, chunk, response=False)
             except (BleakError, OSError) as err:
-                raise IledClockConnectionError(f"could not write to {self._address}: {err}") from err
+                raise self._link_error(f"could not write to {self._address}: {err}") from err
             await asyncio.sleep(WRITE_CHUNK_SPACING_S)
 
     async def _async_request_locked(

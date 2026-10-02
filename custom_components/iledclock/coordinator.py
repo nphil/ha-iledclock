@@ -401,10 +401,11 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         base = self.data
         try:
             await self.client.async_connect()
-        except IledClockShuttingDownError:
-            # Not a fault of the clock: no failure counted, nothing marked unavailable.
-            return base
         except IledClockError as err:
+            if isinstance(err, IledClockShuttingDownError) or self.client.is_closing:
+                # Not a fault of the clock (the link was dropped on purpose, or never opened):
+                # no failure counted, nothing marked unavailable.
+                return base
             failures = base.consecutive_failures + 1
             if failures >= CONSECUTIVE_FAILURES_FOR_UNAVAILABLE:
                 raise UpdateFailed(
@@ -425,6 +426,8 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         # before publishing (nothing is awaited after the check).
         reminder_token = self.reminders.begin_read()
         changes = await self._async_fetch_all()
+        if self.client.is_closing:
+            return self.data  # the release cut this pass short; do not publish a half-read state
         changes["connected"] = True
         changes["consecutive_failures"] = 0
         changes["last_updated"] = dt_util.utcnow().timestamp()
