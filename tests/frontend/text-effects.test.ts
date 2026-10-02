@@ -1,20 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { TEXT_EFFECT_COUNT, TEXT_EFFECTS, isTextEffectMode } from "../../frontend/src/lib/text-effects.ts";
+import { DEFAULT_TEXT_EFFECT, TEXT_EFFECTS, textEffectUsesColor } from "../../frontend/src/lib/text-effects.ts";
 
-test("text effects expose the complete contiguous firmware mode range", () => {
-  assert.equal(TEXT_EFFECT_COUNT, 28);
-  assert.equal(TEXT_EFFECTS.length, 28);
-  assert.equal(TEXT_EFFECTS[0]?.label, "Solid");
-  assert.equal(TEXT_EFFECTS[27]?.mode, 28);
-  assert.equal(TEXT_EFFECTS[27]?.label, "Effect 28");
+test("the text effect list is exactly the three modes that draw differently, solid first", () => {
+  assert.deepEqual(TEXT_EFFECTS.map((effect) => [effect.mode, effect.label]), [[1, "Solid"], [2, "Rainbow"], [4, "Per-letter rainbow"]]);
+  assert.equal(DEFAULT_TEXT_EFFECT, 1);
 });
 
-test("text effect validation rejects modes the firmware cannot accept", () => {
-  assert.equal(isTextEffectMode(1), true);
-  assert.equal(isTextEffectMode(28), true);
-  assert.equal(isTextEffectMode(0), false);
-  assert.equal(isTextEffectMode(29), false);
-  assert.equal(isTextEffectMode(1.5), false);
-  assert.equal(isTextEffectMode(Number.NaN), false);
+test("only the solid effect uses the colour picker; an unknown mode draws solid so it does too", () => {
+  assert.equal(textEffectUsesColor(1), true);
+  assert.equal(textEffectUsesColor(2), false);
+  assert.equal(textEffectUsesColor(4), false);
+  assert.equal(textEffectUsesColor(3), true, "mode 3 is not offered and the server draws it solid");
+  assert.equal(textEffectUsesColor(28), true);
 });

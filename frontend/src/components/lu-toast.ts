@@ -76,7 +76,7 @@ export class LuToast extends LitElement {
 
   static styles = [TOKENS_CSS, SURFACES_CSS, css`
     :host { container-type: inline-size; display: block; pointer-events: none; }
-    .toast { position: fixed; z-index: 1100; left: max(var(--lu-space-4), env(safe-area-inset-left)); right: max(var(--lu-space-4), env(safe-area-inset-right)); bottom: calc(var(--lu-space-4) + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-3); width: auto; max-width: 560px; box-sizing: border-box; margin: 0 auto; padding: var(--lu-space-2) var(--lu-space-3); color: var(--lu-ink); background: var(--lu-card); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest); pointer-events: auto; }
+    .toast { position: fixed; z-index: 1100; left: max(var(--lu-space-4), env(safe-area-inset-left)); right: max(var(--lu-space-4), env(safe-area-inset-right)); bottom: calc(var(--lu-space-4) + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-3); width: auto; max-width: 560px; box-sizing: border-box; margin: 0 auto; padding: var(--lu-space-2) var(--lu-space-3); color: var(--lu-ink); background: var(--lu-sheet); backdrop-filter: var(--lu-sheet-blur); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest); pointer-events: auto; }
     .message { min-width: 0; overflow-wrap: anywhere; font: 500 var(--lu-type-label)/1.4 var(--lu-font); }
     .action { color: var(--lu-accent); }
     :host([mobile]) .toast { bottom: calc(64px + var(--lu-space-4) + env(safe-area-inset-bottom)); }

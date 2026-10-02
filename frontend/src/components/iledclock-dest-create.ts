@@ -1,24 +1,30 @@
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
 import { TOKENS_CSS, SURFACES_CSS } from "../styles/tokens.ts";
-import type { HomeAssistant, RenderResult, RenderSpec, StoredDesign } from "../types.ts";
+import type { HomeAssistant, PlaybackPreviewResult, RenderResult, RenderSpec, StoredDesign } from "../types.ts";
 import type { StudioRoute } from "../lib/route.ts";
 import { navigateStudioRoute } from "../lib/route.ts";
 import { GRID_HEIGHT, GRID_WIDTH, cloneFrame, createFrame, framesEqual, setPixelMut, type PixelFrame } from "../lib/grid.ts";
 import { CLOCK_REGION_TAG, clockRegionForDesign, designHasClockRegion, isEditablePixel } from "../lib/clock-region.ts";
-import { base64ToFrame, designToFrames, framesToDesign } from "../lib/design-codec.ts";
+import { base64ToFrame, designToFrames, frameToBase64, framesToDesign } from "../lib/design-codec.ts";
 import { historyInit, historyPush, historyRedo, historyUndo, type History } from "../lib/undo-stack.ts";
 import { GENERATIVE_PRESETS } from "../lib/generative-presets.ts";
-import { buildTextRenderSpec, designsListRequest, designsSaveRequest, renderRequest } from "../lib/ws-api.ts";
+import { buildTextRenderSpec, designsListRequest, designsSaveRequest, playbackPreviewRequest, renderRequest } from "../lib/ws-api.ts";
 import { hexToRgb, type RGB } from "../lib/color.ts";
 import { mdiIcon } from "../lib/mdi-icons.ts";
 import { clearEditorDraft, editorStateFingerprint, isEditorDraftDirty, makeEditorDraft, readEditorDraft, writeEditorDraft } from "../lib/draft-store.ts";
 import { isEditorSessionCurrent } from "../lib/editor-session.ts";
-import { showWithUndo } from "../lib/show-with-undo.ts";
+import { resolveShowTarget, showWithUndo } from "../lib/show-with-undo.ts";
+import { SLOT_CHECK_FAILED } from "../lib/slots.ts";
 import { encodeAnimationGif } from "../lib/editor-export.ts";
 import { setFrameDelay } from "../lib/timeline.ts";
+import { decodeRenderFrames } from "../lib/descriptor-preview.ts";
+import { posterFrameIndex } from "../lib/tile-policy.ts";
+import { PlaybackSession, type PlaybackState } from "../lib/playback-session.ts";
 import type { NewDesignOption } from "./iledclock-editor-new-sheet.ts";
 import "./iledclock-pixel-editor.ts";
 import "./iledclock-frame-timeline.ts";
+import "./iledclock-led-preview.ts";
+import "./iledclock-playback-control.ts";
 import "./iledclock-import-sheet.ts";
 import "./iledclock-editor-inspector.ts";
 import "./iledclock-editor-color-sheet.ts";
@@ -26,6 +32,7 @@ import "./iledclock-editor-new-sheet.ts";
 import "./iledclock-editor-effects-sheet.ts";
 import "./iledclock-editor-text-sheet.ts";
 import "./lu-pill-button.ts";
+import "./iledclock-slot-choice.ts";
 import "./lu-icon-button.ts";
 import "./lu-chip.ts";
 import "./lu-section.ts";
@@ -37,6 +44,12 @@ const NEW_DESIGN_NAME = "Untitled design";
 const AUTOSAVE_DELAY_MS = 400;
 const MAX_RECENT_COLORS = 10;
 const EMPTY_FRAME = createFrame(GRID_WIDTH, GRID_HEIGHT);
+/** Hand-drawn pixel art is meant to step, so a new design starts with Smooth motion off. */
+const EDITOR_PLAYBACK: PlaybackState = { speed: null, smooth: "off" };
+/** Wait this long after the last frame or delay edit before re-asking the server for the preview. */
+const PLAYBACK_SYNC_MS = 500;
+/** Handed to the session while the design is a single picture: no motion, so no preview requests. */
+const NO_MOTION: PixelFrame[] = [];
 
 type SaveState = "saved" | "draft" | "unsaved";
 type TextStamp = { text: string; color: RGB } | null;
@@ -102,6 +115,7 @@ export class IledclockDestCreate extends LitElement {
     _brushSize: { state: true },
     _onionEnabled: { state: true },
     _clockRegion: { state: true },
+    _playback: { state: true },
     _wideLayout: { state: true },
     _saveState: { state: true },
     _busy: { state: true },
@@ -137,6 +151,7 @@ export class IledclockDestCreate extends LitElement {
   declare _brushSize: number;
   declare _onionEnabled: boolean;
   declare _clockRegion: boolean;
+  declare _playback: PlaybackState;
   declare _wideLayout: boolean;
   declare _saveState: SaveState;
   declare _busy: "save" | "show" | "render" | "stamp" | null;
@@ -151,6 +166,12 @@ export class IledclockDestCreate extends LitElement {
   private _sessionRevision = 0;
   private _resizeObserver: ResizeObserver | null = null;
   private _retryAction: (() => void) | null = null;
+  private _session: PlaybackSession | null = null;
+  private _playbackTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Bumped whenever a different design (or its stored playback) is loaded: the preview then restarts at once. */
+  private _playbackEpoch = 0;
+  private _syncedEpoch = -1;
+  private _sourceFrames: PixelFrame[] | null = null;
 
   constructor() {
     super();
@@ -181,17 +202,21 @@ export class IledclockDestCreate extends LitElement {
     this._brushSize = 1;
     this._onionEnabled = true;
     this._clockRegion = false;
+    this._playback = { ...EDITOR_PLAYBACK };
     this._wideLayout = false;
     this._saveState = "draft";
     this._busy = null;
     this._error = null;
-    this._savedFingerprint = editorStateFingerprint({ name: this._designName, frames: blank, clockRegion: false });
+    this._savedFingerprint = editorStateFingerprint({ name: this._designName, frames: blank, clockRegion: false, playback: EDITOR_PLAYBACK });
   }
 
   connectedCallback(): void {
     super.connectedCallback();
     this.addEventListener("iledclock-designs-changed", this._onDesignsChanged);
     this.addEventListener("iledclock-open-design", this._onOpenDesign as unknown as EventListener);
+    this._session = this._createSession();
+    this._syncedEpoch = -1;
+    this.requestUpdate();
   }
 
   disconnectedCallback(): void {
@@ -200,6 +225,10 @@ export class IledclockDestCreate extends LitElement {
     this.removeEventListener("iledclock-open-design", this._onOpenDesign as unknown as EventListener);
     this._flushDraftSave(this._openedEntryId);
     clearTimeout(this._autosaveTimer);
+    clearTimeout(this._playbackTimer);
+    this._session?.dispose();
+    this._session = null;
+    this._sourceFrames = null;
     this._resizeObserver?.disconnect();
     this._resizeObserver = null;
   }
@@ -216,19 +245,89 @@ export class IledclockDestCreate extends LitElement {
     this._resolveRouteDesign();
   }
 
+  /** One preview session for whichever Playback section is on screen (inspector or under Frames). Its
+   * authored frames are the editor's frames; the request carries them inline plus the clock region, so
+   * the preview matches what the clock will play for an "Art + clock" design. */
+  private _createSession(): PlaybackSession {
+    return new PlaybackSession({
+      callWS: (request) => {
+        if (!this.hass?.callWS) return Promise.reject(new Error("Home Assistant connection is unavailable."));
+        return this.hass.callWS<PlaybackPreviewResult>(request);
+      },
+      buildRequest: (state, authored) => playbackPreviewRequest({
+        entryId: this.entryId,
+        frames: authored.map(frameToBase64),
+        delays: authored.map((frame) => frame.durationMs),
+        clockRegion: clockRegionForDesign(this._clockRegion),
+      }, state),
+      onChange: () => this.requestUpdate(),
+      defaultState: EDITOR_PLAYBACK,
+    });
+  }
+
+  private _motionFrames(): PixelFrame[] { return this._frames.length > 1 ? this._frames : NO_MOTION; }
+
+  /** Load playback into the editor (opening or replacing a design); the preview restarts at once. */
+  private _setPlayback(playback: PlaybackState): void {
+    this._playback = { speed: playback.speed, smooth: playback.smooth };
+    this._playbackEpoch++;
+  }
+
+  protected willUpdate(changed: PropertyValues): void {
+    const session = this._session;
+    if (!session) return;
+    if (this._playbackEpoch !== this._syncedEpoch) {
+      this._syncedEpoch = this._playbackEpoch;
+      clearTimeout(this._playbackTimer);
+      this._sourceFrames = this._motionFrames();
+      session.setSource(this._sourceFrames, { state: this._playback });
+      // Reset means "back to how a hand-drawn design starts", not the value this design was opened with.
+      session.setDefaultState(EDITOR_PLAYBACK);
+      return;
+    }
+    if (!changed.has("_history") && !changed.has("_clockRegion")) return;
+    if (this._motionFrames() === NO_MOTION) {
+      clearTimeout(this._playbackTimer);
+      if (this._sourceFrames !== NO_MOTION) {
+        this._sourceFrames = NO_MOTION;
+        session.setSource(NO_MOTION);
+      }
+      return;
+    }
+    clearTimeout(this._playbackTimer);
+    this._playbackTimer = setTimeout(() => this._syncPlaybackSource(), PLAYBACK_SYNC_MS);
+  }
+
+  /** Quiet for a moment after the last frame/delay/clock edit: show the server's exact frames for what is drawn now. */
+  private _syncPlaybackSource(): void {
+    const session = this._session;
+    const frames = this._motionFrames();
+    if (!session || frames === NO_MOTION) return;
+    if (frames === this._sourceFrames) {
+      session.refresh();
+      return;
+    }
+    this._sourceFrames = frames;
+    session.setSource(frames);
+  }
+
   protected updated(changed: PropertyValues): void {
     if (changed.has("entryId") && this.entryId) void this._openEntry(this.entryId);
     if (changed.has("route")) this._resolveRouteDesign();
     if (changed.has("active") && !this.active) this._playing = false;
-    if (changed.has("_history") || changed.has("_designName") || changed.has("_clockRegion")) this._scheduleDraftSave();
+    if (changed.has("_history") || changed.has("_designName") || changed.has("_clockRegion") || changed.has("_playback")) this._scheduleDraftSave();
   }
 
   private get _frames(): PixelFrame[] { return this._history.present; }
 
   private get _activeFrame(): PixelFrame { return this._frames[this._activeFrameIndex] ?? this._frames[0] ?? EMPTY_FRAME; }
 
+  private _currentFingerprint(): string {
+    return editorStateFingerprint({ name: this._designName, frames: this._frames, clockRegion: this._clockRegion, playback: this._playback });
+  }
+
   private get _isDirty(): boolean {
-    return editorStateFingerprint({ name: this._designName, frames: this._frames, clockRegion: this._clockRegion }) !== this._savedFingerprint;
+    return this._currentFingerprint() !== this._savedFingerprint;
   }
 
   private _storage() {
@@ -240,7 +339,7 @@ export class IledclockDestCreate extends LitElement {
   }
 
   private _draftState() {
-    return { name: this._designName, frames: this._frames, clockRegion: this._clockRegion, designId: this._currentDesignId };
+    return { name: this._designName, frames: this._frames, clockRegion: this._clockRegion, designId: this._currentDesignId, playback: this._playback };
   }
 
   private _openEntry(entryId: string): void {
@@ -257,7 +356,8 @@ export class IledclockDestCreate extends LitElement {
     this._currentDesignId = null;
     this._designName = NEW_DESIGN_NAME;
     this._clockRegion = false;
-    this._savedFingerprint = editorStateFingerprint({ name: NEW_DESIGN_NAME, frames: blank, clockRegion: false });
+    this._setPlayback(EDITOR_PLAYBACK);
+    this._savedFingerprint = editorStateFingerprint({ name: NEW_DESIGN_NAME, frames: blank, clockRegion: false, playback: EDITOR_PLAYBACK });
     this._saveState = "draft";
     this._playing = false;
     this._stampText = null;
@@ -296,6 +396,8 @@ export class IledclockDestCreate extends LitElement {
     this._currentDesignId = draft.designId;
     this._designName = draft.name;
     this._clockRegion = draft.clockRegion;
+    // A draft from before Speed existed has no playback: start from the editor default.
+    this._setPlayback(draft.playback ?? EDITOR_PLAYBACK);
     this._savedFingerprint = draft.savedFingerprint;
     this._saveState = "draft";
     this.dispatchEvent(new CustomEvent("lu-toast", {
@@ -378,7 +480,8 @@ export class IledclockDestCreate extends LitElement {
     this._currentDesignId = design.id;
     this._designName = design.name;
     this._clockRegion = designHasClockRegion(design);
-    this._savedFingerprint = editorStateFingerprint({ name: this._designName, frames: this._frames, clockRegion: this._clockRegion });
+    this._setPlayback({ speed: design.speed ?? null, smooth: design.smooth ?? null });
+    this._savedFingerprint = this._currentFingerprint();
     this._saveState = "saved";
     this._stampText = null;
     this._playing = false;
@@ -447,6 +550,12 @@ export class IledclockDestCreate extends LitElement {
     this._pushFrames(setFrameDelay(this._frames, this._activeFrameIndex, event.detail.delayMs));
   };
 
+  /** The Speed slider or Smooth switch settled: it is now part of the design (and an unsaved change). */
+  private _onPlaybackCommit = (event: CustomEvent<PlaybackState>): void => {
+    event.stopPropagation();
+    this._playback = { speed: event.detail.speed, smooth: event.detail.smooth };
+  };
+
   private _onClockRegionChanged = (event: CustomEvent<{ enabled: boolean }>): void => {
     this._clockRegion = event.detail.enabled;
   };
@@ -488,7 +597,8 @@ export class IledclockDestCreate extends LitElement {
     this._currentDesignId = null;
     this._designName = name;
     this._clockRegion = clockRegion;
-    this._savedFingerprint = editorStateFingerprint({ name, frames: blank, clockRegion });
+    this._setPlayback(EDITOR_PLAYBACK);
+    this._savedFingerprint = editorStateFingerprint({ name, frames: blank, clockRegion, playback: EDITOR_PLAYBACK });
     this._saveState = "unsaved";
     this._playing = false;
     this._stampText = null;
@@ -513,7 +623,7 @@ export class IledclockDestCreate extends LitElement {
     const entryId = this.entryId;
     if (!action || !entryId) return;
     const revision = this._sessionRevision;
-    const fingerprint = editorStateFingerprint({ name: this._designName, frames: this._frames, clockRegion: this._clockRegion });
+    const fingerprint = this._currentFingerprint();
     this._replacementSheetOpen = false;
     this._busy = "save";
     const saved = await this._saveDesign();
@@ -523,7 +633,7 @@ export class IledclockDestCreate extends LitElement {
       this._replacementSheetOpen = Boolean(action);
       return;
     }
-    if (editorStateFingerprint({ name: this._designName, frames: this._frames, clockRegion: this._clockRegion }) !== fingerprint) {
+    if (this._currentFingerprint() !== fingerprint) {
       this._replacementSheetOpen = true;
       return;
     }
@@ -548,7 +658,8 @@ export class IledclockDestCreate extends LitElement {
     const frames = this._frames.slice();
     const name = this._designName.trim() || NEW_DESIGN_NAME;
     const clockRegion = this._clockRegion;
-    const fingerprint = editorStateFingerprint({ name, frames, clockRegion });
+    const playback = { ...this._playback };
+    const fingerprint = editorStateFingerprint({ name, frames, clockRegion, playback });
     const now = Date.now();
     const existing = this._currentDesignId ? this._designs.find((design) => design.id === this._currentDesignId) : undefined;
     const tags = (existing?.tags ?? []).filter((tag) => tag !== CLOCK_REGION_TAG && tag !== "with-clock" && tag !== "clock_region");
@@ -560,6 +671,9 @@ export class IledclockDestCreate extends LitElement {
       created: existing?.created ?? now,
       updated: now,
       tags,
+      // Always send them: a save that left these out would keep the old stored values.
+      speed: playback.speed,
+      smooth: playback.smooth,
     });
     design.clock_region = clockRegionForDesign(clockRegion);
     try {
@@ -569,7 +683,7 @@ export class IledclockDestCreate extends LitElement {
       this._currentDesignId = id;
       this._savedFingerprint = fingerprint;
       void this._loadDesigns(entryId);
-      if (editorStateFingerprint({ name: this._designName.trim() || NEW_DESIGN_NAME, frames: this._frames, clockRegion: this._clockRegion }) === fingerprint) {
+      if (editorStateFingerprint({ name: this._designName.trim() || NEW_DESIGN_NAME, frames: this._frames, clockRegion: this._clockRegion, playback: this._playback }) === fingerprint) {
         this._designName = name;
         const storage = this._storage();
         if (storage) clearEditorDraft(storage, entryId);
@@ -608,8 +722,19 @@ export class IledclockDestCreate extends LitElement {
     this._busy = "show";
     this._error = null;
     try {
-      const saved = await this._saveDesign();
-      if (saved && this._isCurrentSession(entryId, revision)) await showWithUndo(this, hass, entryId, { design_id: saved.id }, saved.name);
+      // The design is saved exactly as it is drawn now (the clock-region switch stays live while the save runs) and the screen is decided
+      // from that same moment, so the show goes where the A | B control said when Show was pressed.
+      const contentClass = this._clockRegion ? "art_clock" : "art";
+      const saving = this._saveDesign();
+      const target = await resolveShowTarget(hass, entryId, contentClass);
+      const saved = await saving;
+      if (!saved || !this._isCurrentSession(entryId, revision)) return;
+      if (!target) {
+        this._error = SLOT_CHECK_FAILED;
+        this._retryAction = () => { void this._showClick(); };
+        return;
+      }
+      await showWithUndo(this, hass, entryId, { design_id: saved.id }, saved.name, { target });
     } finally {
       if (this._isCurrentSession(entryId, revision)) this._busy = null;
     }
@@ -695,9 +820,10 @@ export class IledclockDestCreate extends LitElement {
     try {
       const rendered = await callWS<RenderResult>(renderRequest(entryId, spec));
       if (!this._isCurrentSession(entryId, revision)) return;
-      const encoded = rendered.frames[0];
-      if (!encoded) return;
-      const stampFrame = base64ToFrame(encoded, GRID_WIDTH, GRID_HEIGHT, rendered.delays[0] ?? 100);
+      // Text longer than the panel is drawn as a scrolling marquee whose first frame is empty: stamp the frame with the most letters showing.
+      const shown = decodeRenderFrames(rendered);
+      const stampFrame = shown[posterFrameIndex(shown)];
+      if (!stampFrame) return;
       const next = cloneFrame(this._activeFrame);
       for (let sy = 0; sy < stampFrame.height; sy++) {
         for (let sx = 0; sx < stampFrame.width; sx++) {
@@ -726,7 +852,7 @@ export class IledclockDestCreate extends LitElement {
     const blank = [createFrame(this._frames[0]?.width ?? GRID_WIDTH, this._frames[0]?.height ?? GRID_HEIGHT)];
     this._currentDesignId = null;
     this._designName = newName;
-    this._savedFingerprint = editorStateFingerprint({ name: newName, frames: blank, clockRegion: this._clockRegion });
+    this._savedFingerprint = editorStateFingerprint({ name: newName, frames: blank, clockRegion: this._clockRegion, playback: this._playback });
     this._saveState = "unsaved";
   };
 
@@ -801,8 +927,17 @@ export class IledclockDestCreate extends LitElement {
     return "Unsaved";
   }
 
+  /** The preview and the Speed controls for the design being edited; same markup in both placements. */
+  private _renderPlayback(session: PlaybackSession) {
+    return html`<div class="playback-body">
+      <div class="playback-preview"><iledclock-led-preview context="hero" max-pitch="6" .frames=${session.frames} .delays=${session.delays} .rate=${session.rate} ?playing=${session.playing} label="Playback preview"></iledclock-led-preview></div>
+      <iledclock-playback-control .session=${session} @playback-commit=${this._onPlaybackCommit}></iledclock-playback-control>
+    </div>`;
+  }
+
   render() {
     const frames = this._frames;
+    const session = this._session?.hasMotion ? this._session : null;
     const previousFrame = this._onionEnabled && this._activeFrameIndex > 0 ? frames[this._activeFrameIndex - 1] ?? null : null;
     return html`<div class="destination" aria-label="Create a pixel design">
       ${this._error ? html`<lu-error message=${this._error} retry-label="Retry" @retry=${this._onRetry}></lu-error>` : nothing}
@@ -828,6 +963,7 @@ export class IledclockDestCreate extends LitElement {
             </div>` : nothing}
           </div>
         </div>
+        <iledclock-slot-choice class="screen-choice" .hass=${this.hass} .entryId=${this.entryId} content-class=${this._clockRegion ? "art_clock" : "art"} ?disabled=${this._busy !== null}></iledclock-slot-choice>
         <div class="primary-actions">
           <lu-pill-button variant="secondary" label="Save" icon="mdi:content-save" ?loading=${this._busy === "save"} ?disabled=${!this.entryId || this._busy !== null} @lu-press=${this._saveClick}></lu-pill-button>
           <lu-pill-button variant="primary" label="Show on clock" icon="mdi:television-play" ?loading=${this._busy === "show"} ?disabled=${!this.entryId || this._busy !== null} @lu-press=${this._showClick}></lu-pill-button>
@@ -839,8 +975,9 @@ export class IledclockDestCreate extends LitElement {
           <lu-section class="timeline-section" title="Frames" icon="mdi:animation" description=${`${frames.length} frame${frames.length === 1 ? "" : "s"} · max 64`}>
             <iledclock-frame-timeline .frames=${frames} .activeIndex=${this._activeFrameIndex} .playing=${this._playing} @frames-changed=${this._onFramesChanged} @frame-selected=${this._onFrameSelected} @play-toggled=${this._onPlayToggled}></iledclock-frame-timeline>
           </lu-section>
+          ${session && !this._wideLayout ? html`<lu-section class="playback-section" title="Playback" icon="mdi:speedometer" description="Speed and smooth motion">${this._renderPlayback(session)}</lu-section>` : nothing}
         </div>` : html`<lu-empty title="Clock not found" message="Connect an iLedClock to create and save designs."></lu-empty>`}
-        <iledclock-editor-inspector class="inspector" .activeColor=${this._activeColor} .recentColors=${this._recentColors} .brushSize=${this._brushSize} .onionSkin=${this._onionEnabled} .frameDelay=${this._activeFrame.durationMs} .clockRegion=${this._clockRegion} @inspector-color-picked=${this._onColorPicked} @inspector-color-requested=${() => (this._colorSheetOpen = true)} @inspector-brush-changed=${this._onBrushChanged} @inspector-delay-changed=${this._onInspectorDelay} @inspector-onion-changed=${this._onOnionChanged} @inspector-clock-region-changed=${this._onClockRegionChanged}></iledclock-editor-inspector>
+        <iledclock-editor-inspector class="inspector" .activeColor=${this._activeColor} .recentColors=${this._recentColors} .brushSize=${this._brushSize} .onionSkin=${this._onionEnabled} .frameDelay=${this._activeFrame.durationMs} .clockRegion=${this._clockRegion} .playbackAvailable=${Boolean(session) && this._wideLayout} @inspector-color-picked=${this._onColorPicked} @inspector-color-requested=${() => (this._colorSheetOpen = true)} @inspector-brush-changed=${this._onBrushChanged} @inspector-delay-changed=${this._onInspectorDelay} @inspector-onion-changed=${this._onOnionChanged} @inspector-clock-region-changed=${this._onClockRegionChanged}>${session && this._wideLayout ? html`<div slot="playback">${this._renderPlayback(session)}</div>` : nothing}</iledclock-editor-inspector>
       </div>
       <iledclock-editor-color-sheet .open=${this._colorSheetOpen} .color=${this._activeColor} .recent=${this._recentColors} @color-selected=${this._onColorPicked} @close-requested=${this._onColorClose} @closed=${this._onColorClose}></iledclock-editor-color-sheet>
       <iledclock-editor-new-sheet .open=${this._newSheetOpen} .hass=${this.hass} .entryId=${this.entryId} @new-option-selected=${this._onNewOption} @effect-previews-ready=${this._onEffectPreviewReady} @close-requested=${this._onNewClose} @closed=${this._onNewClose}></iledclock-editor-new-sheet>
@@ -865,7 +1002,7 @@ export class IledclockDestCreate extends LitElement {
     .icon-actions { display: inline-flex; gap: var(--lu-space-1); }
     .overflow-wrap { position: relative; flex: none; }
     .overflow-button { display: inline-flex; align-items: center; justify-content: center; width: var(--lu-target); height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); background: var(--lu-tile); color: var(--lu-ink); cursor: pointer; }
-    .overflow-menu { position: absolute; z-index: 20; inset-block-start: calc(100% + var(--lu-space-1)); inset-inline-end: 0; display: grid; gap: var(--lu-space-1); width: min(18rem, calc(100vw - 2rem)); max-height: min(70vh, 34rem); overflow: auto; padding: var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); background: var(--lu-card); box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest); }
+    .overflow-menu { position: absolute; z-index: 20; inset-block-start: calc(100% + var(--lu-space-1)); inset-inline-end: 0; display: grid; gap: var(--lu-space-1); width: min(18rem, calc(100vw - 2rem)); max-height: min(70vh, 34rem); overflow: auto; padding: var(--lu-space-2); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); background: var(--lu-sheet); backdrop-filter: var(--lu-sheet-blur); box-shadow: var(--lu-highlight-rest), var(--lu-shadow-rest); }
     .menu-action { display: flex; align-items: center; gap: var(--lu-space-2); min-height: var(--lu-target); padding: 0 var(--lu-space-2); border: 0; border-radius: var(--lu-radius-control); background: transparent; color: var(--lu-ink); text-align: left; font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
     .menu-action:hover, .menu-action:focus-visible { background: var(--lu-glass-raised); }
     .clear-hold { display: block; min-width: 0; }
@@ -873,7 +1010,10 @@ export class IledclockDestCreate extends LitElement {
     .primary-actions lu-pill-button:last-child { min-width: min(100%, 13rem); }
     .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; gap: var(--lu-space-4); min-width: 0; }
     .editor-center { display: grid; align-content: start; gap: var(--lu-space-3); min-width: 0; }
-    .timeline-section { min-width: 0; }
+    .timeline-section, .playback-section { min-width: 0; }
+    .playback-body { display: grid; gap: var(--lu-space-3); min-width: 0; }
+    .playback-preview { display: grid; place-items: center; min-width: 0; overflow: hidden; border-radius: var(--lu-radius-tile); }
+    .playback-preview iledclock-led-preview { width: 100%; }
     .inspector { min-width: 0; }
     .replace-copy h2 { margin: 0 0 var(--lu-space-2); color: var(--lu-ink); font: 600 var(--lu-type-title)/1.2 var(--lu-font); }
     .replace-copy p { margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-body)/1.45 var(--lu-font); }
@@ -900,6 +1040,13 @@ export class IledclockDestCreate extends LitElement {
     button:focus-visible, input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
     :host([compact]) .editor-header { gap: var(--lu-space-2); }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    .editor-header { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+    .identity-row { grid-column: 1 / -1; }
+    .screen-choice { grid-column: 1; min-width: 0; }
+    .primary-actions { grid-column: 2; justify-self: end; }
+    .primary-actions lu-pill-button { flex: 0 0 auto; }
+    :host([compact]) .editor-header { grid-template-columns: minmax(0, 1fr); }
+    :host([compact]) .screen-choice { grid-column: 1; }
   `];
 }
 

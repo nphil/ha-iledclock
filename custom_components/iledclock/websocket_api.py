@@ -23,7 +23,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from .client import IledClockError
 from .clock_backgrounds import CLOCK_BACKGROUNDS
 from .clock_styles import CLOCK_STYLES
-from .const import DOMAIN, upload_progress_signal
+from .const import DEFAULT_SLOT, DOMAIN, SLOTS, upload_progress_signal
 from .coordinator import (
     IledClockCoordinator,
     alarm_item_from_service,
@@ -31,12 +31,23 @@ from .coordinator import (
 )
 from .designs import DesignValidationError
 from .playlist import PlaylistValidationError, playlist_item_to_json, validate_playlist
-from .program_builder import ProgramBuildError, design_to_frames, region_clock_color, region_clock_style
+from .program_builder import (
+    ProgramBuildError,
+    art_width,
+    design_play_frames,
+    design_playback,
+    inline_playback,
+    region_clock_color,
+    region_clock_style,
+    retimed_frames,
+    text_playback_frames,
+)
 from .protocol import clock_faces as protocol_clock_faces
 from .protocol import render as protocol_render
 from .protocol.models import Frame
+from .slots import SlotUnsupportedError
 from .store import async_get_design_library
-from .ws_shapes import shape_designs_list, shape_frames_payload, shape_state_event
+from .ws_shapes import shape_designs_list, shape_frames_payload, shape_playback_payload, shape_state_event
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -65,6 +76,8 @@ def _state_event(coordinator: IledClockCoordinator) -> dict[str, Any]:
         playlist=coordinator.playlist_store.playlist,
         now_showing=coordinator.show_store.now_showing,
         show_history=coordinator.show_store.history,
+        slots=coordinator.slots_json(),
+        reminder_list=coordinator.reminder_list_json(),
     )
 
 
@@ -81,6 +94,8 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_designs_list)
     websocket_api.async_register_command(hass, ws_designs_save)
     websocket_api.async_register_command(hass, ws_designs_delete)
+    websocket_api.async_register_command(hass, ws_designs_set_playback)
+    websocket_api.async_register_command(hass, ws_playback_preview)
     websocket_api.async_register_command(hass, ws_render)
     websocket_api.async_register_command(hass, ws_show)
     websocket_api.async_register_command(hass, ws_playlist_get)
@@ -194,6 +209,75 @@ async def ws_designs_delete(
     connection.send_result(msg["id"], {})
 
 
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "iledclock/designs/set_playback",
+        vol.Required("design_id"): str,
+        vol.Optional("speed"): vol.Any(None, int, float),
+        vol.Optional("smooth"): vol.Any(None, str),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_designs_set_playback(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
+) -> None:
+    """Change only a design's Speed and/or Smooth motion (the keys that are present); its frames stay."""
+    library = async_get_design_library(hass)
+    await library.async_load()
+    changes = {key: msg[key] for key in ("speed", "smooth") if key in msg}
+    try:
+        design = await library.async_set_playback(msg["design_id"], **changes)
+    except DesignValidationError as err:
+        connection.send_error(msg["id"], "invalid_playback", str(err))
+        return
+    if design is None:
+        connection.send_error(msg["id"], "not_found", f"no saved design with id {msg['design_id']!r}")
+        return
+    connection.send_result(
+        msg["id"], {"id": design.id, "speed": design.speed, "smooth": design.smooth, "updated": design.updated}
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "iledclock/playback/preview",
+        vol.Optional("entry_id"): str,
+        vol.Optional("design_id"): str,
+        vol.Optional("frames"): [str],
+        vol.Optional("delays"): [vol.Any(int, float)],
+        vol.Optional("clock_region"): vol.Any(None, dict, [int]),
+        vol.Optional("speed"): vol.Any(None, int, float),
+        vol.Optional("smooth"): vol.Any(None, str),
+    }
+)
+@websocket_api.async_response
+async def ws_playback_preview(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
+) -> None:
+    """What the clock will play for a Speed and Smooth motion setting: the exact frames and delays
+    (the same code the upload runs) plus what smoothing did. Either a saved design (`design_id`; a
+    `speed` / `smooth` key present overrides the stored value) or inline `frames` + `delays`
+    (the panel previewing a setting before it is saved). Never touches the clock."""
+    settings = {key: msg[key] for key in ("speed", "smooth") if key in msg}
+    try:
+        if "design_id" in msg:
+            library = async_get_design_library(hass)
+            await library.async_load()
+            design = library.get_design(msg["design_id"])
+            if design is None:
+                connection.send_error(msg["id"], "not_found", f"no saved design with id {msg['design_id']!r}")
+                return
+            played = await hass.async_add_executor_job(design_playback, design, settings)
+            width = art_width(design)
+        else:
+            played, width = await hass.async_add_executor_job(inline_playback, msg)
+    except ValueError as err:  # DesignValidationError is one
+        connection.send_error(msg["id"], "invalid_playback", str(err))
+        return
+    connection.send_result(msg["id"], shape_playback_payload(played, width))
+
+
 # -- iledclock/render -----------------------------------------------------------------------------
 
 
@@ -204,20 +288,17 @@ async def _async_render_spec(
     `(frames, delays_ms, approximate)`."""
     spec_type = spec.get("type")
     if spec_type == "text":
-        color = tuple(spec.get("color", (255, 255, 255)))
-        # `effect` (an auto colour-cycle mode, sent as a numeric string) only matters for a
-        # real upload's `TextAutoColor` (program_builder.py); the preview here always renders
-        # in the requested flat colour regardless, which is an honest simplification -- an
-        # animated colour-cycle effect has no single still "preview colour" to begin with.
-        frames = await hass.async_add_executor_job(
-            protocol_render.text_frames, spec.get("text", ""), spec.get("font", "5x7"), color,
-        )
+        # The very function a text show uploads (`text_playback_frames`), so the preview is the upload: same
+        # drawing, same effect, bold and font, same Speed and Smooth motion.
+        frames = await hass.async_add_executor_job(text_playback_frames, spec)
         return frames, [frame.duration_ms for frame in frames], False
     if spec_type == "image":
         frames = await coordinator.async_render_image(spec)
+        frames = await hass.async_add_executor_job(retimed_frames, frames, spec)
         return frames, [frame.duration_ms for frame in frames], False
     if spec_type == "generative":
         frames = await coordinator.async_render_generative(spec)
+        frames = await hass.async_add_executor_job(retimed_frames, frames, spec)
         return frames, [frame.duration_ms for frame in frames], False
     if spec_type == "clock":
         # Pixel-accurate: the vendor's own per-style digit/colon glyphs (protocol.render.
@@ -270,9 +351,10 @@ async def _async_render_design(
     design = next((d for d in library.designs if d.id == spec.get("design_id")), None)
     if design is None:
         raise ProgramBuildError(f"no saved design with id {spec.get('design_id')!r}")
-    art = design_to_frames(design)
+    art, _played = await hass.async_add_executor_job(design_play_frames, design, spec)
     if design.clock_region is None:
         return art, [frame.duration_ms for frame in art], False
+    art = [_pad_frame(frame, design.width) for frame in art]
     x, y, w, h = design.clock_region
     style_index = region_clock_style(design.clock_region, spec)
     clock = (
@@ -289,6 +371,14 @@ async def _async_render_design(
                 rows[row_index][col] = clock.pixels[row_index][col]
         composed.append(replace(frame, pixels=rows))
     return composed, [frame.duration_ms for frame in composed], False
+
+
+def _pad_frame(frame: Frame, width: int) -> Frame:
+    """Black columns on the right of an art-width frame, as the panel shows it beside the clock."""
+    missing = width - frame.width
+    if missing <= 0:
+        return frame
+    return replace(frame, pixels=[[*row, *([(0, 0, 0)] * missing)] for row in frame.pixels], width=width)
 
 
 def _frames_to_rgb888(frames: Sequence[Frame]) -> list[bytes]:
@@ -335,7 +425,9 @@ def _show_spec_from_item(item: Mapping[str, Any]) -> dict[str, Any]:
     `hours24` (Contract C's `clock_face` service) -- translated here so `async_show`'s content
     builders only ever need to understand one name."""
     if "design_id" in item:
-        return {"type": "design", "design_id": item["design_id"]}
+        spec = {"type": "design", "design_id": item["design_id"]}
+        spec.update({key: item[key] for key in ("speed", "smooth") if key in item})
+        return spec
     spec = dict(item.get("spec", {}))
     if spec.get("type") == "clock" and "h24" in spec:
         spec["hours24"] = spec.pop("h24")
@@ -347,6 +439,7 @@ def _show_spec_from_item(item: Mapping[str, Any]) -> dict[str, Any]:
         vol.Required("type"): "iledclock/show",
         vol.Required("entry_id"): str,
         vol.Required("item"): dict,
+        vol.Optional("slot"): vol.In(SLOTS),
     }
 )
 @websocket_api.require_admin
@@ -363,7 +456,12 @@ async def ws_show(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
             connection.send_result(msg["id"], {"now_showing": descriptor})
             return
         spec = _show_spec_from_item(msg["item"])
-        descriptor = await coordinator.async_show(spec)
+        # The request's own `slot` wins; a replayed descriptor may carry the screen it was written to.
+        slot = msg.get("slot") or spec.get("slot") or DEFAULT_SLOT
+        descriptor = await coordinator.async_show(spec, slot=slot)
+    except SlotUnsupportedError as err:
+        connection.send_error(msg["id"], "slot_unsupported", str(err))
+        return
     except ValueError as err:
         if str(err) == "nothing_to_restore":
             connection.send_error(msg["id"], "nothing_to_restore", str(err))
@@ -421,7 +519,7 @@ async def ws_playlist_set(
         return
     try:
         await coordinator.async_set_playlist(items)
-    except IledClockError as err:
+    except (IledClockError, ValueError) as err:  # ValueError: an item that cannot be drawn (too long, unknown design)
         connection.send_error(msg["id"], "playlist_failed", str(err))
         return
     connection.send_result(msg["id"], {})
@@ -432,12 +530,14 @@ async def ws_playlist_set(
 
 async def _async_dispatch_command(
     coordinator: IledClockCoordinator, command: str, params: Mapping[str, Any]
-) -> None:
+) -> dict[str, Any] | None:
     """Every `iledclock/command` sub-command actually sent by the frontend
     (`iledclock-card.ts`/`iledclock-studio-panel.ts`/`iledclock-settings-sheet.ts`), plus a few
     direct passthroughs Contract D also names that the current UI happens to reach through
     ordinary HA entity services instead (`power`/`brightness`/`rotate`/`sync_time`) -- kept here
-    too so nothing in Contract D's command list is unreachable over this API."""
+    too so nothing in Contract D's command list is unreachable over this API. A command that has
+    something to say returns it as a dict, which becomes the websocket result (default `{}`): the
+    alarm and reminder commands answer `{"item": ManagedReminder}`."""
     if command == "night_mode_set":
         await coordinator.async_set_night_mode(
             enabled=bool(params["enabled"]),
@@ -469,8 +569,17 @@ async def _async_dispatch_command(
             for item in params["items"]
         ]
         await coordinator.async_set_timer_switches(items)
+    elif command == "reminder_set":
+        return {"item": await coordinator.reminders.async_save(params)}
+    elif command == "reminder_set_enabled":
+        enabled = params.get("enabled")
+        if not isinstance(enabled, bool):
+            raise ValueError("Say whether it should be on or off.")
+        return {"item": await coordinator.reminders.async_set_enabled(params.get("key"), enabled)}
+    elif command == "reminder_resend":
+        return {"item": await coordinator.reminders.async_resend(params.get("key"))}
     elif command == "reminder_delete":
-        await coordinator.async_reminder_delete(int(params["id"]))
+        await coordinator.reminders.async_delete(key=params.get("key"), device_id=params.get("id"))
     elif command == "set_password":
         await coordinator.async_set_stored_password(str(params["password"]))
     elif command == "countdown_reset":
@@ -501,6 +610,8 @@ async def _async_dispatch_command(
         await coordinator.async_set_rotate(int(params["mode"]))
     elif command == "sync_time":
         await coordinator.async_sync_time()
+    elif command == "switch_screen":
+        await coordinator.async_switch_screen()
     else:
         raise ValueError(f"unknown command: {command!r}")
 
@@ -522,8 +633,8 @@ async def ws_command(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         connection.send_error(msg["id"], "unknown_entry", str(err))
         return
     try:
-        await _async_dispatch_command(coordinator, msg["command"], msg["params"])
+        result = await _async_dispatch_command(coordinator, msg["command"], msg["params"])
     except (IledClockError, KeyError, ValueError, TypeError) as err:
         connection.send_error(msg["id"], "command_failed", str(err))
         return
-    connection.send_result(msg["id"], {})
+    connection.send_result(msg["id"], result or {})

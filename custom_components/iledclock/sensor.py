@@ -1,16 +1,18 @@
 """Temperature/humidity (only created when the unit actually reports them), firmware version
-and current program count (both diagnostic) -- Contract C."""
+and the number of programs on screen A (both diagnostic) -- Contract C."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from .const import SLOT_A
 from .coordinator import IledClockConfigEntry, IledClockCoordinator
 from .entity import IledClockEntity
 from .state import ClockState
@@ -84,10 +86,18 @@ class IledClockSensor(IledClockEntity, SensorEntity):
         return self.entity_description.value_fn(self.coordinator.data)
 
 
+def _slot_attribute(record: dict[str, Any] | None) -> dict[str, Any] | None:
+    """A screen's record as a sensor attribute: what it was, how many programs, and when it was sent."""
+    if record is None:
+        return None
+    return {"title": record["title"], "programs": record["programs"], "written_at": record["written_at"]}
+
+
 class IledClockProgramCountSensor(IledClockEntity, SensorEntity):
-    """How many items are in the currently-uploaded playlist -- not `program_slots`
-    (`DeviceInfo.max_program_number`, the device's own capacity), but how full it is right now,
-    from our own record (Contract B: this integration owns the playlist)."""
+    """How many programs Home Assistant's last upload to screen A (the clock's program list) carried: one for
+    a show, the playlist's length for a playlist. Unknown until Home Assistant has sent something there, because
+    the clock cannot report its program list. Not `program_slots`, the clock's capacity, which is the
+    `capacity` attribute; `slot_a` / `slot_b` say what each screen was last sent."""
 
     entity_description = PROGRAM_COUNT
 
@@ -95,5 +105,15 @@ class IledClockProgramCountSensor(IledClockEntity, SensorEntity):
         super().__init__(coordinator, PROGRAM_COUNT.key)
 
     @property
-    def native_value(self) -> int:
-        return len(self.coordinator.playlist_store.playlist)
+    def native_value(self) -> int | None:
+        record = self.coordinator.slot_store.record(SLOT_A)
+        return record["programs"] if record is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        slots = self.coordinator.slots_json()
+        return {
+            "slot_a": _slot_attribute(slots["a"]),
+            "slot_b": _slot_attribute(slots["b"]),
+            "capacity": self.coordinator.data.program_slots,
+        }

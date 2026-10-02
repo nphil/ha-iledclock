@@ -58,3 +58,18 @@ test("designToFrames defaults a missing per-frame delay to 100ms", () => {
   const restored = designToFrames(design2);
   assert.equal(restored[0]!.durationMs, 100);
 });
+
+test("framesToDesign carries speed and smooth, including explicit nulls, and omits them when not given", () => {
+  const frames = [createFrame(4, 4, [255, 0, 0], 80), createFrame(4, 4, [0, 255, 0], 160)];
+  const meta = { id: "d1", name: "Test", kind: "animation" as const, created: 1, updated: 2 };
+  const plain = framesToDesign(frames, meta);
+  assert.equal("speed" in plain, false);
+  assert.equal("smooth" in plain, false);
+  const chosen = framesToDesign(frames, { ...meta, speed: 35, smooth: "off" });
+  assert.equal(chosen.speed, 35);
+  assert.equal(chosen.smooth, "off");
+  const original = framesToDesign(frames, { ...meta, speed: null, smooth: null });
+  assert.equal(original.speed, null);
+  assert.equal(original.smooth, null);
+  assert.equal(JSON.parse(JSON.stringify(original)).speed, null);
+});

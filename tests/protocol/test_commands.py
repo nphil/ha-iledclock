@@ -139,5 +139,17 @@ class MiscCommandTest(unittest.TestCase):
         self.assertEqual(payload, b"\x13\x01" + rgb444_pixel((255, 0, 0)))
 
 
+class ScreenToggleTest(unittest.TestCase):
+    def test_payload_is_20_01_and_its_frame_escapes_the_low_bytes(self) -> None:
+        from protocol.framing import decode_frame, encode_frame
+
+        payload = commands.screen_toggle()
+        self.assertEqual(payload, bytes((0x20, 0x01)))
+        frame = encode_frame(payload)
+        # 01 | len 00 02 (02 escaped as 02 06) | 20 | 01 escaped as 02 05 | 03
+        self.assertEqual(frame.hex(), "0100020620020503")
+        self.assertEqual(decode_frame(frame), payload)
+
+
 if __name__ == "__main__":
     unittest.main()

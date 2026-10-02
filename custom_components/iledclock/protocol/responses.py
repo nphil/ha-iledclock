@@ -114,7 +114,10 @@ class Ack:
 
 @dataclass(frozen=True)
 class ReminderDetail:
-    """Opcode 0x1a 0x02 (``ILedCLockGetReminderDetailResponseEvent``)."""
+    """Opcode 0x1a 0x02 (``ILedCLockGetReminderDetailResponseEvent``). ``year`` is the wire
+    value (full year minus 2000, as the clock stores it); :attr:`full_year` is the calendar
+    year. ``repeat_type`` 0 once / 1 daily / 2 weekly / 3 monthly / 4 yearly; ``week_mask`` is
+    the stored weekday mask (Mon = bit 0 .. Sun = bit 6)."""
 
     id: int
     sound: int
@@ -124,8 +127,13 @@ class ReminderDetail:
     hour: int
     minute: int
     repeat_type: int
+    week_mask: int
     duration: int
     content: str
+
+    @property
+    def full_year(self) -> int:
+        return 2000 + self.year
 
 
 @dataclass(frozen=True)
@@ -259,7 +267,8 @@ def _parse_reminder_detail(payload: bytes) -> ReminderDetail:
     hour = payload[7]
     minute = payload[8]
     repeat_type = payload[9]
-    # payload[10] is read and discarded by the vendor parser too.
+    # The vendor app discards this byte; the clock does store it (the weekday mask).
+    week_mask = payload[10]
     duration = _u16(payload, 11)
     content_len = payload[13]
     content = bytes(payload[14 : 14 + content_len]).decode("utf-8", errors="replace")
@@ -272,6 +281,7 @@ def _parse_reminder_detail(payload: bytes) -> ReminderDetail:
         hour=hour,
         minute=minute,
         repeat_type=repeat_type,
+        week_mask=week_mask,
         duration=duration,
         content=content,
     )

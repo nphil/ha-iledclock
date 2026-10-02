@@ -1,10 +1,12 @@
 import { navigateStudioRoute } from "../lib/route.ts";
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
-import type { ClockStateEnvelope, HomeAssistant, RenderResult, UploadProgressEvent } from "../types.ts";
+import type { ClockStateEnvelope, HomeAssistant, UploadProgressEvent } from "../types.ts";
 import type { StudioRoute } from "../lib/route.ts";
 import { brightnessToPercent, percentToWireBrightness } from "../lib/brightness.ts";
 import { createFrame, GRID_HEIGHT, GRID_WIDTH, type PixelFrame } from "../lib/grid.ts";
-import { renderRequest, commandRequest } from "../lib/ws-api.ts";
+import { commandRequest } from "../lib/ws-api.ts";
+import { descriptorPreviewKey, loadDescriptorPreview } from "../lib/descriptor-preview.ts";
+import { bothScreensInUse, descriptorSlot, primeSlotCapabilities, slotLabel } from "../lib/slots.ts";
 import { showItemFromDescriptor, type ShowHistoryDescriptor } from "../lib/studio-history.ts";
 import { showWithUndo } from "../lib/show-with-undo.ts";
 
@@ -17,6 +19,7 @@ import "./lu-status-sheet.ts";
 import "./lu-section.ts";
 import "./lu-pill-button.ts";
 import "./iledclock-mode-deck.ts";
+import "./iledclock-slot-tiles.ts";
 
 interface NowDescriptor extends ShowHistoryDescriptor {
   style?: number;
@@ -25,7 +28,8 @@ interface NowDescriptor extends ShowHistoryDescriptor {
   h24?: boolean;
   background?: boolean;
   text?: string;
-  speed?: number;
+  speed?: number | null;
+  smooth?: "on" | "off" | null;
   effect?: string;
   frames?: string[];
   delays?: number[];
@@ -37,20 +41,6 @@ interface NowEnvelope extends ClockStateEnvelope {
 type NowSubscribeEvent = (NowEnvelope & { type?: undefined }) | (UploadProgressEvent & { upload?: { done: number; total: number } | null });
 const EMPTY_FRAME = createFrame(GRID_WIDTH, GRID_HEIGHT);
 const EMPTY_FRAMES: PixelFrame[] = [EMPTY_FRAME];
-
-function decodeFrames(result: Pick<RenderResult, "frames" | "delays">): PixelFrame[] {
-  return result.frames.map((encoded, index) => {
-    const binary = atob(encoded);
-    const pixels = new Uint8Array(GRID_WIDTH * GRID_HEIGHT * 3);
-    for (let byte = 0; byte < Math.min(binary.length, pixels.length); byte++) pixels[byte] = binary.charCodeAt(byte);
-    return { width: GRID_WIDTH, height: GRID_HEIGHT, pixels, durationMs: result.delays[index] ?? 100 };
-  });
-}
-
-function descriptorKey(descriptor: NowDescriptor | null | undefined): string {
-  if (!descriptor) return "empty";
-  return [descriptor.kind, descriptor.shown_at ?? "", descriptor.design_id ?? "", descriptor.style ?? "", descriptor.text ?? "", descriptor.speed ?? "", JSON.stringify(descriptor.color ?? null), descriptor.h24 ?? "", descriptor.hours24 ?? "", descriptor.effect ?? "", descriptor.frames?.length ?? 0].join("|");
-}
 
 function timeRange(state: ClockStateEnvelope["state"] | null): string {
   const night = state?.night_mode;
@@ -181,6 +171,7 @@ export class IledclockDestNow extends LitElement {
       const envelope = await this.hass.callWS<NowEnvelope>({ type: "iledclock/state", entry_id: entryId });
       if (entryId !== this.entryId || revision !== this._previewRevision) return;
       this._envelope = envelope;
+      primeSlotCapabilities(entryId, envelope.capabilities);
       if (this.hass.connection) {
         const unsubscribe = await this.hass.connection.subscribeMessage<NowSubscribeEvent>((event) => {
           if (entryId !== this.entryId || subscriptionRevision !== this._subscriptionRevision) return;
@@ -188,9 +179,10 @@ export class IledclockDestNow extends LitElement {
             this._upload = event.upload === null || event.state === "done" || event.state === "error" ? null : event;
             return;
           }
-          const previous = descriptorKey(this._envelope?.now_showing);
+          const previous = descriptorPreviewKey(this._envelope?.now_showing);
           this._envelope = event;
-          if (descriptorKey(event.now_showing) !== previous) void this._loadPreview(event.now_showing ?? null);
+          primeSlotCapabilities(entryId, event.capabilities);
+          if (descriptorPreviewKey(event.now_showing) !== previous) void this._loadPreview(event.now_showing ?? null);
         }, { type: "iledclock/subscribe", entry_id: entryId });
         if (entryId !== this.entryId || subscriptionRevision !== this._subscriptionRevision || revision !== this._previewRevision || !this.isConnected) {
           void unsubscribe();
@@ -207,7 +199,7 @@ export class IledclockDestNow extends LitElement {
   }
 
   private async _loadPreview(descriptor: NowDescriptor | null): Promise<void> {
-    const key = descriptorKey(descriptor);
+    const key = descriptorPreviewKey(descriptor);
     if (key === this._previewKey) return;
     this._previewKey = key;
     const revision = ++this._previewRevision;
@@ -221,32 +213,10 @@ export class IledclockDestNow extends LitElement {
     }
     this._previewLoading = true;
     try {
-      let frames: PixelFrame[];
-      if (descriptor.kind === "design" && descriptor.design_id) {
-        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "design", design_id: descriptor.design_id }));
-        if (revision !== this._previewRevision) return;
-        frames = decodeFrames(result);
-      } else if (descriptor.kind === "clock") {
-        const style = Number(descriptor.style) || 1;
-        const color = Array.isArray(descriptor.color) && descriptor.color.length >= 3 ? descriptor.color.slice(0, 3).map(Number) as [number, number, number] : [255, 255, 255] as [number, number, number];
-        const hours24 = descriptor.h24 ?? descriptor.hours24 !== false;
-        const wantsBackground = descriptor.background !== false;
-        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "clock", style, color, h24: hours24, background: wantsBackground }));
-        if (revision !== this._previewRevision) return;
-        frames = decodeFrames(result);
-      } else if (descriptor.kind === "image" && Array.isArray(descriptor.frames) && descriptor.frames.length > 0) {
-        frames = decodeFrames({ frames: descriptor.frames, delays: descriptor.delays ?? [] });
-      } else if (descriptor.kind === "text" && typeof descriptor.text === "string") {
-        const color = Array.isArray(descriptor.color) && descriptor.color.length >= 3 ? descriptor.color.slice(0, 3).map(Number) as [number, number, number] : [255, 255, 255] as [number, number, number];
-        const result = await this.hass.callWS<RenderResult>(renderRequest(entryId, { type: "text", text: descriptor.text, color, speed: typeof descriptor.speed === "number" ? descriptor.speed : 128 }));
-        frames = decodeFrames(result);
-      } else {
-        throw new Error("A live preview is not available for this item.");
-      }
-      if (revision === this._previewRevision) {
-        this._setFrames(frames);
-        this._previewAvailable = frames.length > 0;
-      }
+      const preview = await loadDescriptorPreview(this.hass, entryId, descriptor);
+      if (revision !== this._previewRevision) return;
+      this._setFrames(preview.frames);
+      this._previewAvailable = preview.frames.length > 0;
     } catch (error) {
       if (revision === this._previewRevision) this._previewError = error instanceof Error ? error.message : "Preview unavailable.";
     } finally {
@@ -254,10 +224,11 @@ export class IledclockDestNow extends LitElement {
     }
   }
 
+  /** Show a history entry again, on the screen it was written to. */
   private async _showAgain(descriptor: NowDescriptor): Promise<void> {
     const item = showItemFromDescriptor(descriptor);
     if (!item || !this.entryId) return;
-    await showWithUndo(this, this.hass, this.entryId, item as never, descriptor.title || descriptor.kind);
+    await showWithUndo(this, this.hass, this.entryId, item as never, descriptor.title || descriptor.kind, { slot: descriptorSlot(descriptor) });
   }
 
   private async _runCommand(command: string, params: Record<string, unknown>): Promise<void> {
@@ -284,13 +255,21 @@ export class IledclockDestNow extends LitElement {
     return "Showing something set before Pixel Studio 2";
   }
 
+  /** "Screen B" when the last write went to B; "Screen A" too once B has ever been used, so the line is never ambiguous. */
+  private _screenLabel(): string {
+    const envelope = this._envelope;
+    const last = envelope?.slots?.last_written ?? (envelope?.now_showing ? descriptorSlot(envelope.now_showing) : null);
+    if (last === "b") return slotLabel("b");
+    return last === "a" && bothScreensInUse(envelope?.slots, envelope?.history) ? slotLabel("a") : "";
+  }
+
   private _subline(): string {
     const state = this._envelope?.state;
     if (!state) return "Waiting for clock status.";
     const connected = this._envelope?.connected ? "Connected" : "Out of range";
     const brightness = "Brightness " + brightnessToPercent(state.brightness) + "%";
     const power = state.power ? "Display on" : "Display off";
-    return connected + " · " + brightness + " · " + power + " · " + timeRange(state);
+    return [this._screenLabel(), connected, brightness, power, timeRange(state)].filter(Boolean).join(" · ");
   }
 
   private _historyReason(item: NowDescriptor): string | null { return historyUnavailable(item); }
@@ -305,8 +284,8 @@ export class IledclockDestNow extends LitElement {
     const progress = this._upload?.upload;
     const percent = progress && progress.total > 0 ? Math.max(0, Math.min(100, Math.round((progress.done / progress.total) * 100))) : null;
     const frames = this._frames.length ? this._frames : EMPTY_FRAMES;
-    
     const history = envelope?.history?.slice(0, 8) ?? [];
+    const showScreens = bothScreensInUse(envelope?.slots, envelope?.history);
     return html`<div class="destination">
       <lu-status-sheet icon="mdi:television-play" headline=${this._headline()} subline=${this._subline()}>
         <div slot="hero" class="hero-preview ${connected ? "" : "offline"}">${this._previewAvailable ? html`<iledclock-led-preview context="hero" .frames=${frames} .delays=${this._delays} .playing=${Boolean(state?.power && connected && !this._upload)} label="Current clock display"></iledclock-led-preview>` : html`<div class="hero-placeholder" role="img" aria-label=${this._headline()}><span>No live preview is available yet.</span><lu-pill-button variant="primary" label="Show a design" icon="mdi:view-grid-outline" @lu-press=${this._openLibrary}></lu-pill-button></div>`}</div>
@@ -315,7 +294,10 @@ export class IledclockDestNow extends LitElement {
         ${this._previewError ? html`<p class="state-note" role="status">${this._previewError}</p>` : nothing}
         ${this._upload ? html`<p class="upload" role="status">Sending program to the clock${percent !== null ? "… " + percent + "%" : "…"}</p>${percent !== null ? html`<div class="progress" role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow=${percent}><span style=${"width:" + percent + "%"}></span></div>` : nothing}` : nothing}
       </lu-status-sheet>
-      <iledclock-mode-deck .hass=${this.hass} .entryId=${this.entryId} .state=${state}></iledclock-mode-deck>
+      ${envelope?.slots ? html`<lu-section title="Clock screens" icon="mdi:monitor-multiple" description="The clock keeps one thing on each screen.">
+        <iledclock-slot-tiles .hass=${this.hass} .entryId=${this.entryId} .slots=${envelope.slots} .connected=${connected} .power=${state?.power}></iledclock-slot-tiles>
+      </lu-section>` : nothing}
+      <iledclock-mode-deck .hass=${this.hass} .entryId=${this.entryId} .state=${state} .capabilities=${envelope?.capabilities}></iledclock-mode-deck>
       <lu-section title="Quick controls" icon="mdi:tune-variant">
         ${state ? html`<div class="quick-controls">
           <label class="field"><span>Brightness <strong>${brightnessToPercent(state.brightness)}%</strong></span><input type="range" min="1" max="100" .value=${String(brightnessToPercent(state.brightness))} ?disabled=${!connected || this._busy !== null} @change=${this._setBrightness} aria-label="Display brightness"></label>
@@ -327,7 +309,9 @@ export class IledclockDestNow extends LitElement {
       </lu-section>
       ${history.length ? html`<lu-section title="Recently shown" icon="mdi:history"><div class="history-list">${history.map((item) => {
         const reason = this._historyReason(item);
-        return html`<button type="button" class="history-item" aria-label=${reason ? (item.title || item.kind) + ": " + reason : "Show again " + (item.title || item.kind)} ?disabled=${Boolean(reason)} title=${reason ?? ""} @click=${() => void this._showAgain(item)}><span class="history-title">${item.title || item.kind}</span><span class="history-kind">${reason || item.kind}</span></button>`;
+        const screen = showScreens ? slotLabel(descriptorSlot(item)) : "";
+        const name = item.title || item.kind;
+        return html`<button type="button" class="history-item" aria-label=${reason ? name + ": " + reason : "Show again " + name + (screen ? " on " + screen.toLowerCase() : "")} ?disabled=${Boolean(reason)} title=${reason ?? ""} @click=${() => void this._showAgain(item)}><span class="history-title">${name}</span><span class="history-kind">${reason || (screen ? item.kind + " · " + screen : item.kind)}</span></button>`;
       })}</div></lu-section>` : nothing}
     </div>`;
   }

@@ -17,6 +17,7 @@ export class IledclockLedPreview extends LitElement {
     maxPitch: { type: Number, attribute: "max-pitch" },
     zoom: { type: Number },
     playing: { type: Boolean },
+    rate: { type: Number },
     label: { type: String },
     _size: { state: true },
     _frameIndex: { state: true },
@@ -28,6 +29,7 @@ export class IledclockLedPreview extends LitElement {
   declare maxPitch: number | undefined;
   declare zoom: number;
   declare playing: boolean;
+  declare rate: number;
   declare label: string;
   declare _size: LedSize | null;
   declare _frameIndex: number;
@@ -39,7 +41,9 @@ export class IledclockLedPreview extends LitElement {
   private _playFrames: PixelFrame[] = [];
   private _visible = true;
   private _reducedMotion = false;
-  private _startedAt = 0;
+  /** How far into the loop playback is, in the frames' own time (wall time x rate), so a rate change keeps the position. */
+  private _loopMs = 0;
+  private _lastTickAt = 0;
   private _lastDrawAt = 0;
   private _rafId: number | null = null;
 
@@ -51,6 +55,7 @@ export class IledclockLedPreview extends LitElement {
     this.maxPitch = undefined;
     this.zoom = 1;
     this.playing = true;
+    this.rate = 1;
     this.label = "LED preview";
     this._size = null;
     this._frameIndex = 0;
@@ -79,7 +84,11 @@ export class IledclockLedPreview extends LitElement {
   }
 
   protected willUpdate(changed: PropertyValues): void {
-    if (!changed.has("frames") && !changed.has("delays")) return;
+    if (!changed.has("frames") && !changed.has("delays")) {
+      // A new rate only changes how fast time passes from now on; never the position in the loop.
+      if (changed.has("rate") && this._rafId !== null) this._advanceClock(performance.now(), this._rateFrom(changed.get("rate") as number | undefined));
+      return;
+    }
     let needsDurationOverride = false;
     for (let index = 0; index < this.frames.length; index++) {
       const frame = this.frames[index]!;
@@ -95,7 +104,8 @@ export class IledclockLedPreview extends LitElement {
         })
       : this.frames;
     this._frameIndex = 0;
-    this._startedAt = performance.now();
+    this._loopMs = 0;
+    this._lastTickAt = performance.now();
     this._lastDrawAt = 0;
   }
 
@@ -127,18 +137,30 @@ export class IledclockLedPreview extends LitElement {
     return this.playing && this._visible && !this._reducedMotion && this._playFrames.length > 1;
   }
 
+  private _rateFrom(value: number | undefined): number {
+    return typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : 1;
+  }
+
+  /** Move the loop position on by the wall time since the last tick, scaled by `rate`. */
+  private _advanceClock(now: number, rate: number): void {
+    this._loopMs += Math.max(0, now - this._lastTickAt) * rate;
+    this._lastTickAt = now;
+  }
+
   private _startPlayback(): void {
     if (this._rafId !== null) return;
-    this._startedAt = performance.now();
+    this._loopMs = 0;
+    this._lastTickAt = performance.now();
     this._lastDrawAt = 0;
     const tick = (now: number) => {
       if (!this._canAnimate()) {
         this._rafId = null;
         return;
       }
+      this._advanceClock(now, this._rateFrom(this.rate));
       if (now - this._lastDrawAt >= 1000 / 60) {
         this._lastDrawAt = now;
-        const index = frameIndexAtTime(this._playFrames, now - this._startedAt);
+        const index = frameIndexAtTime(this._playFrames, this._loopMs);
         if (index !== this._frameIndex) {
           this._frameIndex = index;
           this.requestUpdate();

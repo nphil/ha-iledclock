@@ -1,10 +1,11 @@
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
-import type { AlarmItem, ClockState, HomeAssistant, ReminderItem, TimerSwitchItem } from "../types.ts";
+import type { AlarmItem, ClockState, HomeAssistant, TimerSwitchItem } from "../types.ts";
 import type { IledclockEntities } from "../lib/resolve-entities.ts";
 import { haBrightnessToPercent, percentToBrightness } from "../lib/brightness.ts";
 import { commandRequest } from "../lib/ws-api.ts";
 import { DAY_LABELS, isRepeatDayOn, repeatSummary, toggleRepeatDay } from "../lib/repeat-days.ts";
 import { describeWsError } from "../lib/ws-query.ts";
+import { navigateStudioRoute } from "../lib/route.ts";
 import { TOKENS_CSS, SURFACES_CSS } from "../styles/tokens.ts";
 import "./lu-sheet.ts";
 import "./iledclock-hold-button.ts";
@@ -150,6 +151,12 @@ export class IledclockSettingsSheet extends LitElement {
     this._close();
   }
 
+  /** Named alarms and reminders have their own screen; this is the way in (it works from the dashboard card too). */
+  private _openAlarmsScreen = (): void => {
+    this._close();
+    navigateStudioRoute({ destination: "alarms" });
+  };
+
   private _renderToggle(label: string, checked: boolean, onClick: () => void, disabled = false) {
     return html`<button type="button" class="toggle-row" role="switch" aria-label=${label} aria-checked=${checked ? "true" : "false"} ?disabled=${disabled || this._busy !== null} @click=${onClick}><span>${label}</span><span class="switch ${checked ? "on" : ""}" aria-hidden="true"></span></button>`;
   }
@@ -234,18 +241,18 @@ export class IledclockSettingsSheet extends LitElement {
     </section>`;
   }
 
-  private _renderReminders() {
-    const reminders = this.state?.reminders ?? [];
-    return html`<section class="list-block"><div class="list-heading"><h3>Reminders</h3><span>${reminders.length}</span></div><p class="hint">Reminders can be created on the clock; this integration can remove them.</p>
-      ${reminders.length ? reminders.map((item: ReminderItem) => html`<div class="reminder-row"><span>${item.content || "Untitled reminder"}<small>${String(item.hour).padStart(2, "0")}:${String(item.minute).padStart(2, "0")} · ${item.year}-${String(item.month).padStart(2, "0")}-${String(item.day).padStart(2, "0")}</small></span><iledclock-hold-button label="Hold to delete reminder" complete-label="Reminder deleted" danger ?disabled=${this._busy !== null} @confirmed=${() => void this._command("reminder_delete", { id: item.id })}></iledclock-hold-button></div>`) : html`<p class="hint">No reminders are stored on the clock.</p>`}
-    </section>`;
-  }
-
   private _renderAlarmsAndReminders() {
-    return html`<details class="setting-section" name="settings" open=${this.section === "alarms" ? true : nothing}>
-      <summary><span class="section-icon"><ha-icon icon="mdi:calendar-clock"></ha-icon></span><span class="section-title"><strong>Alarms & reminders</strong><small>${(this.state?.alarms.length ?? 0)} alarms · ${(this.state?.reminders.length ?? 0)} reminders</small></span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary>
-      <div class="section-body">${this._renderAlarms()}${this._renderTimerSwitches()}${this._renderReminders()}</div>
-    </details>`;
+    const basic = this.state?.alarms.length ?? 0;
+    const schedules = this.state?.timer_switches.length ?? 0;
+    return html`<button type="button" class="setting-link" @click=${this._openAlarmsScreen}>
+        <span class="section-icon"><ha-icon icon="mdi:calendar-clock"></ha-icon></span>
+        <span class="section-title"><strong>Alarms &amp; reminders</strong><small>Names, pictures and repeats · open</small></span>
+        <ha-icon class="link-chevron" icon="mdi:chevron-right"></ha-icon>
+      </button>
+      <details class="setting-section" name="settings" open=${this.section === "alarms" ? true : nothing}>
+        <summary><span class="section-icon"><ha-icon icon="mdi:alarm"></ha-icon></span><span class="section-title"><strong>Basic alarms &amp; display schedule</strong><small>${basic} basic ${basic === 1 ? "alarm" : "alarms"} · ${schedules} display ${schedules === 1 ? "schedule" : "schedules"}</small></span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary>
+        <div class="section-body">${this._renderAlarms()}${this._renderTimerSwitches()}</div>
+      </details>`;
   }
 
   private _renderAccounts() {
@@ -320,16 +327,17 @@ export class IledclockSettingsSheet extends LitElement {
     .day.on { border-color: var(--lu-accent); color: var(--lu-accent-ink); background: var(--lu-accent); }
     .add-button { min-height: var(--lu-target); padding: 0 var(--lu-space-4); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: var(--lu-glass-raised); font: 500 var(--lu-type-label)/1.2 var(--lu-font); cursor: pointer; }
     .add-button:disabled { opacity: .5; cursor: default; }
-    .reminder-row { display: flex; align-items: center; justify-content: space-between; gap: var(--lu-space-2); min-height: var(--lu-target); }
-    .reminder-row > span { display: grid; min-width: 0; gap: var(--lu-space-1); color: var(--lu-ink); font: 500 var(--lu-type-label)/1.3 var(--lu-font); }
-    .reminder-row small { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.3 var(--lu-font); }
+    .setting-link { display: flex; align-items: center; gap: var(--lu-space-3); width: 100%; min-height: var(--lu-target); box-sizing: border-box; padding: var(--lu-space-2) var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-card); color: var(--lu-ink); background: transparent; text-align: left; cursor: pointer; }
+    .setting-link:hover { background: var(--lu-tile); }
+    .setting-link:active { background: var(--lu-glass-raised); transition: none; }
+    .link-chevron { flex: none; color: var(--lu-ink-3); }
     .about-list { display: grid; gap: var(--lu-space-2); margin: 0; }
     .about-list > div { display: flex; justify-content: space-between; gap: var(--lu-space-3); }
     .about-list dt { color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
     .about-list dd { margin: 0; color: var(--lu-ink); font: 500 var(--lu-type-caption)/1.4 var(--lu-font); text-align: right; overflow-wrap: anywhere; }
     .password-field { margin-top: var(--lu-space-2); }
     .error { margin: 0; padding: var(--lu-space-3); border: 1px solid color-mix(in srgb, var(--lu-danger) 36%, var(--lu-edge)); border-radius: var(--lu-radius-control); color: var(--lu-danger); background: var(--lu-tile); font: 400 var(--lu-type-label)/1.4 var(--lu-font); }
-    .setting-section :focus-visible, .add-button:focus-visible, outline: 2px solid var(--lu-accent); outline-offset: 2px; }
+    .setting-section :focus-visible, .add-button:focus-visible, .setting-link:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
     @container (max-width: 359px) { .two-up { grid-template-columns: 1fr; } .item-row { grid-template-columns: 1fr; } }
     @media (prefers-reduced-motion: reduce) { .switch, .switch::after, .chevron { transition: none; } }
   `];

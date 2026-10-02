@@ -1,10 +1,11 @@
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
-import type { HomeAssistant, PlaylistItem, StoredDesign, ClockStateEnvelope } from "../types.ts";
+import type { HomeAssistant, PlaylistItem, SmoothSetting, StoredDesign, ClockStateEnvelope } from "../types.ts";
 import type { StudioRoute } from "../lib/route.ts";
-import { designsDeleteRequest, designsListRequest, designsSaveRequest, normalizePlaylist, playlistGetRequest, playlistSetRequest } from "../lib/ws-api.ts";
+import { designsDeleteRequest, designsListRequest, designsSaveRequest, designsSetPlaybackRequest, normalizePlaylist, playlistGetRequest, playlistSetRequest } from "../lib/ws-api.ts";
 import { appendDesignsToRotation, cloneRotation, rotationIsDirty } from "../lib/library-state.ts";
 import { GalleryImportCache } from "../lib/gallery-import-cache.ts";
 import { showWithUndo } from "../lib/show-with-undo.ts";
+import { contentClassOf } from "../lib/slots.ts";
 import { SURFACES_CSS, TOKENS_CSS } from "../styles/tokens.ts";
 import type { LuToastRequest } from "./lu-toast.ts";
 import "./iledclock-library-panel.ts";
@@ -52,6 +53,8 @@ export class IledclockDestLibrary extends LitElement {
   private _designRequestId = 0;
   private _playlistRequestId = 0;
   private _loadedEntryId: string | undefined;
+  /** Newest speed/smooth save per design id; an older answer is ignored. */
+  private _playbackSeq: Record<string, number> = {};
   private _loadedConnection: HomeAssistant["connection"] | undefined;
 
   constructor() {
@@ -205,6 +208,25 @@ export class IledclockDestLibrary extends LitElement {
     }
   }
 
+  /** The Speed slider settled on a value: store it on the design. Only speed, smooth and `updated`
+   * change in the list; the frames stay the very same objects, so nothing reloads or flickers. */
+  private async _onPlaybackRequested(event: CustomEvent<{ id: string; speed: number | null; smooth: SmoothSetting; failed?: () => void }>): Promise<void> {
+    const { id, speed, smooth, failed } = event.detail;
+    const callWS = this.hass?.callWS?.bind(this.hass);
+    if (!callWS || !this._designs.some((item) => item.id === id)) return;
+    const seq = (this._playbackSeq[id] ?? 0) + 1;
+    this._playbackSeq[id] = seq;
+    try {
+      const result = await callWS<{ id: string; speed: number | null; smooth: SmoothSetting; updated: number }>(designsSetPlaybackRequest(id, { speed, smooth }));
+      if (this._playbackSeq[id] !== seq) return;
+      this._designs = this._designs.map((item) => (item.id === id ? { ...item, speed: result.speed, smooth: result.smooth, updated: result.updated } : item));
+    } catch (error) {
+      if (this._playbackSeq[id] !== seq) return;
+      this._toast({ message: `Couldn't save the speed: ${error instanceof Error ? error.message : "Please try again."}`, timeoutMs: 7000 });
+      failed?.();
+    }
+  }
+
   private async _deleteOne(id: string): Promise<void> {
     if (!this.hass?.callWS) return;
     this._busy = true;
@@ -242,7 +264,7 @@ export class IledclockDestLibrary extends LitElement {
   private async _showDesign(event: CustomEvent<{ id: string; title: string }>): Promise<void> {
     if (!this.entryId || !this.hass) return;
     this._busy = true;
-    await showWithUndo(this, this.hass, this.entryId, { design_id: event.detail.id }, event.detail.title);
+    await showWithUndo(this, this.hass, this.entryId, { design_id: event.detail.id }, event.detail.title, { contentClass: contentClassOf({ design_id: event.detail.id }, this._designs) });
     this._busy = false;
   }
 
@@ -282,6 +304,8 @@ export class IledclockDestLibrary extends LitElement {
     const enabled = this._savedPlaylist.length > 0;
     return html`<div class="destination">
       <iledclock-library-panel
+        .hass=${this.hass}
+        .entryId=${this.entryId}
         .route=${this.route}
         .designs=${this._designs}
         .loading=${this._designsLoading}
@@ -292,6 +316,7 @@ export class IledclockDestLibrary extends LitElement {
         @design-rename-requested=${this._onRename}
         @design-duplicate-requested=${this._onDuplicate}
         @design-delete-requested=${this._onDelete}
+        @design-playback-requested=${this._onPlaybackRequested}
         @designs-delete-requested=${this._onDesignsDeleteRequested}
         @design-show-requested=${this._onDesignShowRequested}
         @designs-add-to-rotation=${this._onAddDesigns}

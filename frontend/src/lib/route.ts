@@ -1,14 +1,16 @@
 /** Home Assistant panel routes for Pixel Studio. Query parameters represent sheets so browser
  * Back closes a sheet before leaving its destination. */
-export type StudioDestination = "now" | "create" | "explore" | "library";
+export type StudioDestination = "now" | "create" | "explore" | "library" | "alarms";
 
 export interface StudioRoute {
   destination: StudioDestination;
   item?: string;
   design?: string;
+  /** The Alarms & reminders edit sheet: `new` for a blank form, otherwise the item's key. */
+  alarm?: string;
 }
 
-const DESTINATIONS: readonly StudioDestination[] = ["now", "create", "explore", "library"];
+const DESTINATIONS: readonly StudioDestination[] = ["now", "create", "explore", "library", "alarms"];
 const BASE = "/iledclock";
 
 export function parseStudioRoute(input: string | URL): StudioRoute {
@@ -18,7 +20,8 @@ export function parseStudioRoute(input: string | URL): StudioRoute {
   const destination = DESTINATIONS.includes(destinationPart as StudioDestination) ? destinationPart as StudioDestination : "now";
   const item = url.searchParams.get("item") || undefined;
   const design = url.searchParams.get("design") || undefined;
-  return { destination, ...(item ? { item } : {}), ...(design ? { design } : {}) };
+  const alarm = url.searchParams.get("alarm") || undefined;
+  return { destination, ...(item ? { item } : {}), ...(design ? { design } : {}), ...(alarm ? { alarm } : {}) };
 }
 
 export function serializeStudioRoute(route: StudioRoute): string {
@@ -26,6 +29,7 @@ export function serializeStudioRoute(route: StudioRoute): string {
   const query = new URLSearchParams();
   if (route.item) query.set("item", route.item);
   if (route.design) query.set("design", route.design);
+  if (route.alarm) query.set("alarm", route.alarm);
   const suffix = query.toString();
   return BASE + "/" + destination + (suffix ? "?" + suffix : "");
 }

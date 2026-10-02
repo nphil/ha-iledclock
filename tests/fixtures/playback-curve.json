@@ -1,0 +1,27 @@
+{
+  "_about": "Speed slider curve, pinned for BOTH implementations: custom_components/iledclock/retime.py (pace_for_speed / speed_for_pace) and frontend/src/lib/playback.ts (paceForSpeed / speedForPace). pace(s) = MAX * (MIN / MAX) ** (1 - s / 100) frames a second for slider position s in 1..100 (position 0 is Still: one picture, no pace). MAX = 1000 / (7 units * 1.5 ms) = 95.238095, MIN = 0.5. Change the constants in hardware.py and BOTH test suites must be updated together with the TypeScript copy.",
+  "max_fps": 95.238095,
+  "min_fps": 0.5,
+  "pace_for_speed": [
+    { "speed": 1, "pace_fps": 0.526949 },
+    { "speed": 5, "pace_fps": 0.650073 },
+    { "speed": 10, "pace_fps": 0.845189 },
+    { "speed": 25, "pace_fps": 1.857506 },
+    { "speed": 34, "pace_fps": 2.979311 },
+    { "speed": 50, "pace_fps": 6.900656 },
+    { "speed": 75, "pace_fps": 25.636016 },
+    { "speed": 90, "pace_fps": 56.34127 },
+    { "speed": 99, "pace_fps": 90.367505 },
+    { "speed": 100, "pace_fps": 95.238095 }
+  ],
+  "speed_for_pace": [
+    { "pace_fps": 0.5, "speed": 0.0 },
+    { "pace_fps": 1, "speed": 13.203993 },
+    { "pace_fps": 2, "speed": 26.407985 },
+    { "pace_fps": 8, "speed": 52.81597 },
+    { "pace_fps": 12, "speed": 60.539811 },
+    { "pace_fps": 30, "speed": 77.994539 },
+    { "pace_fps": 60, "speed": 91.198532 },
+    { "pace_fps": 95.238095, "speed": 100.0 }
+  ]
+}

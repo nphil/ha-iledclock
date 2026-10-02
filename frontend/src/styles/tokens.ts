@@ -17,6 +17,11 @@ export const TOKENS_CSS = css`
 
     /* Theme-derived glass and edges */
     --lu-card: var(--ha-card-background, var(--card-background-color));
+    /* Overlays (sheet, toast) are made of what Home Assistant's own dialogs are made of: glass themes make
+       --ha-card-background translucent, dialogs stay readable (Lucent LANGUAGE.md, "Surfaces in Home Assistant"). */
+    --lu-sheet: var(--ha-dialog-surface-background, var(--mdc-theme-surface, var(--card-background-color)));
+    --lu-sheet-blur: var(--ha-dialog-surface-backdrop-filter, none);
+    --lu-scrim-blur: var(--ha-dialog-scrim-backdrop-filter, none);
     --lu-edge: var(--ha-card-border-color, var(--divider-color));
     --lu-tile: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
     --lu-glass-raised: color-mix(in srgb, var(--primary-text-color) 12%, transparent);

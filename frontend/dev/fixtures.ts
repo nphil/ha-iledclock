@@ -22,6 +22,7 @@ import type {
   StoredDesign,
   TimerSwitchItem,
 } from "../src/types.ts";
+import type { ManagedReminder, ReminderCapabilities } from "../src/types.ts";
 import { type RGB, rgbToHex } from "../src/lib/color.ts";
 import { cloneFrame, createFrame, getPixel, GRID_HEIGHT, GRID_WIDTH, type PixelFrame, setPixelMut, shiftFrame } from "../src/lib/grid.ts";
 import { plotEllipse, plotRect } from "../src/lib/rasterize.ts";
@@ -93,8 +94,8 @@ export const TIMER_SWITCHES: TimerSwitchItem[] = [
 ];
 
 export const REMINDERS: ReminderItem[] = [
-  { id: 1, content: "Water the plants", year: 2026, month: 9, day: 26, hour: 9, minute: 0, repeat: 0x7f },
-  { id: 2, content: "Vet appointment", year: 2026, month: 10, day: 3, hour: 14, minute: 30, repeat: 0 },
+  { id: 1, content: "Water the plants", year: 2026, month: 9, day: 26, hour: 9, minute: 0, repeat_type: 1, week_mask: 0x7f, duration: 30, sound: 1 },
+  { id: 2, content: "Vet appointment", year: 2026, month: 10, day: 3, hour: 14, minute: 30, repeat_type: 0, week_mask: 0, duration: 60, sound: 1 },
 ];
 
 export function buildClockState(): ClockState {
@@ -197,6 +198,63 @@ function buildMarqueeFrames(): PixelFrame[] {
   return frames;
 }
 
+const SLIDE_TEXT_COLOR: RGB = [255, 190, 40];
+const SLIDE_DOT_COLOR: RGB = [0, 170, 200];
+const SLIDE_STEP_PX = 3;
+const SLIDE_FRAMES = 12;
+/** 12 frames x 3 px = 36 px: one full wrap of the pattern, so the loop joins without a jump. */
+const SLIDE_PERIOD = SLIDE_STEP_PX * SLIDE_FRAMES;
+
+/** 3x5 glyphs, one string per row (`#` = lit), only the letters the sliding fixture spells. */
+const SLIDE_GLYPHS: Record<string, string[]> = {
+  H: ["#.#", "#.#", "###", "#.#", "#.#"],
+  E: ["###", "#..", "##.", "#..", "###"],
+  L: ["#..", "#..", "#..", "#..", "###"],
+  O: ["###", "#.#", "#.#", "#.#", "###"],
+};
+
+/** "HELLO" scrolling left 3 px per frame (12 frames, 125 ms each = 8 frames a second), with a dotted
+ * rail underneath so the motion reads even when the letters are off screen. Pixel columns wrap on a
+ * 36 px period, so frame 12 flows straight back into frame 1. A SLIDING animation: the kind smoothing helps. */
+export function buildSlidingFrames(): PixelFrame[] {
+  const text: Array<[number, number]> = [];
+  [..."HELLO"].forEach((letter, index) => {
+    SLIDE_GLYPHS[letter]!.forEach((row, y) => {
+      [...row].forEach((cell, x) => {
+        if (cell === "#") text.push([index * 4 + x, y]);
+      });
+    });
+  });
+  return Array.from({ length: SLIDE_FRAMES }, (_, frameIndex) => {
+    const frame = createFrame(GRID_WIDTH, GRID_HEIGHT, [0, 0, 0], 125);
+    const offset = frameIndex * SLIDE_STEP_PX;
+    for (const [tx, ty] of text) {
+      const x = (((tx + 8 - offset) % SLIDE_PERIOD) + SLIDE_PERIOD) % SLIDE_PERIOD;
+      if (x < GRID_WIDTH) setPixelMut(frame, x, 4 + ty, SLIDE_TEXT_COLOR);
+    }
+    for (let dot = 0; dot < SLIDE_PERIOD; dot += 6) {
+      const x = (((dot - offset) % SLIDE_PERIOD) + SLIDE_PERIOD) % SLIDE_PERIOD;
+      if (x < GRID_WIDTH) setPixelMut(frame, x, 12, SLIDE_DOT_COLOR);
+    }
+    return frame;
+  });
+}
+
+/** A two-frame face blink: eyes open for 1.8 s, shut for 0.12 s. A BLINK: a hard cut that smoothing must leave sharp. */
+export function buildBlinkFrames(): PixelFrame[] {
+  const face = plotEllipse(createFrame(GRID_WIDTH, GRID_HEIGHT), 8, 1, 23, 14, SMILEY_FACE, true);
+  const mouth = (frame: PixelFrame): PixelFrame => {
+    for (let x = 12; x <= 19; x++) {
+      const t = (x - 15.5) / 3.5;
+      setPixelMut(frame, x, Math.round(10 + 2 * (1 - t * t)), SMILEY_INK);
+    }
+    return frame;
+  };
+  const open = plotRect(plotRect(face, 12, 5, 13, 7, SMILEY_INK, true), 18, 5, 19, 7, SMILEY_INK, true);
+  const shut = plotRect(plotRect(face, 12, 7, 13, 7, SMILEY_INK, true), 18, 7, 19, 7, SMILEY_INK, true);
+  return [{ ...mouth(cloneFrame(open)), durationMs: 1800 }, { ...mouth(cloneFrame(shut)), durationMs: 120 }];
+}
+
 const NOW_S = Math.floor(Date.now() / 1000);
 const DAY_S = 86400;
 
@@ -206,6 +264,8 @@ export const DESIGNS: StoredDesign[] = [
   framesToDesign([buildSmileyFrame()], { id: "design-smiley", name: "Smiley", kind: "image", created: NOW_S - 10 * DAY_S, updated: NOW_S - 2 * DAY_S, tags: ["face"] }),
   framesToDesign(buildPulseFrames(), { id: "design-pulse", name: "Pulsing dot", kind: "animation", created: NOW_S - 8 * DAY_S, updated: NOW_S - 8 * DAY_S, tags: ["animation"] }),
   framesToDesign(buildMarqueeFrames(), { id: "design-marquee", name: "Scrolling stripes", kind: "animation", created: NOW_S - 3 * DAY_S, updated: NOW_S - 1 * DAY_S, tags: ["animation", "pattern"] }),
+  framesToDesign(buildSlidingFrames(), { id: "design-slide-hello", name: "Sliding hello", kind: "animation", created: NOW_S - 2 * DAY_S, updated: NOW_S - 2 * DAY_S, tags: ["animation", "text"] }),
+  framesToDesign(buildBlinkFrames(), { id: "design-blink", name: "Blinking face", kind: "animation", created: NOW_S - 1 * DAY_S, updated: NOW_S - 1 * DAY_S, tags: ["animation", "face"] }),
 ];
 
 export const PLAYLIST: PlaylistItem[] = [
@@ -263,4 +323,80 @@ export function frameToDataUri(frame: PixelFrame): string {
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${frame.width} ${frame.height}" shape-rendering="crispEdges"><rect width="${frame.width}" height="${frame.height}" fill="#000000"/>${rects.join("")}</svg>`;
   return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
+// ---- Alarms & reminders: the `?alarms=empty|populated|full` scenarios of dev/mock-alarms.ts ----
+
+export type AlarmsScenario = "empty" | "populated" | "full";
+
+export const REMINDER_CAPABILITIES: ReminderCapabilities = {
+  capacity: 16,
+  id_min: 1,
+  id_max: 16,
+  week_mask: false,
+  name_max: 20,
+  durations: [30, 60, 120, 180],
+  repeats: ["once", "daily", "weekdays", "weekends", "custom", "weekly", "monthly", "yearly"],
+  max_frames: 40,
+};
+
+export interface ReminderFixture {
+  items: ManagedReminder[];
+  foreign: ReminderItem[];
+}
+
+function isoDay(base: Date, offsetDays: number): string {
+  const day = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offsetDays);
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+}
+
+/** The 1st of next month: a day every month has. */
+function firstOfNextMonth(base: Date): string {
+  const day = new Date(base.getFullYear(), base.getMonth() + 1, 1);
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function reminderItem(patch: Partial<ManagedReminder> & Pick<ManagedReminder, "key" | "name">): ManagedReminder {
+  return {
+    kind: "alarm", hour: 7, minute: 0, date: null, repeat: "daily", days: [], duration_s: 30, attachment: { kind: "text" },
+    enabled: true, status: "synced", slots: 1, device_ids: [], last_error: null, updated: Math.floor(Date.now() / 1000), ...patch,
+  };
+}
+
+function foreignReminder(patch: Partial<ReminderItem> & Pick<ReminderItem, "id" | "content">): ReminderItem {
+  return { year: 2026, month: 10, day: 1, hour: 23, minute: 32, repeat_type: 0, week_mask: 0, duration: 30, sound: 1, ...patch };
+}
+
+/** Populated: a Monday-Friday alarm that takes 5 slots, a one-time reminder, a monthly one the clock lost
+ * (missing), a daily one that failed to send (error), a weekly one edited on the clock (changed), a
+ * switched-off weekend alarm, plus one reminder made in the vendor app. Full: every one of the 16 slots used. */
+export function reminderFixture(scenario: AlarmsScenario, now: Date = new Date()): ReminderFixture {
+  if (scenario === "empty") return { items: [], foreign: [] };
+  if (scenario === "full") {
+    return {
+      items: [
+        reminderItem({ key: "f00000000001", name: "Wake up", hour: 6, minute: 45, repeat: "weekdays", attachment: { kind: "design", design_id: "design-pulse" }, slots: 5, device_ids: [1, 2, 3, 4, 5] }),
+        reminderItem({ key: "f00000000002", name: "Weekend run", hour: 8, minute: 0, repeat: "weekends", slots: 2, device_ids: [6, 7] }),
+        reminderItem({ key: "f00000000003", name: "Gym", kind: "reminder", hour: 18, minute: 30, repeat: "custom", days: [0, 2, 4], attachment: { kind: "design", design_id: "design-blink" }, slots: 3, device_ids: [8, 9, 10] }),
+        reminderItem({ key: "f00000000004", name: "Vet appointment", kind: "reminder", hour: 14, minute: 30, repeat: "once", date: isoDay(now, 3), attachment: { kind: "text", color: [255, 255, 0] }, device_ids: [11] }),
+        reminderItem({ key: "f00000000005", name: "Pay rent", kind: "reminder", hour: 9, minute: 0, repeat: "monthly", date: firstOfNextMonth(now), attachment: { kind: "text", color: [0, 255, 255] }, device_ids: [12] }),
+        reminderItem({ key: "f00000000006", name: "Water the plants", kind: "reminder", hour: 9, minute: 0, repeat: "weekly", days: [5], attachment: { kind: "text", color: [0, 255, 0] }, device_ids: [13] }),
+        reminderItem({ key: "f00000000007", name: "Take medicine", kind: "reminder", hour: 20, minute: 0, repeat: "daily", attachment: { kind: "design", design_id: "design-smiley" }, device_ids: [14] }),
+        reminderItem({ key: "f00000000008", name: "Call Grandma", kind: "reminder", hour: 17, minute: 0, repeat: "yearly", date: isoDay(now, 40), device_ids: [15] }),
+        reminderItem({ key: "f00000000009", name: "Dentist", kind: "reminder", hour: 9, minute: 15, repeat: "once", date: isoDay(now, -4), status: "done", device_ids: [] }),
+      ],
+      foreign: [foreignReminder({ id: 16, content: "Testing testing " })],
+    };
+  }
+  return {
+    items: [
+      reminderItem({ key: "a1b2c3d4e5f6", name: "Wake up", hour: 6, minute: 45, repeat: "weekdays", attachment: { kind: "design", design_id: "design-pulse" }, slots: 5, device_ids: [1, 2, 3, 4, 5] }),
+      reminderItem({ key: "b2c3d4e5f6a1", name: "Vet appointment", kind: "reminder", hour: 14, minute: 30, repeat: "once", date: isoDay(now, 3), attachment: { kind: "text", color: [255, 255, 0] }, device_ids: [6] }),
+      reminderItem({ key: "c3d4e5f6a1b2", name: "Pay rent", kind: "reminder", hour: 9, minute: 0, repeat: "monthly", date: firstOfNextMonth(now), attachment: { kind: "text", color: [0, 255, 255] }, status: "missing", device_ids: [7] }),
+      reminderItem({ key: "d4e5f6a1b2c3", name: "Take medicine", kind: "reminder", hour: 20, minute: 0, repeat: "daily", attachment: { kind: "design", design_id: "design-smiley" }, status: "error", last_error: "Couldn't reach the clock. Move it closer and try again.", device_ids: [] }),
+      reminderItem({ key: "e5f6a1b2c3d4", name: "Water the plants", kind: "reminder", hour: 9, minute: 0, repeat: "weekly", days: [5], attachment: { kind: "text", color: [0, 255, 0] }, status: "changed", device_ids: [8] }),
+      reminderItem({ key: "f6a1b2c3d4e5", name: "Weekend lie-in", hour: 9, minute: 30, repeat: "weekends", enabled: false, status: "disabled", slots: 2, device_ids: [] }),
+    ],
+    foreign: [foreignReminder({ id: 9, content: "Testing testing " })],
+  };
 }

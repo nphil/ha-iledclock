@@ -25,8 +25,12 @@ import { createFrame, GRID_HEIGHT, GRID_WIDTH, setPixelMut, type PixelFrame } fr
 import { plotEllipse, plotRect } from "../src/lib/rasterize.ts";
 import { frameToBase64 } from "../src/lib/design-codec.ts";
 import { normalizePlaylist } from "../src/lib/ws-api.ts";
+import { type InlinePlaybackRequest, retime } from "./retime.ts";
 import { findGalleryItem, galleryPreview, GALLERY_SOURCES, gallerySearch, importFilePreview } from "./gallery-fixtures.ts";
 import { ALARMS, buildClockState, buildStates, CAPABILITIES, DESIGNS, DEVICE, ENTITY_REGISTRY, ENTRY_ID, PLAYLIST, REMINDERS, TIMER_SWITCHES } from "./fixtures.ts";
+import { createSlotsMock } from "./mock-slots.ts";
+import { createMockAlarms, mockTimeZone } from "./mock-alarms.ts";
+import { renderTextSpec } from "./mock-text.ts";
 
 export { DEVICE_ID, ENTRY_ID } from "./fixtures.ts";
 
@@ -34,27 +38,6 @@ type WsError = { code: string; message: string };
 
 function wsError(code: string, message: string): WsError {
   return { code, message };
-}
-
-/** Renders text as blocky per-character rectangles -- honest about not doing real font
- * rasterisation (see the shared task context), but a genuinely non-blank frame of the right
- * byte length whose block count and colour match what was actually requested. Characters past
- * the 32-pixel-wide grid are clipped, not wrapped, matching how a real single-line render would
- * clip an over-long string. */
-function renderTextFrame(text: string, color: RGB): PixelFrame {
-  const frame = createFrame(GRID_WIDTH, GRID_HEIGHT, [0, 0, 0]);
-  const rgb = quantizePreviewRgb(color);
-  let cursor = 1;
-  for (const ch of text) {
-    if (cursor + 2 >= GRID_WIDTH) break;
-    if (ch !== " ") {
-      for (let y = 5; y <= 10; y++) {
-        for (let x = cursor; x <= cursor + 2; x++) setPixelMut(frame, x, y, rgb);
-      }
-    }
-    cursor += 4;
-  }
-  return frame;
 }
 
 /** A static ring in the requested colour -- stands in for "a real clock face preview" (the
@@ -94,10 +77,6 @@ function renderImagePlaceholderFrame(): PixelFrame {
 }
 
 function renderSpec(spec: RenderSpec): RenderResult {
-  if (spec.type === "text") {
-    const frame = renderTextFrame(spec.text, spec.color);
-    return { frames: [frameToBase64(frame)], delays: [Math.max(20, Math.round(1000 / Math.max(1, spec.speed ?? 10)))], approximate: true };
-  }
   if (spec.type === "clock") {
     const frame = renderClockFrame(spec.color);
     return { frames: [frameToBase64(frame)], delays: [1000], approximate: true };
@@ -122,9 +101,11 @@ export function createMockHass(onChange?: () => void): HomeAssistant {
   let playlist: PlaylistItem[] = PLAYLIST.map((item) => ({ ...item, params: { ...item.params } }));
   const subscribers = new Set<(message: ClockStateEnvelope) => void>();
   let designSaveCounter = 0;
+  const slotsMock = createSlotsMock({ designs: () => designs, push: () => pushState() });
+  const alarmsMock = createMockAlarms({ designs: () => designs, push: () => pushState(), emit: (event) => { for (const callback of subscribers) (callback as (message: unknown) => void)(event); } });
 
   function envelope(): ClockStateEnvelope {
-    return { connected: true, busy: false, state: jsonClone(clockState), playlist: jsonClone(playlist), capabilities: CAPABILITIES };
+    return alarmsMock.decorate(slotsMock.decorate({ connected: true, busy: false, state: jsonClone(clockState), playlist: jsonClone(playlist), capabilities: CAPABILITIES }));
   }
 
   function pushState(): void {
@@ -135,6 +116,36 @@ export function createMockHass(onChange?: () => void): HomeAssistant {
   function notify(): void {
     hass.states = { ...states };
     onChange?.();
+  }
+
+  /** Resolve a `playback/preview`-shaped message (stored design id OR inline frames) to inline frames. Present
+   * speed/smooth keys override the stored design's, absent ones fall back to them. */
+  function inlineRequest(message: Record<string, unknown>): InlinePlaybackRequest {
+    let frames = message.frames as string[] | undefined;
+    let delays = message.delays as number[] | undefined;
+    let clockRegion = message.clock_region as StoredDesign["clock_region"];
+    let storedSpeed: number | null = null;
+    let storedSmooth: StoredDesign["smooth"] = null;
+    if (typeof message.design_id === "string") {
+      const design = designs.find((d) => d.id === message.design_id);
+      if (!design) throw wsError("not_found", `Unknown design ${String(message.design_id)}`);
+      frames = design.frames;
+      delays = design.delays;
+      clockRegion = design.clock_region;
+      storedSpeed = design.speed ?? null;
+      storedSmooth = design.smooth ?? null;
+    }
+    if (!Array.isArray(frames) || !Array.isArray(delays) || frames.length === 0 || frames.length !== delays.length) {
+      throw wsError("invalid_format", "playback/preview needs design_id or matching frames and delays");
+    }
+    return {
+      type: "iledclock/playback/preview",
+      frames: [...frames],
+      delays: [...delays],
+      clock_region: clockRegion ?? null,
+      speed: message.speed !== undefined ? (message.speed as number | null) : storedSpeed,
+      smooth: message.smooth !== undefined ? (message.smooth as InlinePlaybackRequest["smooth"]) : storedSmooth,
+    };
   }
 
   function requireEntry(entryId: unknown): void {
@@ -271,6 +282,7 @@ export function createMockHass(onChange?: () => void): HomeAssistant {
     themes: { darkMode: true },
     language: "en",
     locale: { language: "en" },
+    config: { time_zone: mockTimeZone() },
     auth: { data: { access_token: "mock-token" } },
     hassUrl: "http://localhost:4173",
     callService: async (domain, service, data, target) => {
@@ -338,15 +350,32 @@ export function createMockHass(onChange?: () => void): HomeAssistant {
         notify();
         return {} as unknown as T;
       }
+      if (type === "iledclock/designs/set_playback") {
+        const design = designs.find((d) => d.id === msg.design_id);
+        if (!design) throw wsError("not_found", `Unknown design ${String(msg.design_id)}`);
+        if ("speed" in msg) design.speed = msg.speed as number | null;
+        if ("smooth" in msg) design.smooth = msg.smooth as StoredDesign["smooth"];
+        design.updated = Math.floor(Date.now() / 1000);
+        notify();
+        return { id: design.id, speed: design.speed ?? null, smooth: design.smooth ?? null, updated: design.updated } as unknown as T;
+      }
+      if (type === "iledclock/playback/preview") {
+        return (await retime(inlineRequest(msg))) as unknown as T;
+      }
       if (type === "iledclock/render") {
         requireEntry(msg.entry_id);
-        return renderSpec(msg.spec as RenderSpec) as unknown as T;
+        const spec = msg.spec as RenderSpec;
+        if (spec.type === "design") {
+          // Effective frames: the stored design through the same retime path the clock upload uses.
+          const { frames, delays, playback } = await retime(inlineRequest({ type: "iledclock/playback/preview", design_id: spec.design_id, speed: spec.speed, smooth: spec.smooth }));
+          return { frames, delays, playback } as unknown as T;
+        }
+        if (spec.type === "text") return (await renderTextSpec(spec)) as unknown as T;
+        return renderSpec(spec) as unknown as T;
       }
       if (type === "iledclock/show") {
         requireEntry(msg.entry_id);
-        console.log("[mock hass] iledclock/show", msg.item);
-        pushState();
-        return {} as unknown as T;
+        return (await slotsMock.show(msg)) as unknown as T;
       }
       if (type === "iledclock/playlist/get") {
         requireEntry(msg.entry_id);
@@ -356,11 +385,14 @@ export function createMockHass(onChange?: () => void): HomeAssistant {
         requireEntry(msg.entry_id);
         const requested = Array.isArray(msg.playlist) ? (msg.playlist as PlaylistItem[]) : [];
         playlist = normalizePlaylist(requested, CAPABILITIES.max_playlist_items);
+        slotsMock.recordPlaylist(playlist);
         pushState();
         return { playlist: playlist.map((item) => ({ ...item })) } as unknown as T;
       }
       if (type === "iledclock/command") {
         requireEntry(msg.entry_id);
+        if (alarmsMock.handles(String(msg.command))) return (await alarmsMock.command(String(msg.command), (msg.params as Record<string, unknown>) ?? {})) as unknown as T;
+        if (msg.command === "switch_screen") return (await slotsMock.switchScreen()) as unknown as T;
         applyCommand(String(msg.command), (msg.params as Record<string, unknown>) ?? {});
         notify();
         pushState();
@@ -407,6 +439,8 @@ export function createMockHass(onChange?: () => void): HomeAssistant {
           delays: preview.delays_ms,
           created: now,
           updated: now,
+          // The "With clock" layout reserves the right half for the firmware clock, so the saved design has a clock region.
+          ...((msg.options as { layout?: string } | undefined)?.layout === "icon_with_clock" ? { clock_region: { x: 16, y: 0, w: 16, h: 16 } } : {}),
         });
         states[`sensor.plant_room_clock_program_count`] = { ...states[`sensor.plant_room_clock_program_count`]!, state: String(designs.length) };
         notify();

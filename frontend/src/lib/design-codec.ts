@@ -6,7 +6,7 @@
  */
 
 import { createFrame, type PixelFrame } from "./grid.ts";
-import type { StoredDesign } from "../types.ts";
+import type { SmoothSetting, StoredDesign } from "../types.ts";
 
 export function frameToBase64(frame: PixelFrame): string {
   let binary = "";
@@ -35,9 +35,9 @@ export function designToFrames(design: StoredDesign): PixelFrame[] {
 
 export function framesToDesign(
   frames: readonly PixelFrame[],
-  meta: { id: string; name: string; kind: "image" | "animation"; created: number; updated: number; tags?: string[] },
+  meta: { id: string; name: string; kind: "image" | "animation"; created: number; updated: number; tags?: string[]; speed?: number | null; smooth?: SmoothSetting },
 ): StoredDesign {
-  return {
+  const design: StoredDesign = {
     id: meta.id,
     name: meta.name,
     kind: meta.kind,
@@ -49,4 +49,9 @@ export function framesToDesign(
     updated: meta.updated,
     tags: meta.tags,
   };
+  // Leave the keys out entirely when the caller has no opinion: the server then keeps the stored
+  // speed/smooth. An explicit `null` is a choice (Original / auto) and is sent.
+  if (meta.speed !== undefined) design.speed = meta.speed;
+  if (meta.smooth !== undefined) design.smooth = meta.smooth;
+  return design;
 }

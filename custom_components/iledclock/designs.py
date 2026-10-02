@@ -22,6 +22,7 @@ from .const import (
     DISPLAY_HEIGHT,
     DISPLAY_WIDTH,
 )
+from .retime import validate_smooth, validate_speed
 
 #: Contract D decision: frames travel as base64 of raw RGB888, row-major, top-to-bottom,
 #: left-to-right -- 32*16*3 bytes per frame.
@@ -86,6 +87,12 @@ class Design:
     #: (x, y, w, h) reserved for the firmware's own live clock (the gallery's "Icon with clock"
     #: layout). None for ordinary full-screen art.
     clock_region: tuple[int, int, int, int] | None = None
+    #: How fast the clock plays this design (`retime.py`): None = Original, the delays as authored;
+    #: 0 = Still, one picture; 1..100 = the Speed slider. The frames and `delays_ms` above stay exactly
+    #: as authored; the pace and the in-between frames are worked out from them each time.
+    speed: float | int | None = None
+    #: Smooth motion (`retime.py`): None = auto (same as "on"), "on", or "off".
+    smooth: str | None = None
 
     def to_storage(self) -> dict[str, Any]:
         """JSON-safe dict for `homeassistant.helpers.storage.Store`."""
@@ -102,6 +109,8 @@ class Design:
             "tags": list(self.tags),
             "origin": self.origin.to_dict() if self.origin is not None else None,
             "clock_region": list(self.clock_region) if self.clock_region else None,
+            "speed": self.speed,
+            "smooth": self.smooth,
         }
 
     def to_json(self) -> dict[str, Any]:
@@ -120,6 +129,8 @@ class Design:
             "tags": list(self.tags),
             "origin": self.origin.to_dict() if self.origin is not None else None,
             "clock_region": _region_json(self.clock_region),
+            "speed": self.speed,
+            "smooth": self.smooth,
         }
 
     @classmethod
@@ -137,7 +148,18 @@ class Design:
             tags=tuple(data.get("tags", ())),
             origin=DesignOrigin.from_dict(data["origin"]) if data.get("origin") else None,
             clock_region=tuple(data["clock_region"]) if data.get("clock_region") else None,
+            speed=_stored_setting(validate_speed, data.get("speed")),
+            smooth=_stored_setting(validate_smooth, data.get("smooth")),
         )
+
+
+def _stored_setting(validate: Any, value: Any) -> Any:
+    """A playback setting read back from storage; a value that is no longer valid (an old or hand-edited
+    file) falls back to the default instead of making the whole design unreadable."""
+    try:
+        return validate(value)
+    except ValueError:
+        return None
 
 
 def _region_json(region: tuple[int, int, int, int] | None) -> dict[str, int] | None:
@@ -147,7 +169,7 @@ def _region_json(region: tuple[int, int, int, int] | None) -> dict[str, int] | N
     return {"x": x, "y": y, "w": w, "h": h}
 
 
-def _validate_clock_region(raw: Any) -> tuple[int, int, int, int] | None:
+def validate_clock_region(raw: Any) -> tuple[int, int, int, int] | None:
     """`{x, y, w, h}` (or [x, y, w, h]) inside the display, at least 16x7 so HH:MM fits."""
     if raw is None:
         return None
@@ -165,7 +187,7 @@ def _validate_clock_region(raw: Any) -> tuple[int, int, int, int] | None:
     return (x, y, w, h)
 
 
-def _decode_frame(raw: Any, index: int) -> bytes:
+def decode_frame(raw: Any, index: int) -> bytes:
     if not isinstance(raw, str):
         raise DesignValidationError(f"frames[{index}] must be a base64 string", "frames")
     try:
@@ -214,7 +236,7 @@ def validate_design_payload(raw: Any, *, existing_id: str | None = None) -> Desi
         raise DesignValidationError(
             f"at most {DESIGN_MAX_FRAMES} frames are supported, got {len(frames_raw)}", "frames"
         )
-    frames = tuple(_decode_frame(f, i) for i, f in enumerate(frames_raw))
+    frames = tuple(decode_frame(f, i) for i, f in enumerate(frames_raw))
 
     if kind == "image":
         delays_ms: tuple[int, ...] = (0,) * len(frames)
@@ -264,6 +286,15 @@ def validate_design_payload(raw: Any, *, existing_id: str | None = None) -> Desi
             url=origin_raw.get("url"),
         )
 
+    try:
+        speed = validate_speed(raw.get("speed"))
+    except ValueError as err:
+        raise DesignValidationError(str(err), "speed") from err
+    try:
+        smooth = validate_smooth(raw.get("smooth"))
+    except ValueError as err:
+        raise DesignValidationError(str(err), "smooth") from err
+
     design_id = raw.get("id") or existing_id or uuid.uuid4().hex
     now = time.time()
     created = raw.get("created", now) if existing_id or raw.get("id") else now
@@ -280,5 +311,7 @@ def validate_design_payload(raw: Any, *, existing_id: str | None = None) -> Desi
         updated=now,
         tags=tuple(tags_raw),
         origin=origin,
-        clock_region=_validate_clock_region(raw.get("clock_region")),
+        clock_region=validate_clock_region(raw.get("clock_region")),
+        speed=speed,
+        smooth=smooth,
     )

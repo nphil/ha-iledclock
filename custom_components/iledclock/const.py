@@ -156,8 +156,9 @@ CLOCK_COLOR_RGB: dict[int, tuple[int, int, int]] = {
 TEXT_COLOR_MODE_MIN = 1
 TEXT_COLOR_MODE_MAX = 28
 TEXT_MODE_MAX_LENGTH = 120  # integration-side sanity cap, not a device-confirmed limit.
-TEXT_SPEED_MIN = 0
-TEXT_SPEED_MAX = WIRE_BYTE_MAX
+#: Most frames one text upload may hold. The vendor's own animation editor stops at 40 frames
+#: (ILedClockAnimationActivity.java:380); a longer text scrolls in bigger steps instead of more frames.
+TEXT_MAX_FRAMES = 40
 
 # --- Timers / scoreboard / pomodoro --------------------------------------------------------
 #: docs/FEATURES-app.md #10: 1-6 durations per pomodoro/tomato list.
@@ -183,6 +184,38 @@ MAX_TIMER_SWITCHES = 4
 #: docs/FEATURES-app.md #21: max 16 reminders.
 MAX_REMINDERS = 16
 REMINDER_CONTENT_MAX_LENGTH = 60  # UTF-8 content; integration-side sanity cap.
+
+#: Pixel Studio's "Alarms & reminders" model (docs/SLOTS-AND-REMINDERS.md). One list holds both kinds
+#: (`kind` is presentation only: on the clock both are type-14 reminders). All limits below are
+#: integration policy on top of the wire format (the wire allows more); the vendor UI limits are cited.
+REMINDER_KINDS = ("alarm", "reminder")
+#: once / daily / weekdays (Mon-Fri) / weekends (Sat+Sun) / custom (picked days) / weekly (one weekday)
+#: / monthly (day of month) / yearly (month and day).
+REMINDER_REPEATS = ("once", "daily", "weekdays", "weekends", "custom", "weekly", "monthly", "yearly")
+#: Ring length menu of the vendor app (ILedClockAlarmClockLastTimeDialog.java:66-69) and its default.
+REMINDER_DURATIONS_S = (30, 60, 120, 180)
+REMINDER_DEFAULT_DURATION_S = 30
+#: Vendor limit: title <= 20 UTF-16 code units (ILedClockReminderDetailActivity.java:317-318); the wire
+#: length byte allows 255 UTF-8 bytes but `REMINDER_CONTENT_MAX_LENGTH` (60) is our own cap.
+REMINDER_NAME_MAX_UTF16 = 20
+#: Vendor animation editor limit (ILedClockAnimationActivity.java:380); reminder art never exceeds it.
+REMINDER_MAX_FRAMES = 40
+#: Definitions kept in Home Assistant (disabled ones cost no clock slot).
+REMINDER_MAX_ITEMS = 64
+
+# --- Screens A / B (docs/SLOTS-AND-REMINDERS.md) ----------------------------------------------
+#: The clock's power button toggles between two screens. A = the program list (start-frame kind byte
+#: 00; every Home Assistant show goes here by default); B = the clock-page store (kind byte 04).
+SLOT_A = "a"
+SLOT_B = "b"
+SLOTS = (SLOT_A, SLOT_B)
+DEFAULT_SLOT = SLOT_A
+#: What a show is, for the purpose of deciding whether screen B takes it. Same words in
+#: frontend/src/types.ts (`ContentClass`). "art" = images, animations, text, generated effects and
+#: designs without a clock; "art_clock" = a design with a firmware clock beside it.
+CONTENT_CLASSES = (
+    "clock", "date", "temperature", "humidity", "art", "art_clock", "timer", "scoreboard",
+)
 
 #: docs/FEATURES-app.md #12 ("10 Parameters"): fields (1) enabled (2) start hour (3) start
 #: minute (4) end hour (5) end minute (6) device state enabled (7) brightness 0-100 (8) wake
@@ -299,14 +332,18 @@ SERVICE_SET_TIMER_SWITCHES = "set_timer_switches"
 SERVICE_SET_POMODORO = "set_pomodoro"
 SERVICE_NIGHT_MODE = "night_mode"
 SERVICE_REMINDER_DELETE = "reminder_delete"
+SERVICE_REMINDER_SET = "reminder_set"
+SERVICE_REMINDER_SET_ENABLED = "reminder_set_enabled"
 SERVICE_SYNC_TIME = "sync_time"
 SERVICE_RELEASE_LINK = "release_link"
 SERVICE_SEND_RAW = "send_raw"
+SERVICE_SWITCH_SCREEN = "switch_screen"
 
 ATTR_TEXT = "text"
 ATTR_COLOR = "color"
 ATTR_COLOR_MODE = "color_mode"
 ATTR_SPEED = "speed"
+ATTR_SMOOTH = "smooth"
 ATTR_FONT = "font"
 ATTR_IS_BOLD = "is_bold"
 ATTR_MOVE_SPACE = "move_space"
@@ -350,6 +387,12 @@ ATTR_VOICE_SENSITIVITY = "voice_sensitivity"
 ATTR_OPCODE = "opcode"
 ATTR_PAYLOAD_HEX = "payload_hex"
 ATTR_TIMEOUT_S = "timeout_s"
+ATTR_SLOT = "slot"
+ATTR_KEY = "key"
+ATTR_NAME = "name"
+ATTR_TIME = "time"
+ATTR_DATE = "date"
+ATTR_DAYS = "days"
 
 # --- Dispatcher signals ----------------------------------------------------------------------
 

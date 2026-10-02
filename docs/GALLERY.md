@@ -41,6 +41,11 @@ duration_out_ms, notes[]}`.
    `protocol.render.quantize`).
 6. **Timing**: merge identical consecutive frames (sum their delays); clamp each delay to [20 ms, 10 000 ms]; if frames >
    `const.DESIGN_MAX_FRAMES` (64) decimate evenly while preserving total loop duration; report what changed in `notes`.
+7. **Playback is not part of adaptation.** `adapt()` always returns the animation at its authored timing. How fast it plays and whether
+   in-between frames are added (`retime.py`: the design's Speed slider and Smooth motion) are applied on top, at preview and at upload,
+   from the design's `speed` / `smooth`. They are NOT in `options`, so the import cache key (`lib/gallery-import-cache.ts`) is unchanged:
+   the Explore and Import sheets preview a setting with `iledclock/playback/preview` (inline adapted frames) and, when the user shows or
+   saves the item, store it on the imported design with `iledclock/designs/set_playback`.
 
 ### Importers (`importers/`, pure)
 - `gif.py`/Pillow: GIF (animated), PNG (incl. APNG if Pillow supports it), JPEG, WebP (animated).

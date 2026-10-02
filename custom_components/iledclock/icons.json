@@ -74,9 +74,12 @@
     "set_timer_switches": "mdi:calendar-clock",
     "set_pomodoro": "mdi:timer-cog-outline",
     "night_mode": "mdi:weather-night",
+    "reminder_set": "mdi:bell-plus-outline",
+    "reminder_set_enabled": "mdi:bell-cog-outline",
     "reminder_delete": "mdi:bell-remove-outline",
     "sync_time": "mdi:clock-sync-outline",
     "release_link": "mdi:bluetooth-off",
-    "send_raw": "mdi:code-braces"
+    "send_raw": "mdi:code-braces",
+    "switch_screen": "mdi:swap-horizontal"
   }
 }

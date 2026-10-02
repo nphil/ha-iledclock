@@ -133,5 +133,49 @@ class ValidateDesignPayloadTests(unittest.TestCase):
         self.assertIsNone(restored.origin)
 
 
+class PlaybackSettingsTests(unittest.TestCase):
+    """A design's Speed and Smooth motion: stored with the design, never required."""
+
+    def _animation(self, **extra):
+        return validate_design_payload(
+            {"name": "Loop", "kind": "animation", "frames": [_ONE_FRAME, _ONE_FRAME], "delays": [100, 100], **extra}
+        )
+
+    def test_a_design_without_them_plays_at_its_original_timing(self) -> None:
+        design = self._animation()
+        self.assertIsNone(design.speed)
+        self.assertIsNone(design.smooth)
+        self.assertEqual((design.to_json()["speed"], design.to_json()["smooth"]), (None, None))
+
+    def test_speed_and_smooth_survive_storage(self) -> None:
+        design = self._animation(speed=34, smooth="off")
+        restored = Design.from_storage(design.to_storage())
+        self.assertEqual((restored.speed, restored.smooth), (34, "off"))
+        self.assertEqual((design.to_json()["speed"], design.to_json()["smooth"]), (34, "off"))
+
+    def test_still_original_and_max_are_all_valid(self) -> None:
+        for speed in (0, 100, 12.5, None):
+            self.assertEqual(self._animation(speed=speed).speed, speed)
+
+    def test_out_of_range_or_unknown_values_are_rejected_naming_the_field(self) -> None:
+        for extra, field in (({"speed": 101}, "speed"), ({"speed": -1}, "speed"), ({"speed": "fast"}, "speed"),
+                             ({"smooth": "maybe"}, "smooth"), ({"smooth": True}, "smooth")):
+            with self.assertRaises(DesignValidationError, msg=extra) as caught:
+                self._animation(**extra)
+            self.assertEqual(caught.exception.field, field)
+
+    def test_a_stored_value_that_is_no_longer_valid_does_not_make_the_design_unreadable(self) -> None:
+        stored = self._animation(speed=40).to_storage()
+        stored["speed"], stored["smooth"] = 999, "sideways"
+        restored = Design.from_storage(stored)
+        self.assertEqual((restored.speed, restored.smooth), (None, None))
+
+    def test_a_design_saved_before_playback_existed_restores_with_defaults(self) -> None:
+        stored = self._animation().to_storage()
+        del stored["speed"], stored["smooth"]
+        restored = Design.from_storage(stored)
+        self.assertEqual((restored.speed, restored.smooth), (None, None))
+
+
 if __name__ == "__main__":
     unittest.main()

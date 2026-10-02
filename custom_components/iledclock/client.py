@@ -130,12 +130,51 @@ class IledClockClient:
             total = len(programs)
             try:
                 for index, program in enumerate(programs):
-                    plan = plan_upload(program, index, total, UPLOAD_PACKAGE_SIZE)
+                    # LZSS in pure Python: a smoothed animation can take a second or more, so not on the loop.
+                    plan = await self._hass.async_add_executor_job(
+                        plan_upload, program, index, total, UPLOAD_PACKAGE_SIZE
+                    )
                     await self._async_upload_program_locked(plan, index, total, on_progress)
             except IledClockError:
                 if on_progress is not None:
                     on_progress("error", 0, total, 0, 0)
                 raise
+            finally:
+                self._schedule_idle_disconnect()
+
+    async def async_upload_reminder(
+        self,
+        program: Program,
+        *,
+        on_progress: UploadProgressCallback | None = None,
+    ) -> bool:
+        """Upload ONE reminder program (type 14) into the clock's own reminder store: exactly one
+        start frame (index 0, count 1; its trailer `05 <id>` comes from `plan_upload`), then the
+        acknowledged chunks. Returns True when chunks were sent and False when the start ack was
+        1 ("the clock already has exactly this"). Same retry policy as `async_upload`."""
+        async with self._lock:
+            await self._async_ensure_connected_locked()
+            try:
+                plan = await self._hass.async_add_executor_job(
+                    plan_upload, program, 0, 1, UPLOAD_PACKAGE_SIZE
+                )
+                return await self._async_upload_program_locked(plan, 0, 1, on_progress)
+            except IledClockError:
+                if on_progress is not None:
+                    on_progress("error", 0, 1, 0, 0)
+                raise
+            finally:
+                self._schedule_idle_disconnect()
+
+    async def async_send_oneway(self, payload: bytes) -> None:
+        """Send one unframed command payload that the clock never answers (`commands.screen_toggle`).
+        Connects first if needed, writes the framed payload once and returns: no reply is awaited,
+        nothing is left pending, and there is NO retry, because the commands this is for are
+        toggles and a repeat would undo the first. Failures raise an `IledClockError`."""
+        async with self._lock:
+            await self._async_ensure_connected_locked()
+            try:
+                await self._async_write_payload_locked(payload)
             finally:
                 self._schedule_idle_disconnect()
 
@@ -242,6 +281,10 @@ class IledClockClient:
 
         key = responses.response_key(payload)
         future = self._pending.get(key)
+        if future is None and isinstance(response, ProgramStartAck) and payload[0] == 0x1A:
+            # The vendor accepts opcode 02 or 1a for a program start ack
+            # (DeviceManager.java:4425-4476); a reminder start can be answered with `1a xx`.
+            future = self._pending.get((0x02, None))
         if future is not None and not future.done():
             future.set_result(response)
             return
@@ -253,12 +296,22 @@ class IledClockClient:
         """Frame `payload` once, then split the framed bytes into GATT-write-sized pieces
         (Contract B: `min(mtu_size-3, 180)`, 15ms apart) -- the firmware reassembles the frame
         from the raw byte stream the same way `FrameAssembler` does for notifications, so it
-        does not matter that one logical frame spans several separate writes."""
-        assert self._client is not None
+        does not matter that one logical frame spans several separate writes.
+
+        A link that is gone (dropped between two writes of an upload, say) or a failed GATT
+        write raises `IledClockConnectionError`, never a bare assertion or Bleak error."""
+        if self._client is None or not self._client.is_connected:
+            raise IledClockConnectionError(f"iLedClock {self._address} disconnected")
         frame = framing.encode_frame(payload)
         size = chunk_size_for_mtu(self._client.mtu_size)
         for chunk in chunk_bytes(frame, size):
-            await self._client.write_gatt_char(BLE_CHAR_UUID, chunk, response=False)
+            client = self._client
+            if client is None or not client.is_connected:
+                raise IledClockConnectionError(f"iLedClock {self._address} disconnected")
+            try:
+                await client.write_gatt_char(BLE_CHAR_UUID, chunk, response=False)
+            except (BleakError, OSError) as err:
+                raise IledClockConnectionError(f"could not write to {self._address}: {err}") from err
             await asyncio.sleep(WRITE_CHUNK_SPACING_S)
 
     async def _async_request_locked(
@@ -321,7 +374,9 @@ class IledClockClient:
         program_index: int,
         program_count: int,
         on_progress: UploadProgressCallback | None,
-    ) -> None:
+    ) -> bool:
+        """Upload one planned program. Returns True when chunks were sent, False when the
+        start ack said the clock already has it (result 1)."""
         chunk_count = len(plan.chunks)
         if on_progress is not None:
             on_progress("start", program_index, program_count, 0, chunk_count)
@@ -338,7 +393,7 @@ class IledClockClient:
             )
             if on_progress is not None:
                 on_progress("done", program_index, program_count, chunk_count, chunk_count)
-            return
+            return False
 
         for chunk_index, chunk_payload in enumerate(plan.chunks):
             await self._async_retry_locked(
@@ -352,6 +407,7 @@ class IledClockClient:
 
         if on_progress is not None:
             on_progress("done", program_index, program_count, chunk_count, chunk_count)
+        return True
 
     @staticmethod
     async def _async_retry_locked(
@@ -361,6 +417,10 @@ class IledClockClient:
         for attempt_number in range(1, retries + 1):
             try:
                 return await attempt()
+            except IledClockConnectionError:
+                # The link is gone: retrying on it can only fail again, and reporting that as
+                # "not acknowledged" would hide the real cause.
+                raise
             except IledClockError as err:
                 last_error = err
                 _LOGGER.debug(

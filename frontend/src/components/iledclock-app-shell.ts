@@ -18,6 +18,7 @@ const NAV_OPTIONS = [
   { value: "create", label: "Create", icon: "mdi:draw" },
   { value: "explore", label: "Explore", icon: "mdi:compass-outline" },
   { value: "library", label: "Library", icon: "mdi:view-grid-outline" },
+  { value: "alarms", label: "Alarms", icon: "mdi:alarm" },
 ] as const;
 
 export class IledclockAppShell extends LitElement {
@@ -162,7 +163,7 @@ export class IledclockAppShell extends LitElement {
 
   private _onLocationChanged = (): void => {
     const next = parseStudioRoute(window.location.href);
-    if (next.destination === this.route.destination && next.item === this.route.item && next.design === this.route.design) return;
+    if (next.destination === this.route.destination && next.item === this.route.item && next.design === this.route.design && next.alarm === this.route.alarm) return;
     this._setRoute(next, false);
   };
 
@@ -174,7 +175,7 @@ export class IledclockAppShell extends LitElement {
 
   private _onDestinationSelected = (event: CustomEvent<{ value: string }>): void => {
     const destination = event.detail.value as StudioDestination;
-    if (destination !== "now" && destination !== "create" && destination !== "explore" && destination !== "library") return;
+    if (!NAV_OPTIONS.some((option) => option.value === destination)) return;
     this._setRoute({ destination }, true);
   };
 

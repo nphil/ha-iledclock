@@ -507,6 +507,12 @@ art* goes through our own font rasterizer (`protocol/render.py`), never the devi
 on-device fonts only matter for the native Text *layer*, whose glyphs the firmware draws
 itself from parameters we send (a colour mode, a size, the string), not from pixels we push.
 
+**HA no longer uses the native Text layer for `show_text` or playlist text.** A live
+`show_text "A1"` rendered blank (2026-10-01), so text is now drawn by our own rasterizer to
+pixel frames and uploaded as graffiti (fits 32 columns) or a marquee animation (at most 40
+frames). Preview and upload use the same frames. The native Text layer remains documented
+here as firmware capability only.
+
 ### 7.4 Border/frame
 
 20 built-in patterns (`frameType` 1–20) `[VENDOR/VECTOR — ProtocolLib's protocol/color_tables.py
@@ -517,9 +523,13 @@ art region.
 
 ### 7.5 Reminder
 
-Notification, not a visual layer — max **16**, ID randomly assigned 1–16
+Notification, not a visual layer — max **16**, vendor app assigns a random ID 1–16
 `[VENDOR light/iledclock/ILedClockReminderActivity.java:198-202]`, repeat type
-0=never/1=every_day/2=every_week/3=every_month/4=every_year. Included for completeness only.
+0=never/1=every_day/2=every_week/3=every_month/4=every_year. A reminder made in the vendor app
+rang loudly, showed its attached art, and stopped from the wide button [DEVICE 2026-10-01].
+HA's named alarms and reminders use these slots; the model, capability flags (ID range,
+weekday mask, whether a reminder write preserves screen A/B) and live test plan are in
+`docs/SLOTS-AND-REMINDERS.md`.
 
 ---
 
@@ -532,7 +542,7 @@ Notification, not a visual layer — max **16**, ID randomly assigned 1–16
 | **Temperature/humidity sensor** | `ILedClockTemperatureAndHumidityActivity.java` is an **empty stub** — no `onCreate`, no UI, no sensor-presence flag anywhere in decompiled code. `[DEVICE]` live query `19 01` → reply `19 01 00 00 00` (temp=0, temp_frac=0, humidity=0); live query `19 00` → **no reply at all**. Best-evidence conclusion: **no working sensor on this unit.** | `[VENDOR]`+`[DEVICE]`, not 100% conclusive — see Open Questions §10 |
 | **RTC / time sync** | `getSynchronizeTime()` (opcode `0x09`) sends year(−2000)/month/day/weekday/h/m/s; send-only, triggered from clock/timer screens on open. | `[VENDOR ILedClockUtils.java:4834-4888]` |
 | **Power-on behaviour** | No evidence found either way of what the display shows immediately after power-on before any app connects (e.g. does it resume the last program, or show a fixed boot animation?). | not found — genuinely open, low priority for art |
-| **Physical buttons/keys** | None. Grepped all 98 `light/iledclock/*.java` files for `KeyEvent`/`onKeyDown`/`onKeyUp`/`onKeyLongPress` — the only hits are software-IME editor-action handling in text-entry dialogs, never a physical device key. Control is BLE-only. | `[VENDOR]`, exhaustive grep |
+| **Physical buttons/keys** | Three on top: alarm-clock icon (round), bell \| play/pause (one wide button), power (round). Live test 2026-10-01 [DEVICE]: alarm button opens the timer, the wide button starts then pauses it, power switches between two stored program slots (it did not turn the display off on a short tap). With the BLE link held open and debug logging on, **no presses produced any notification**: the buttons act inside the firmware only and HA cannot see them. The vendor app's notify dispatcher has no button opcode either; its only unprompted messages are countdown finished (`0f 04`) and scoreboard finished (`11 05`). Stock V33 firmware has an inbound power-key command: payload `20 01` synthesized a short power press, switching the animation slot to the clock slot on 2026-10-02 [DEVICE]; HA's request/response wrapper timed out because no reply arrived. No stock inbound command for the wide or round button is established. | `[DEVICE]` + `[VENDOR DeviceManager.java:3636+]` + firmware V33 static trace |
 
 ---
 
@@ -586,6 +596,28 @@ fd 01 00 21 1d "AC695X_01_16x65535UX_00000400"
 | 4 | filename length | `1d` = 29 |
 | 5–33 | ASCII filename | `AC695X_01_16x65535UX_00000400` (29 bytes) — **`AC695X`** is the JieLi SoC family name; `16x65535` reads as `rows×(some 16-bit field)`, `UX` likely the CoolledUX firmware family tag |
 
+### 9.2.1 V33 firmware findings (offline, 2026-10-02)
+
+The vendor OTA file for this exact build is application-only: a 34-byte vendor header plus a JieLi
+SFC-scrambled JLFS application area. It does not contain the resident bootloader or a full flash dump.
+All five downloaded vendor builds decrypt, re-encrypt byte-for-byte, and regenerate their known
+checks, including the header CRC32. The full evidence, original vendor files and reproduction scripts
+are archived in `/data/home/iledclock-research/` (`clockfw-analysis/REPORT.md` and
+`clockfw-analysis/POMODORO-REPLACEMENT.md`).
+
+- **Chip/firmware family:** AC695X / JieLi BR23, pi32v2 code, application entry `0x01E00120`.
+- **Buttons:** firmware polling maps power, wide bell/play and round timer buttons to PB6, PB5 and PB7.
+  These are static firmware findings, not board continuity measurements.
+- **Pomodoro:** stock firmware is a selected-duration countdown, not a focus/short-break/long-break
+  cycle. BLE `15` can read or replace its 1-6 duration presets only; it exposes no start, pause,
+  status or button-event control.
+- **Sound:** stock `F0 01 01` / `F0 01 00` appear to start and stop the shared ringing sequencer.
+  Not tested live; not a confirmed bounded one-shot beep.
+- **Updates:** the update path writes an alternate application bank, verifies it, then switches boot
+  information. That supports interruption protection, but there is **no proven Bluetooth recovery** if
+  a checksum-valid new application crashes before Bluetooth starts. Do not flash modified firmware
+  without separate explicit approval accepting that risk.
+
 ### 9.3 `0x14 0x02` night mode reply (12 bytes: opcode+subcmd+10 params)
 
 ```
@@ -636,6 +668,7 @@ numeric fields decode to plausible round numbers under this ordering, unlike the
 | 9 | Is there truly no temperature/humidity sensor, or does the `19 01`/`19 00` query need a different trigger (e.g. only responds after the device has been powered on for a warm-up period, or needs a different sub-command byte than 0/1)? | Try `getTemperatureAndHumidity(i)` for every `i` in 0–5 (not just the 2 already captured), and repeat the `19 01` query a few minutes after power-on/after the display has been running warm content. | Any non-zero, plausible-looking reading overturns the current best-evidence "no sensor" conclusion; consistent all-zero/no-reply across all sub-commands and timings confirms it firmly enough to disable the temperature/humidity entities outright rather than showing a perpetual "0°". |
 | 10 | Exact distinct meaning of chunk-ack status codes 1/2/3 (`0x03` opcode) — are they all equally "retry the same chunk", or do any warrant a different client response (e.g. abort vs. retry vs. re-send-from-start)? | Deliberately trigger each: send a chunk with a corrupted XOR checksum (→ suspected DATA_ERROR), send chunks out of order (→ suspected DEVICE_ERROR), and a normal chunk after an artificial delay past the 5000ms timeout, observe which status byte each provokes. | Confirms (or corrects) the current generic "1/2/3 = distinct device/data errors, all retry" reading in §6, most useful to ProtocolLib's retry-handling logic rather than to art quality directly — lowest priority of the ten, included because it is the last real gap in the transfer-error picture. |
 | 11 | Does the clock really have its own sound sensor (night-mode "voice control"), and how sensitive is each level? | During night mode (or with night mode temporarily set to cover the current time), clap/speak near the clock at sensitivity 1, 6 and max; watch whether the display wakes and for how long. | Waking on sound confirms an on-board sound sensor (firmware-only, not readable over BLE); the lowest level that reacts to a normal voice becomes the default we suggest in the UI. |
+| 12 | Can a modified firmware-resident pomodoro be installed and recovered without opening the clock? | First obtain clock-specific bootloader/recovery evidence or test on a recoverable matching unit; then build an update and verify it offline. Flashing this clock requires separate explicit approval. | Proof of a Bluetooth path reachable even when the application fails, plus a working replacement that runs standalone without HA. |
 
 ---
 

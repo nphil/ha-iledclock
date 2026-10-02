@@ -62,7 +62,7 @@
         "name": "Firmware"
       },
       "program_count": {
-        "name": "Program count"
+        "name": "Screen A programs"
       }
     },
     "binary_sensor": {
@@ -106,7 +106,7 @@
   "services": {
     "show_text": {
       "name": "Show text",
-      "description": "Show a text message on the clock right now. With a duration, the previous playlist is restored automatically afterwards -- a notify-style temporary message.",
+      "description": "Show a text message on the clock right now. The message is drawn as pixels; one that is wider than the clock scrolls. With a duration, whatever was on screen A before is put back automatically afterwards -- a notify-style temporary message.",
       "fields": {
         "device_id": {
           "name": "Clock",
@@ -114,27 +114,39 @@
         },
         "text": {
           "name": "Text",
-          "description": "The message to display."
+          "description": "The message to display, up to 120 characters."
+        },
+        "color": {
+          "name": "Colour",
+          "description": "The text colour as red, green and blue (0-255 each). White if left empty. The rainbow modes ignore it."
         },
         "color_mode": {
           "name": "Colour mode",
-          "description": "One of the 28 built-in text colour/animation modes."
-        },
-        "speed": {
-          "name": "Speed",
-          "description": "Scroll/animation speed (0-255)."
+          "description": "1 = one colour, 2 = a rainbow along the text, 4 = every letter a different colour. The other numbers (3 and 5-28) also give one colour."
         },
         "font": {
           "name": "Font",
-          "description": "Bundled pixel font to use (e.g. 3x5, 5x7, 8x16)."
+          "description": "The pixel font: 3x5, 5x7 (the default) or 8x16."
         },
         "is_bold": {
           "name": "Bold",
-          "description": "Render the text in its bold variant."
+          "description": "Make every letter one pixel wider. Off by default: bold text is wider, so fewer letters fit before it has to scroll."
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "How fast a scrolling message moves, from 0 (a still picture) to 100 (the fastest the clock can play). Leave empty for the normal reading pace."
+        },
+        "smooth": {
+          "name": "Smooth motion",
+          "description": "Add in-between frames so a slowed-down scroll moves in smaller steps. Leave empty for automatic (on)."
         },
         "duration_s": {
           "name": "Duration",
-          "description": "Seconds to show this message before automatically restoring whatever was playing before. Leave empty to replace the display permanently instead."
+          "description": "Seconds to show this message before putting back what screen A showed before. Leave empty to keep the message until something else is shown. Only works on screen A."
+        },
+        "slot": {
+          "name": "Screen",
+          "description": "Which of the clock's two screens to write to: a = the program list (the default), b = the clock-page screen. The clock's power button switches between them. Screen B only takes clock, date and temperature pages for now."
         }
       }
     },
@@ -149,6 +161,18 @@
         "design_id": {
           "name": "Design",
           "description": "The saved design's id, from the Pixel Studio panel or iledclock/designs/list."
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "How fast to play it, from 0 (a still picture) to 100 (the fastest the clock can play). Leave empty to use the design's saved speed, or the animation's own timing."
+        },
+        "smooth": {
+          "name": "Smooth motion",
+          "description": "Add in-between frames to sliding and fading steps when the animation is slowed down. Leave empty for the design's saved choice (on by default)."
+        },
+        "slot": {
+          "name": "Screen",
+          "description": "Which of the clock's two screens to write to: a = the program list (the default), b = the clock-page screen. The clock's power button switches between them. Screen B only takes clock, date and temperature pages for now."
         }
       }
     },
@@ -175,6 +199,18 @@
         "dither": {
           "name": "Dither",
           "description": "Dither the image when reducing it to the panel's colours."
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "How fast to play it, from 0 (a still picture) to 100 (the fastest the clock can play). Leave empty to use the design's saved speed, or the animation's own timing."
+        },
+        "smooth": {
+          "name": "Smooth motion",
+          "description": "Add in-between frames to sliding and fading steps when the animation is slowed down. Leave empty for the design's saved choice (on by default)."
+        },
+        "slot": {
+          "name": "Screen",
+          "description": "Which of the clock's two screens to write to: a = the program list (the default), b = the clock-page screen. The clock's power button switches between them. Screen B only takes clock, date and temperature pages for now."
         }
       }
     },
@@ -197,6 +233,18 @@
         "seed": {
           "name": "Seed",
           "description": "Optional random seed, for a reproducible result."
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "How fast to play it, from 0 (a still picture) to 100 (the fastest the clock can play). Leave empty to use the design's saved speed, or the animation's own timing."
+        },
+        "smooth": {
+          "name": "Smooth motion",
+          "description": "Add in-between frames to sliding and fading steps when the animation is slowed down. Leave empty for the design's saved choice (on by default)."
+        },
+        "slot": {
+          "name": "Screen",
+          "description": "Which of the clock's two screens to write to: a = the program list (the default), b = the clock-page screen. The clock's power button switches between them. Screen B only takes clock, date and temperature pages for now."
         }
       }
     },
@@ -241,6 +289,10 @@
         "background": {
           "name": "Face background",
           "description": "Show the style's own background art behind the digits, like the vendor app does. Turn off for a plain firmware clock on a blank panel."
+        },
+        "slot": {
+          "name": "Screen",
+          "description": "Which of the clock's two screens to write to: a = the program list (the default), b = the clock-page screen. The clock's power button switches between them. Screen B takes clock faces."
         }
       }
     },
@@ -450,17 +502,89 @@
         }
       }
     },
-    "reminder_delete": {
-      "name": "Delete reminder",
-      "description": "Delete a reminder that was created on the clock itself. Reminders can only be created from the clock's own controls, not from Home Assistant.",
+    "reminder_set": {
+      "name": "Set alarm or reminder",
+      "description": "Create an alarm or reminder, or change one. It is stored on the clock itself, so it still rings when Home Assistant is off. The clock has 16 reminder slots; repeating on several days can use more than one. Answers with the saved item, including its key.",
       "fields": {
         "device_id": {
           "name": "Clock",
-          "description": "The clock to delete a reminder from."
+          "description": "The clock to put it on."
+        },
+        "key": {
+          "name": "Key",
+          "description": "Leave empty to make a new one. To change one, give the key this service returned when it was made."
+        },
+        "name": {
+          "name": "Name",
+          "description": "What the clock shows when it rings. Up to 20 characters."
+        },
+        "time": {
+          "name": "Time",
+          "description": "The time of day it rings."
+        },
+        "kind": {
+          "name": "Type",
+          "description": "Alarm or reminder. Only changes how it is listed; the clock rings both the same way."
+        },
+        "repeat": {
+          "name": "Repeat",
+          "description": "How often it rings. One time if left out."
+        },
+        "date": {
+          "name": "Date",
+          "description": "The day for a one-time alarm, the day of the month (1 to 28) for a monthly one, or the date for a yearly one."
+        },
+        "days": {
+          "name": "Days",
+          "description": "The weekdays for Custom (any number) or Weekly (exactly one)."
+        },
+        "duration_s": {
+          "name": "Ring length",
+          "description": "How long it rings, in seconds."
+        },
+        "design_id": {
+          "name": "Picture",
+          "description": "A Library design to show while it rings. Leave empty to show the name as scrolling text."
+        },
+        "enabled": {
+          "name": "On",
+          "description": "Whether it is switched on. A switched-off alarm is removed from the clock but kept here."
+        }
+      }
+    },
+    "reminder_set_enabled": {
+      "name": "Switch alarm or reminder on or off",
+      "description": "Turn an alarm or reminder on (it is written to the clock) or off (it is removed from the clock but kept here).",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock it is on."
+        },
+        "key": {
+          "name": "Key",
+          "description": "The key of the alarm or reminder."
+        },
+        "enabled": {
+          "name": "On",
+          "description": "On or off."
+        }
+      }
+    },
+    "reminder_delete": {
+      "name": "Delete alarm or reminder",
+      "description": "Delete an alarm or reminder. Give the key of one made in Home Assistant, or the ID of one that exists only on the clock (made with the clock's own app).",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to delete from."
+        },
+        "key": {
+          "name": "Key",
+          "description": "The key of an alarm or reminder made in Home Assistant. Use this or the ID, not both."
         },
         "id": {
           "name": "Reminder ID",
-          "description": "The reminder's id, from the clock's reminder list."
+          "description": "The clock's own ID of a reminder made elsewhere, from the clock's reminder list. Use this or the key, not both."
         }
       }
     },
@@ -503,6 +627,16 @@
         "timeout_s": {
           "name": "Timeout",
           "description": "How long to wait for a reply, in seconds."
+        }
+      }
+    },
+    "switch_screen": {
+      "name": "Switch screen",
+      "description": "Presses the clock's power key once, which flips between screen A and screen B. It only toggles: the clock does not say which screen is showing, so run it again to go back.",
+      "fields": {
+        "device_id": {
+          "name": "Clock",
+          "description": "The clock to switch."
         }
       }
     }

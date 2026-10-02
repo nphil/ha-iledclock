@@ -1,7 +1,10 @@
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
-import type { HomeAssistant } from "../types.ts";
+import type { ContentClass, HomeAssistant } from "../types.ts";
 import { GRID_HEIGHT, GRID_WIDTH, type PixelFrame } from "../lib/grid.ts";
-import { base64ToFrame } from "../lib/design-codec.ts";
+import { base64ToFrame, frameToBase64 } from "../lib/design-codec.ts";
+import type { PlaybackPreviewResult } from "../types.ts";
+import { PlaybackSession } from "../lib/playback-session.ts";
+import { designsSetPlaybackRequest, playbackPreviewRequest } from "../lib/ws-api.ts";
 import { hexToRgb, rgbToHex } from "../lib/color.ts";
 import {
   describeAutoFit,
@@ -17,14 +20,17 @@ import { GalleryImportCache } from "../lib/gallery-import-cache.ts";
 import { itemKey } from "../lib/gallery-browse-state.ts";
 import { exploreLayoutLabel, exploreLayoutOptions, type ExploreGalleryItem, type ExploreSource } from "../lib/gallery-explore-api.ts";
 import { describeWsError } from "../lib/ws-query.ts";
-import { showWithUndo } from "../lib/show-with-undo.ts";
+import { resolveShowTarget, showWithUndo } from "../lib/show-with-undo.ts";
+import { SLOT_CHECK_FAILED } from "../lib/slots.ts";
 import { TOKENS_CSS } from "../styles/tokens.ts";
 import "./iledclock-led-preview.ts";
+import "./iledclock-playback-control.ts";
 import "./iledclock-segmented-picker.ts";
 import "./iledclock-stepper.ts";
 import "./lu-error.ts";
 import "./lu-icon-button.ts";
 import "./lu-pill-button.ts";
+import "./iledclock-slot-choice.ts";
 import "./lu-sheet.ts";
 
 const ADJUST_DEBOUNCE_MS = 250;
@@ -73,6 +79,16 @@ export class IledclockExploreItemSheet extends LitElement {
   private _requestId = 0;
   private _debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private _swipeStartX: number | null = null;
+  private _playback = this._makePlayback();
+  private _playbackDisposed = false;
+
+  private _makePlayback(): PlaybackSession {
+    return new PlaybackSession({
+      callWS: (request) => this.hass.callWS!<PlaybackPreviewResult>(request as never),
+      buildRequest: (state, authored) => playbackPreviewRequest({ frames: authored.map(frameToBase64), delays: authored.map((frame) => frame.durationMs) }, state),
+      onChange: () => this.requestUpdate(),
+    });
+  }
 
   constructor() {
     super();
@@ -96,6 +112,17 @@ export class IledclockExploreItemSheet extends LitElement {
     super.disconnectedCallback();
     clearTimeout(this._debounceTimer);
     this._requestId++;
+    this._playback.dispose();
+    this._playbackDisposed = true;
+  }
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    if (this._playbackDisposed) {
+      this._playbackDisposed = false;
+      this._playback = this._makePlayback();
+      if (this._pixelFrames.length > 0) this._playback.setSource(this._pixelFrames);
+    }
   }
 
   protected willUpdate(changed: PropertyValues): void {
@@ -103,6 +130,8 @@ export class IledclockExploreItemSheet extends LitElement {
       this._pixelFrames = this._preview
         ? this._preview.frames.map((frame, index) => base64ToFrame(frame, GRID_WIDTH, GRID_HEIGHT, this._preview!.delays_ms[index] ?? 100))
         : [];
+      // Keep the session (and so the control and the chosen speed) while a new preview is on its way.
+      if (this._preview) this._playback.setSource(this._pixelFrames);
     }
   }
 
@@ -119,6 +148,7 @@ export class IledclockExploreItemSheet extends LitElement {
         this._previewError = null;
         this._actionError = null;
         this._pixelFrames = [];
+        this._playback.setSource([], { state: { speed: null, smooth: null } });
         void this._loadPreview();
       }
     }
@@ -175,16 +205,24 @@ export class IledclockExploreItemSheet extends LitElement {
     return Boolean(this._preview) && !this._previewLoading && this._saving === null;
   }
 
-  private async _importDesign(): Promise<string> {
-    const item = this.item;
+  /** An "icon with clock" layout imports a design with a clock region; everything else is plain art. */
+  private _contentClass(): ContentClass {
+    return this._layout === "icon_with_clock" || this._preview?.layout === "icon_with_clock" ? "art_clock" : "art";
+  }
+
+  /** Imports `item` as a library design with `options`. Both are passed in, decided at the click: the import takes a while and the
+   * layout controls stay live meanwhile, so nothing about the artwork is read from the sheet's state again afterwards. */
+  private async _importDesign(item: ExploreGalleryItem, options: GalleryAdjustOptions): Promise<string> {
     const entryId = this.entryId;
     const callWS = this.hass.callWS?.bind(this.hass);
-    if (!item || !entryId || !callWS) throw new Error("The gallery item is no longer available.");
-    const options = this._buildOptions();
-    return this.importCache.getOrImport(item.source, item.id, options, async () => {
+    if (!entryId || !callWS) throw new Error("The gallery item is no longer available.");
+    const designId = await this.importCache.getOrImport(item.source, item.id, options, async () => {
       const result = await callWS<GalleryImportResult>(galleryImportRequest(entryId, item.source, item.id, options));
       return result.design_id;
     });
+    // A cached design may still carry the choice from an earlier visit: always write the current one.
+    if (this._playback.hasMotion) await callWS(designsSetPlaybackRequest(designId, { speed: this._playback.speed, smooth: this._playback.smooth }));
+    return designId;
   }
 
   private async _saveToLibrary(): Promise<void> {
@@ -193,7 +231,7 @@ export class IledclockExploreItemSheet extends LitElement {
     this._saving = "save";
     this._actionError = null;
     try {
-      const designId = await this._importDesign();
+      const designId = await this._importDesign(item, this._buildOptions());
       this.dispatchEvent(new CustomEvent("iledclock-designs-changed", { bubbles: true, composed: true }));
       this.dispatchEvent(new CustomEvent("lu-toast", {
         detail: { message: `Saved ${item.title} to your library`, actionLabel: "Open", action: () => this._openDesign(designId), timeoutMs: 5000 },
@@ -211,11 +249,21 @@ export class IledclockExploreItemSheet extends LitElement {
   private async _showOnClock(): Promise<void> {
     if (!this.item || !this.entryId || !this._canUseAction()) return;
     const item = this.item;
+    const entryId = this.entryId;
+    // Fixed now, at the click, and used as is: what the A | B control showed is where this goes, and the imported artwork is the one
+    // chosen now, whatever the layout buttons are turned to while the import runs.
+    const options = this._buildOptions();
+    const contentClass = this._contentClass();
     this._saving = "show";
     this._actionError = null;
     try {
-      const designId = await this._importDesign();
-      const shown = await showWithUndo(this, this.hass, this.entryId, { design_id: designId }, item.title);
+      const target = await resolveShowTarget(this.hass, entryId, contentClass);
+      if (!target) {
+        this._actionError = SLOT_CHECK_FAILED;
+        return;
+      }
+      const designId = await this._importDesign(item, options);
+      const shown = await showWithUndo(this, this.hass, entryId, { design_id: designId }, item.title, { target });
       if (shown) {
         this.dispatchEvent(new CustomEvent("iledclock-designs-changed", { bubbles: true, composed: true }));
         this._close();
@@ -229,10 +277,11 @@ export class IledclockExploreItemSheet extends LitElement {
 
   private async _editDesign(): Promise<void> {
     if (!this.item || !this._canUseAction()) return;
+    const item = this.item;
     this._saving = "edit";
     this._actionError = null;
     try {
-      const designId = await this._importDesign();
+      const designId = await this._importDesign(item, this._buildOptions());
       this.dispatchEvent(new CustomEvent("iledclock-designs-changed", { bubbles: true, composed: true }));
       this._openDesign(designId);
     } catch (err) {
@@ -264,7 +313,7 @@ export class IledclockExploreItemSheet extends LitElement {
   }
 
   private _onKeydown(event: KeyboardEvent): void {
-    const target = event.target;
+    const target = event.composedPath()[0] ?? event.target;
     if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) return;
     if (event.key === "ArrowLeft" && this._hasPrevious()) {
       event.preventDefault();
@@ -306,6 +355,8 @@ export class IledclockExploreItemSheet extends LitElement {
     const offset = this._adjust.offset ?? { x: 0, y: 0 };
     const enhance = this._adjust.enhance ?? false;
     const previewDelays = this._preview?.delays_ms ?? [];
+    const playback = this._playback;
+    const motion = playback.hasMotion && this._pixelFrames.length > 1;
     const creditUrl = item.url ?? this.source?.homepage;
     const metadata = item.author ? `By ${item.author} on ${this.source?.name ?? item.source}.` : `From ${this.source?.name ?? item.source}.`;
     return html`<lu-sheet ?open=${this.open} .label=${item.title} @closed=${this._close} @keydown=${(event: KeyboardEvent) => this._onKeydown(event)}>
@@ -321,7 +372,7 @@ export class IledclockExploreItemSheet extends LitElement {
         <div class="preview-row" @pointerdown=${(event: PointerEvent) => this._onSwipeStart(event)} @pointerup=${(event: PointerEvent) => this._onSwipeEnd(event)} @pointercancel=${() => (this._swipeStartX = null)}>
           <div class="hero-preview" aria-label="Adapted clock preview">
             ${this._pixelFrames.length > 0
-              ? html`<iledclock-led-preview context="hero" .frames=${this._pixelFrames} .delays=${previewDelays} .playing=${this._pixelFrames.length > 1} label=${`${item.title}, adapted for the clock`}></iledclock-led-preview>`
+              ? html`<iledclock-led-preview context="hero" .frames=${motion ? playback.frames : this._pixelFrames} .delays=${motion ? playback.delays : previewDelays} .rate=${motion ? playback.rate : 1} .playing=${motion ? playback.playing : this._pixelFrames.length > 1} label=${`${item.title}, adapted for the clock`}></iledclock-led-preview>`
               : this._previewLoading
                 ? html`<div class="preview-skeleton" role="status" aria-label="Preparing adapted preview"></div>`
                 : html`<div class="preview-placeholder" aria-hidden="true">▦</div>`}
@@ -341,6 +392,7 @@ export class IledclockExploreItemSheet extends LitElement {
         ${this._preview && this._layout === "auto" && describeAutoFit(this._preview.report.notes)
           ? html`<p class="fit-note">${describeAutoFit(this._preview.report.notes)}</p>`
           : nothing}
+        ${this._pixelFrames.length > 1 ? html`<iledclock-playback-control .session=${playback}></iledclock-playback-control>` : nothing}
         <section class="settings" aria-label="Preview settings">
           <h3>Layout</h3>
           ${this._previewLoading && !this._preview
@@ -365,10 +417,13 @@ export class IledclockExploreItemSheet extends LitElement {
         </section>
         <p class="credit">${metadata} ${creditUrl ? html`<a href=${creditUrl} target="_blank" rel="noopener noreferrer">View original</a>` : nothing}</p>
       </div>
-      <div slot="footer" class="actions">
-        <lu-pill-button variant="primary" .label=${this._saving === "show" ? "Showing…" : "Show on clock"} ?disabled=${!canUseAction} @lu-press=${this._showOnClock}></lu-pill-button>
-        <lu-pill-button variant="secondary" .label=${this._saving === "save" ? "Saving…" : "Save to library"} ?disabled=${!canUseAction} @lu-press=${this._saveToLibrary}></lu-pill-button>
-        <lu-pill-button variant="quiet" .label=${this._saving === "edit" ? "Opening…" : "Edit"} ?disabled=${!canUseAction} @lu-press=${this._editDesign}></lu-pill-button>
+      <div slot="footer" class="footer">
+        <iledclock-slot-choice .hass=${this.hass} .entryId=${this.entryId} content-class=${this._contentClass()} ?disabled=${this._saving !== null}></iledclock-slot-choice>
+        <div class="actions">
+          <lu-pill-button variant="primary" .label=${this._saving === "show" ? "Showing…" : "Show on clock"} ?disabled=${!canUseAction} @lu-press=${this._showOnClock}></lu-pill-button>
+          <lu-pill-button variant="secondary" .label=${this._saving === "save" ? "Saving…" : "Save to library"} ?disabled=${!canUseAction} @lu-press=${this._saveToLibrary}></lu-pill-button>
+          <lu-pill-button variant="quiet" .label=${this._saving === "edit" ? "Opening…" : "Edit"} ?disabled=${!canUseAction} @lu-press=${this._editDesign}></lu-pill-button>
+        </div>
       </div>
     </lu-sheet>`;
   }
@@ -409,8 +464,8 @@ export class IledclockExploreItemSheet extends LitElement {
     .credit { display: flex; flex-wrap: wrap; gap: var(--lu-space-1); margin: 0; color: var(--lu-ink-2); font: 400 var(--lu-type-caption)/1.4 var(--lu-font); }
     .credit a { color: var(--lu-accent); font-weight: 600; text-decoration: none; }
     .credit a:hover { text-decoration: underline; }
-    .actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--lu-space-2); }
-    @container (min-width: 460px) { .actions { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .footer { display: grid; gap: var(--lu-space-3); min-width: 0; }
+    .actions { display: flex; flex-wrap: wrap; gap: var(--lu-space-2); }
     @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition-duration: var(--lu-motion-layer) !important; } }
   `];
 }

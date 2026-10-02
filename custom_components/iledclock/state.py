@@ -64,8 +64,10 @@ class TimerSwitchState:
 
 @dataclass(frozen=True, slots=True)
 class ReminderState:
-    """docs/FEATURES-app.md #21. `year` is the real calendar year (protocol's own year-offset-
-    from-2000 encoding is a wire-level detail `protocol.responses` already resolves for us)."""
+    """docs/FEATURES-app.md #21, one reminder exactly as the clock reports it. `year` is the real calendar
+    year (2026, not the clock's own 26: `protocol.responses.ReminderDetail.full_year`). `repeat_type` is the
+    clock's own enum (0 once, 1 daily, 2 weekly, 3 monthly, 4 yearly) and `week_mask` its weekday mask
+    (Mon = bit 0 .. Sun = bit 6) -- not the Mon..Sun `repeat` bitmask of `AlarmState`."""
 
     id: int
     content: str
@@ -74,7 +76,10 @@ class ReminderState:
     day: int
     hour: int
     minute: int
-    repeat: int
+    repeat_type: int
+    week_mask: int
+    duration: int
+    sound: int
 
 
 @dataclass(frozen=True, slots=True)

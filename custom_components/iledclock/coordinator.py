@@ -21,8 +21,9 @@ import asyncio
 import base64
 import binascii
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
+from functools import partial
 from typing import Any, Mapping
 
 from homeassistant.config_entries import ConfigEntry
@@ -40,12 +41,14 @@ from .const import (
     CONF_REFRESH_INTERVAL,
     CONF_TIME_SYNC,
     CONSECUTIVE_FAILURES_FOR_UNAVAILABLE,
+    DEFAULT_SLOT,
     DESIGN_MAX_FRAMES,
     DISPLAY_HEIGHT,
     DISPLAY_WIDTH,
     DOMAIN,
-    MAX_REMINDERS,
     PLAYLIST_KINDS,
+    SLOT_A,
+    SLOT_B,
     TIME_SYNC_HOUR,
     TIME_SYNC_MINUTE,
     upload_progress_signal,
@@ -56,23 +59,36 @@ from .playlist import PlaylistItem
 from .program_builder import (
     ProgramBuildError,
     build_programs,
-    design_to_frames,
+    build_slot_b_program,
+    design_play_frames,
     frames_to_content,
+    poster_frame,
     power_limit_programs,
+    program_screen,
+    retimed_frames,
+    show_content_class,
+    text_playback_frames,
     to_device_timing,
 )
 from .protocol import commands
 from .protocol import render as protocol_render
 from .protocol.models import AlarmItem, Frame, NightMode, TimerSwitchItem
-from .protocol.programs import Program
+from .protocol.programs import Program, program_fingerprint
 from .protocol.responses import (
     CountdownStatus,
     DeviceInfo,
-    ReminderDetail,
     Response,
     ScoreboardStatus,
     StopwatchStatus,
     TempHumidity,
+)
+from .reminder_manager import ReminderManager
+from .slot_store import IledClockSlotStore
+from .slots import (
+    check_slot,
+    descriptor_slot,
+    require_screen_a_for_timed_show,
+    require_slot_accepts,
 )
 from .state import (
     AlarmState,
@@ -102,6 +118,26 @@ _KIND_PREVIEW_LABEL = {
     "clock": "CLOCK", "date": "DATE", "timer": "TIMER", "scoreboard": "SCORE",
     "temperature": "TEMP", "humidity": "HUMID",
 }
+
+
+def _wire_fingerprint(program: Program, brightness: int | None) -> tuple[str, int]:
+    """`program_fingerprint` of `program` exactly as `IledClockCoordinator._async_send_to_clock` sends it (the
+    power limit and the clock's delay units applied), i.e. the CRC and length its start frame carried."""
+    return program_fingerprint(to_device_timing(power_limit_programs([program], brightness))[0])
+
+
+def _show_spec_from_descriptor(descriptor: Mapping[str, Any]) -> dict[str, Any]:
+    """The show spec that draws a stored descriptor again (undo, and putting screen A back after a timed show).
+    Presentation fields and the screen are not part of what is shown; a generative preset is stored as `effect`
+    but shown as `kind`."""
+    kind = str(descriptor.get("kind", ""))
+    fields = {
+        key: value for key, value in descriptor.items()
+        if key not in {"kind", "title", "shown_at", "unavailable", "slot", "source"}
+    }
+    if kind == "generative" and "effect" in fields:
+        fields["kind"] = fields.pop("effect")
+    return {"type": kind, **fields, "title": descriptor.get("title")}
 
 
 def _repeat_from_days(item: AlarmItem | TimerSwitchItem) -> int:
@@ -218,16 +254,6 @@ def timer_switch_item_from_service(*, hour: int, minute: int, on: bool, enabled:
     )
 
 
-def _reminder_states(details: list[ReminderDetail]) -> tuple[ReminderState, ...]:
-    return tuple(
-        ReminderState(
-            id=d.id, content=d.content, year=d.year, month=d.month, day=d.day,
-            hour=d.hour, minute=d.minute, repeat=d.repeat_type,
-        )
-        for d in details
-    )
-
-
 def _countdown_state(status: CountdownStatus) -> CountdownState:
     return CountdownState(
         hours=status.left_hour, minutes=status.left_minute, seconds=status.left_seconds,
@@ -264,6 +290,10 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         self.design_library: IledClockDesignLibrary = async_get_design_library(hass)
         self.playlist_store = IledClockPlaylistStore(hass, entry.entry_id)
         self.show_store = IledClockShowStore(hass, entry.entry_id)
+        #: What Home Assistant last sent to each of the clock's two screens (written after an upload succeeds).
+        self.slot_store = IledClockSlotStore(hass, entry.entry_id)
+        #: Alarms & reminders: named definitions kept here, compiled onto the clock's own reminder slots.
+        self.reminders = ReminderManager(self)
         self._show_lock = asyncio.Lock()
         self._time_sync_enabled: bool = options[CONF_TIME_SYNC]
         self._synced_since_start = False
@@ -271,10 +301,16 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
 
         # "Show" (Contract D `iledclock/show`, and every `show_*` service): a temporary or
         # permanent single-program override that bypasses the stored playlist without
-        # overwriting it. `_saved_playlist` is the playlist to restore once a *timed* override
-        # (`show_text`'s `duration_s`) expires; `None` means "no override pending restore".
+        # overwriting it. `_saved_playlist` is what to put back on screen A once a *timed* override
+        # (`show_text`'s `duration_s`) expires: `None` = no timed show is pending, `[]` = one started
+        # while there was no playlist, and then `_saved_screen_a` (the record screen A held before
+        # it) is shown again. Screen B shows never touch any of this.
         self._saved_playlist: list[PlaylistItem] | None = None
+        self._saved_screen_a: dict[str, Any] | None = None
         self._restore_generation = 0
+        #: What was last uploaded to each screen, as built (before the power limit and the clock's
+        #: own delay units), so re-sending it is byte-identical. Not persisted.
+        self._slot_programs: dict[str, list[Program]] = {}
         self._restore_unsub: Callable[[], None] | None = None
         self.active_item: PlaylistItem | None = None
         self.preview_png: bytes | None = None
@@ -346,11 +382,21 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             await self._async_try(commands.sync_time(dt_util.now()), "startup time sync")
             self._synced_since_start = True
 
+        # The refresh reads the reminders in the middle of its pass and publishes at the end. A reminder write that
+        # starts or ends in between has already published a newer list, so the token is checked at the very end, right
+        # before publishing (nothing is awaited after the check).
+        reminder_token = self.reminders.begin_read()
         changes = await self._async_fetch_all()
         changes["connected"] = True
         changes["consecutive_failures"] = 0
         changes["last_updated"] = dt_util.utcnow().timestamp()
-        return merge_state(base, changes)
+        reminders = changes.pop("reminders", None)
+        if reminders is not None and self.reminders.read_is_current(reminder_token):
+            self.reminders.async_refresh_from_clock(reminders)
+            changes["reminders"] = reminders
+        # Merge onto what is current now, not onto what it was when this refresh began: whatever finished meanwhile
+        # (a reminder write, a show) has published newer values that this refresh knows nothing about.
+        return merge_state(self.data, changes)
 
     async def _async_fetch_all(self) -> dict[str, Any]:
         changes: dict[str, Any] = {}
@@ -402,15 +448,14 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         return changes
 
     async def _async_fetch_reminders(self) -> tuple[ReminderState, ...] | None:
-        ids_response = await self._async_try(commands.reminders_get(), "reminders")
-        if ids_response is None:
+        """The clock's reminders for the periodic refresh: all or nothing (None keeps the last known list, so a
+        flaky read never makes reminders look missing). Only reads: `_async_update_data` decides at the very end,
+        right before publishing, whether the read is still current."""
+        try:
+            return await self.reminders.async_read_clock()
+        except IledClockError as err:
+            _LOGGER.debug("iLedClock %s: reminders failed: %s", self.address, err)
             return None
-        details: list[ReminderDetail] = []
-        for reminder_id in list(_unwrap_items(ids_response))[:MAX_REMINDERS]:
-            detail = await self._async_try(commands.reminder_detail(reminder_id), f"reminder {reminder_id} detail")
-            if isinstance(detail, ReminderDetail):
-                details.append(detail)
-        return _reminder_states(details)
 
     # -- Playlist / show / upload -----------------------------------------------------------
 
@@ -423,65 +468,129 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         await self._async_record_showing(self._descriptor_for_playlist_item(self.playlist_store.playlist[0]))
 
     async def async_set_playlist(self, items: list[PlaylistItem]) -> None:
-        """`iledclock/playlist/set` and the `set_playlist` service: persist and upload."""
+        """`iledclock/playlist/set` and the `set_playlist` service: persist and upload (screen A)."""
         async with self._show_lock:
+            # Built first: an item that cannot be drawn (text too long, an unknown design, ...) is refused before
+            # anything is stored, cancelled or sent.
+            programs = await self._async_build_programs(items)
             self._cancel_pending_restore()
             self._saved_playlist = None
+            self._saved_screen_a = None
             await self.playlist_store.async_set_playlist(items)
-            await self._async_upload_playlist_locked(items, record_showing=True)
+            await self._async_upload_playlist_locked(items, record_showing=True, programs=programs)
 
-    async def _async_upload_playlist_locked(self, items: list[PlaylistItem], *, record_showing: bool = False) -> None:
-        programs = build_programs(items, designs=self._designs_by_id())
+    async def _async_build_programs(self, items: list[PlaylistItem]) -> list[Program]:
+        """`build_programs` off the event loop: working out a design's Speed and Smooth motion is real work."""
+        return await self.hass.async_add_executor_job(
+            partial(build_programs, items, designs=self._designs_by_id())
+        )
+
+    async def _async_upload_playlist_locked(
+        self, items: list[PlaylistItem], *, record_showing: bool = False, programs: list[Program] | None = None
+    ) -> None:
+        """Upload `items` as screen A's program list (`programs` when already built); screen A's record is written
+        once the clock has it."""
+        if programs is None:
+            programs = await self._async_build_programs(items)
         await self._async_upload_programs(programs)
         self.active_item = items[0] if items else None
         await self._async_update_preview_for_item(self.active_item)
-        if record_showing and self.active_item is not None:
-            await self._async_record_showing(self._descriptor_for_playlist_item(self.active_item))
+        if not items:
+            return  # nothing was sent, so screen A still holds whatever it held
+        # The clock files each program by its start frame, so a date page never joins the program list: it replaces
+        # the clock-page store (screen B). The records say what really went where.
+        entries = [(item, program, program_screen(program)) for item, program in zip(items, programs)]
+        listed = [(item, program) for item, program, screen in entries if screen == SLOT_A]
+        pages = [(item, program) for item, program, screen in entries if screen == SLOT_B]
+        if listed:
+            list_programs = [program for _item, program in listed]
+            head = self._descriptor_for_playlist_item(listed[0][0])
+            title = head["title"] if len(list_programs) == 1 else f"Playlist · {len(list_programs)} programs"
+            await self._async_record_slot_write(
+                SLOT_A, list_programs, title=title, descriptor={**head, "source": "playlist"}
+            )
+        if pages:
+            page_item, page_program = pages[-1]
+            page = self._descriptor_for_playlist_item(page_item, slot=SLOT_B)
+            await self._async_record_slot_write(
+                SLOT_B, [page_program], title=page["title"], descriptor={**page, "source": "playlist"}
+            )
+        if record_showing:
+            await self._async_record_showing(self._descriptor_for_playlist_item(items[0], slot=entries[0][2]))
 
-    async def async_show(self, spec: Mapping[str, Any], *, restore_after_s: float | None = None) -> dict[str, Any]:
-        """Serialize each clock show from upload through history update."""
+    async def async_show(
+        self, spec: Mapping[str, Any], *, slot: str = DEFAULT_SLOT, restore_after_s: float | None = None
+    ) -> dict[str, Any]:
+        """Serialize each clock show from upload through history update. `slot` is the screen it goes to: "a"
+        (the program list, the default) or "b" (the clock-page store, which only takes clock-type pages)."""
+        check_slot(slot)
         async with self._show_lock:
-            return await self._async_show_locked(spec, restore_after_s=restore_after_s)
+            return await self._async_show_locked(spec, slot=slot, restore_after_s=restore_after_s)
 
-    async def _async_show_locked(self, spec: Mapping[str, Any], *, restore_after_s: float | None = None) -> dict[str, Any]:
-        """Upload one show item and record it only after the clock accepts the program."""
+    async def _async_show_locked(
+        self, spec: Mapping[str, Any], *, slot: str = DEFAULT_SLOT, restore_after_s: float | None = None
+    ) -> dict[str, Any]:
+        """Upload one show item to screen `slot` and record it only after the clock accepts the program."""
+        check_slot(slot)
         show_type = spec.get("type")
-        params = {key: value for key, value in spec.items() if key != "type"}
+        # `slot` and `source` belong to a stored descriptor, not to what is shown: the `slot` argument decides.
+        params = {key: value for key, value in spec.items() if key not in {"type", "slot", "source"}}
         descriptor_params = dict(params)
+        if restore_after_s:
+            require_screen_a_for_timed_show(slot)
+        designs = self._designs_by_id()
+        # Refused here, before anything is drawn, fetched or sent.
+        require_slot_accepts(slot, show_content_class(show_type, params, designs))
 
+        item: PlaylistItem | None = None
+        preview_frames: list[Frame] | None = None
         if show_type in PLAYLIST_KINDS:
             item = PlaylistItem(kind=show_type, params=params, duration_s=int(params.pop("duration_s", 10)))
-            programs = build_programs([item], designs=self._designs_by_id())
-            program = programs[0]
-            preview_item: PlaylistItem | None = item
-        elif show_type == "image":
-            frames = await self.async_render_image(params)
-            program = Program(contents=[frames_to_content(frames, still=len(frames) == 1)], show_count=10)
-            descriptor_params = {
-                "title": params.get("title"),
-                "frames": [base64.b64encode(bytes(channel for row in frame.pixels for pixel in row for channel in pixel)).decode("ascii") for frame in frames],
-                "delays": [frame.duration_ms for frame in frames],
-            }
-            preview_item = None
-            await self._async_update_preview_from_frames(frames, approximate=False)
-        elif show_type == "generative":
-            frames = await self.async_render_generative(params)
-            program = Program(contents=[frames_to_content(frames, still=False)], show_count=10)
-            preview_item = None
-            await self._async_update_preview_from_frames(frames, approximate=False)
-        else:
-            raise ProgramBuildError(f"unsupported show type: {show_type!r}")
+            if slot == SLOT_A:
+                programs = await self._async_build_programs([item])
+            else:
+                programs = [
+                    await self.hass.async_add_executor_job(
+                        partial(build_slot_b_program, show_type, params, designs=designs)
+                    )
+                ]
+        else:  # "image" or "generative": `show_content_class` refused every other type
+            if show_type == "image":
+                rendered = await self.async_render_image(params)
+                # History keeps the frames as rendered plus the playback choice, so showing it again
+                # works the speed out afresh instead of applying it twice.
+                descriptor_params = {
+                    "title": params.get("title"),
+                    "frames": [base64.b64encode(bytes(channel for row in frame.pixels for pixel in row for channel in pixel)).decode("ascii") for frame in rendered],
+                    "delays": [frame.duration_ms for frame in rendered],
+                    **{key: params[key] for key in ("speed", "smooth") if key in params},
+                }
+            else:
+                rendered = await self.async_render_generative(params)
+            preview_frames = await self.hass.async_add_executor_job(retimed_frames, rendered, params)
+            art = frames_to_content(preview_frames, still=len(preview_frames) == 1)
+            if slot == SLOT_A:
+                programs = [Program(contents=[art], show_count=10)]
+            else:
+                programs = [build_slot_b_program(show_type, params, designs=designs, art=art)]
 
-        self._cancel_pending_restore()
-        if self._saved_playlist is None:
-            self._saved_playlist = self.playlist_store.playlist
+        if slot == SLOT_A and program_screen(programs[0]) == SLOT_B:
+            # A date page is filed in the clock-page store whichever screen was asked for (the start frame's kind
+            # byte decides): this is a screen B write, so the records say so and screen A's return is left alone.
+            slot, restore_after_s = SLOT_B, None
+        await self._async_upload_programs(programs)
+        # The clock has it. Nothing above changed any state, so a failed upload leaves everything as it was.
+        if slot == SLOT_A:
+            self._note_screen_a_show(restore_after_s)
+            if item is not None:
+                self.active_item = item
+        if item is not None:
+            await self._async_update_preview_for_item(item)
+        elif preview_frames is not None:
+            await self._async_update_preview_from_frames(preview_frames, approximate=False)
 
-        await self._async_upload_programs([program])
-        if preview_item is not None:
-            self.active_item = preview_item
-            await self._async_update_preview_for_item(preview_item)
-
-        descriptor = self._descriptor_for_spec(show_type, descriptor_params)
+        descriptor = self._descriptor_for_spec(show_type, descriptor_params, slot=slot)
+        await self._async_record_slot_write(slot, programs, title=descriptor["title"], descriptor=descriptor)
         await self._async_record_showing(descriptor)
         if restore_after_s:
             generation = self._restore_generation
@@ -492,7 +601,35 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             self._restore_unsub = async_call_later(self.hass, restore_after_s, restore_playlist)
         return dict(self.show_store.now_showing or descriptor)
 
-    def _descriptor_for_spec(self, kind: str, params: Mapping[str, Any]) -> dict[str, Any]:
+    def _note_screen_a_show(self, restore_after_s: float | None) -> None:
+        """Screen A just received a show: any pending timed restore is obsolete. A timed show also remembers what
+        to put back (the playlist, or when there is none the record screen A held), but only the first of a
+        chain does, so a second timed message does not make the first one the thing to come back to."""
+        self._cancel_pending_restore()
+        if not restore_after_s:
+            self._saved_playlist = None
+            self._saved_screen_a = None
+        elif self._saved_playlist is None:
+            self._saved_playlist = self.playlist_store.playlist
+            self._saved_screen_a = self.slot_store.record(SLOT_A)
+
+    async def _async_record_slot_write(
+        self, slot: str, programs: list[Program], *, title: str, descriptor: dict[str, Any]
+    ) -> None:
+        """Remember what the clock accepted for screen `slot`; call only after the upload succeeded. The
+        fingerprint is of the first program exactly as it went out (power limit and delay units applied)."""
+        brightness = self.data.brightness
+        crc, length = await self.hass.async_add_executor_job(_wire_fingerprint, programs[0], brightness)
+        self._slot_programs[slot] = list(programs)
+        await self.slot_store.async_record(
+            slot, title=title, descriptor=descriptor, programs=len(programs), crc=crc, length=length
+        )
+
+    def _descriptor_for_spec(
+        self, kind: str, params: Mapping[str, Any], *, slot: str = DEFAULT_SLOT
+    ) -> dict[str, Any]:
+        """The descriptor of history, `now_showing` and the screen records: renderable through `iledclock/render`
+        and tagged with the screen it was written to."""
         fields = dict(params)
         fields.pop("data_b64", None)
         fields.pop("url", None)
@@ -504,6 +641,11 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             title = title or f"Clock · style {fields.get('style', '?')}"
         elif kind == "text":
             title = title or f"Text · {fields.get('text', '')}"
+            # One vocabulary on record, whoever asked: `is_bold` (not `bold`) and `effect` (not `color_mode`).
+            if "bold" in fields:
+                fields.setdefault("is_bold", bool(fields.pop("bold")))
+            if "color_mode" in fields:
+                fields.setdefault("effect", fields.pop("color_mode"))
         elif kind == "timer":
             title = title or "Timer"
         elif kind == "scoreboard":
@@ -516,10 +658,10 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
                 fields["effect"] = fields.pop("kind")
         else:
             title = title or kind.replace("_", " ").title()
-        return {"kind": kind, **fields, "title": str(title), "shown_at": dt_util.utcnow().isoformat()}
+        return {"kind": kind, **fields, "title": str(title), "slot": slot, "shown_at": dt_util.utcnow().isoformat()}
 
-    def _descriptor_for_playlist_item(self, item: PlaylistItem) -> dict[str, Any]:
-        return self._descriptor_for_spec(item.kind, {**dict(item.params), "duration_s": item.duration_s})
+    def _descriptor_for_playlist_item(self, item: PlaylistItem, *, slot: str = DEFAULT_SLOT) -> dict[str, Any]:
+        return self._descriptor_for_spec(item.kind, {**dict(item.params), "duration_s": item.duration_s}, slot=slot)
 
     async def _async_record_showing(self, descriptor: dict[str, Any]) -> None:
         await self.show_store.async_record(descriptor)
@@ -533,9 +675,12 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             return await self._async_restore_previous_locked()
 
     async def _async_restore_previous_locked(self) -> dict[str, Any]:
-        """Re-show the newest available distinct prior item, marking deleted designs skipped."""
-        for descriptor in list(self.show_store.history[1:]):
-            if descriptor.get("unavailable"):
+        """Undo: re-show the newest earlier item of the SAME screen as the entry being undone (the newest one in
+        history), marking deleted designs skipped. Entries from before screens existed count as screen A."""
+        history = list(self.show_store.history)
+        slot = descriptor_slot(history[0]) if history else DEFAULT_SLOT
+        for descriptor in history[1:]:
+            if descriptor.get("unavailable") or descriptor_slot(descriptor) != slot:
                 continue
             kind = str(descriptor.get("kind", ""))
             if kind == "design" and self.design_library.get_design(str(descriptor.get("design_id", ""))) is None:
@@ -545,10 +690,7 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
                     "show_history": tuple(dict(item) for item in self.show_store.history),
                 }))
                 continue
-            fields = {key: value for key, value in descriptor.items() if key not in {"kind", "title", "shown_at", "unavailable"}}
-            if kind == "generative" and "effect" in fields:
-                fields["kind"] = fields.pop("effect")
-            return await self._async_show_locked({"type": kind, **fields, "title": descriptor.get("title")})
+            return await self._async_show_locked(_show_spec_from_descriptor(descriptor), slot=slot)
         raise ValueError("nothing_to_restore")
 
     async def async_mark_design_deleted(self, design_id: str) -> None:
@@ -562,13 +704,26 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         }))
 
     async def _async_restore_playlist(self, _now: datetime, generation: int | None = None) -> None:
+        """A timed show ran out: put screen A back. `_saved_playlist` is `None` when nothing is pending, so it is
+        never tested for truthiness: `[]` means the timed show started while there was no playlist, and then the
+        record screen A held before it (its descriptor) is shown again."""
         async with self._show_lock:
             if generation is not None and generation != self._restore_generation:
                 return
             self._restore_unsub = None
             saved, self._saved_playlist = self._saved_playlist, None
+            earlier, self._saved_screen_a = self._saved_screen_a, None
+            if saved is None:
+                return
             if saved:
                 await self._async_upload_playlist_locked(saved, record_showing=True)
+                return
+            descriptor = (earlier or {}).get("descriptor")
+            if not descriptor or descriptor.get("source") == "playlist":
+                return  # nothing known to put back (a playlist record cannot be rebuilt once the playlist is gone)
+            if descriptor.get("kind") == "design" and self.design_library.get_design(str(descriptor.get("design_id", ""))) is None:
+                return  # the design was deleted meanwhile
+            await self._async_show_locked(_show_spec_from_descriptor(descriptor), slot=SLOT_A)
 
     def _cancel_pending_restore(self) -> None:
         self._restore_generation += 1
@@ -577,6 +732,18 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             self._restore_unsub = None
 
     async def _async_upload_programs(self, programs: list[Program]) -> None:
+        """Upload `programs` as the clock's program list (index 0..N-1, count N): screen A."""
+        await self._async_send_to_clock(programs, self.client.async_upload)
+
+    async def _async_send_to_clock(
+        self,
+        programs: list[Program],
+        upload: Callable[..., Awaitable[Any]],
+    ) -> Any:
+        """The one chokepoint every program upload goes through (shows, playlists and reminders):
+        applies the vendor power budget and the clock's own delay units, raises the busy flag,
+        publishes upload progress for the studio's status chip, and always publishes the end state.
+        `upload(programs, on_progress=...)` does the actual Bluetooth transfer and may return a value."""
         programs = to_device_timing(power_limit_programs(programs, self.data.brightness))
         entry_id = self.entry.entry_id
         total = len(programs)
@@ -591,7 +758,7 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         self.busy = True
         failed = False
         try:
-            await self.client.async_upload(programs, on_progress=on_progress)
+            return await upload(programs, on_progress=on_progress)
         except IledClockError as err:
             failed = True
             async_dispatcher_send(
@@ -605,6 +772,44 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
                 self.hass, upload_progress_signal(entry_id),
                 {**shape_upload_progress(state="error" if failed else "done", program=total, programs=total, chunk=0, chunks=0), "upload": None},
             )
+
+    # -- Screens A / B and the alarms & reminders list: JSON for the studio ------------------------
+
+    @property
+    def show_lock(self) -> asyncio.Lock:
+        """Serialises everything that talks program data to the clock (shows, playlists, reminders)."""
+        return self._show_lock
+
+    def slots_json(self) -> dict[str, Any]:
+        """`slots` of the `iledclock/state` payload: what Home Assistant last sent to each screen of the clock."""
+        return self.slot_store.json()
+
+    def reminder_list_json(self) -> dict[str, Any] | None:
+        """`reminder_list` of the `iledclock/state` payload: the saved alarms and reminders, their status against
+        the clock, and the reminders only the clock has (`ReminderManager.json`)."""
+        return self.reminders.json()
+
+    async def async_reassert_program_list_locked(self) -> bool:
+        """Re-send screen A's last program list if Home Assistant knows it (caller holds `show_lock`): the programs
+        of its last upload, kept in memory; after a restart, the list programs of the stored playlist when screen A's
+        last write was the playlist; otherwise nothing. Cheap when the clock still has it: an unchanged program is
+        answered "already present" and no data chunks go out. Used after reminder writes while
+        `hardware.REMINDER_UPLOAD_PRESERVES_SLOTS` is False. Returns whether a list was sent; upload errors
+        (`IledClockError`) propagate."""
+        programs = self._slot_programs.get(SLOT_A)
+        if not programs:
+            record = self.slot_store.record(SLOT_A)
+            items = self.playlist_store.playlist
+            if record is None or (record.get("descriptor") or {}).get("source") != "playlist" or not items:
+                return False
+            # The stored playlist can hold a date page. The clock files it in screen B (start-frame kind 04), so
+            # sending it again would overwrite screen B with that old page: only the list programs belong here.
+            built = await self._async_build_programs(items)
+            programs = [program for program in built if program_screen(program) == SLOT_A]
+            if not programs:
+                return False
+        await self._async_upload_programs(programs)
+        return True
 
     # -- Preview (image.<name>_display) ------------------------------------------------------
 
@@ -621,14 +826,15 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
                     self.preview_png = None
                     self.preview_approximate = False
                     return
-                await self._async_update_preview_from_frames(design_to_frames(design), approximate=False)
+                frames, _played = await self.hass.async_add_executor_job(design_play_frames, design, item.params)
+                await self._async_update_preview_from_frames(frames, approximate=False)
                 return
             if item.kind == "text":
-                frames = await self.hass.async_add_executor_job(
-                    protocol_render.text_frames, item.params.get("text", ""),
-                    item.params.get("font", "5x7"), (255, 255, 255),
+                # Scrolling text starts almost blank, so the picture shows the frame with the most lit LEDs.
+                poster = await self.hass.async_add_executor_job(
+                    lambda: poster_frame(text_playback_frames(item.params))
                 )
-                await self._async_update_preview_from_frames(frames, approximate=False)
+                await self._async_update_preview_from_frames([poster], approximate=False)
                 return
             label = _KIND_PREVIEW_LABEL.get(item.kind, item.kind.upper())
             frames = await self.hass.async_add_executor_job(
@@ -766,10 +972,9 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             )
 
     async def async_reminder_delete(self, reminder_id: int) -> None:
-        await self.client.async_request(commands.reminder_delete(reminder_id))
-        reminders = await self._async_fetch_reminders()
-        if reminders is not None:
-            self.async_set_updated_data(merge_state(self.data, {"reminders": reminders}))
+        """Delete a reminder that exists only on the clock (made in the vendor app): the delete is checked and the
+        clock is read back. One a saved alarm holds is refused -- delete the alarm instead (`reminders.async_delete`)."""
+        await self.reminders.async_delete(device_id=reminder_id)
 
     async def async_countdown_reset(self, hour: int, minute: int, second: int) -> None:
         await self.client.async_request(commands.countdown_reset(hour, minute, second))
@@ -832,6 +1037,13 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         payload = bytes([opcode]) + bytes.fromhex(payload_hex)
         return await self.client.async_request(payload, timeout=timeout_s)
 
+    async def async_switch_screen(self) -> None:
+        """Press the clock's power key once (`commands.screen_toggle`): flips between screen A and
+        screen B. One-way and a toggle: the clock does not answer, and the visible screen is not
+        tracked anywhere. Waits for any running upload (`show_lock`) so it never lands mid-transfer."""
+        async with self._show_lock:
+            await self.client.async_send_oneway(commands.screen_toggle())
+
     # -- Simple optimistic local-only settings (light.py: power/brightness/colour/rotate/mirror) -
 
     async def async_set_power(self, on: bool) -> None:
@@ -866,11 +1078,13 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         self.async_set_updated_data(merge_state(self.data, {"mirror": on}))
 
     async def async_set_clock_face(
-        self, style: int, color: int, hours24: bool, show_seconds: bool = False, background: bool = True
+        self, style: int, color: int, hours24: bool, show_seconds: bool = False, background: bool = True,
+        *, slot: str = DEFAULT_SLOT,
     ) -> None:
         await self.async_show(
             {"type": "clock", "style": style, "color": color, "hours24": hours24, "show_seconds": show_seconds,
-             "background": background}
+             "background": background},
+            slot=slot,
         )
 
     async def async_set_stored_password(self, password: str) -> None:

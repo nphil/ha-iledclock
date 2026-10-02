@@ -25,9 +25,10 @@
  */
 
 import type { GalleryItem, GalleryPreviewResult, GallerySearchResult, GallerySource } from "../src/lib/gallery-api.ts";
-import { createFrame, GRID_HEIGHT, GRID_WIDTH } from "../src/lib/grid.ts";
+import { createFrame, GRID_HEIGHT, GRID_WIDTH, type PixelFrame } from "../src/lib/grid.ts";
 import { frameToBase64 } from "../src/lib/design-codec.ts";
 import { plotEllipse } from "../src/lib/rasterize.ts";
+import { buildBlinkFrames, buildSlidingFrames } from "./fixtures.ts";
 import type { RGB } from "../src/lib/color.ts";
 
 const PAGE_SIZE = 8;
@@ -120,6 +121,28 @@ const AWTRIX_TITLES = ["Flame", "Rain drop", "Sun rise", "Moon phase", "Leaf fal
 
 const BASE_CREATED_S = 1_700_000_000;
 
+/** Hand-made animations for exercising Speed and Smooth motion: ids -> frames + holds in ms. */
+const MOTION_ITEMS: Readonly<Record<string, { title: string; frames: () => PixelFrame[] }>> = {
+  "motion-slide-hello": { title: "Sliding hello", frames: buildSlidingFrames },
+  "motion-blink-face": { title: "Blinking face", frames: buildBlinkFrames },
+};
+
+function buildMotionItems(): GalleryItem[] {
+  return Object.entries(MOTION_ITEMS).map(([id, { title }], i) => ({
+    source: "lametric",
+    id,
+    title,
+    author: "iLedClock dev",
+    width: GRID_WIDTH,
+    height: GRID_HEIGHT,
+    animated: true,
+    likes: 400 + i * 10,
+    created: BASE_CREATED_S + 20 * 86_400 + i * 3_600,
+    media_path: iconDataUri(id, GRID_WIDTH, GRID_HEIGHT),
+    url: null,
+  }));
+}
+
 function buildLametricItems(): GalleryItem[] {
   return LAMETRIC_TITLES.map((title, i) => ({
     source: "lametric",
@@ -158,7 +181,7 @@ function buildAwtrixItems(): GalleryItem[] {
 }
 
 const GALLERY_ITEMS: Readonly<Record<string, GalleryItem[]>> = {
-  lametric: buildLametricItems(),
+  lametric: [...buildLametricItems(), ...buildMotionItems()],
   awtrix: buildAwtrixItems(),
   divoom: [],
 };
@@ -217,7 +240,11 @@ function previewFrames(seed: string, animated: boolean): { framesB64: string[]; 
 
 export function galleryPreview(source: string, id: string): GalleryPreviewResult {
   const item = findGalleryItem(source, id);
-  const { framesB64, delaysMs } = previewFrames(`${source}/${id}`, item?.animated ?? false);
+  const motion = source === "lametric" ? MOTION_ITEMS[id] : undefined;
+  const motionFrames = motion?.frames();
+  const { framesB64, delaysMs } = motionFrames
+    ? { framesB64: motionFrames.map(frameToBase64), delaysMs: motionFrames.map((frame) => frame.durationMs) }
+    : previewFrames(`${source}/${id}`, item?.animated ?? false);
   return {
     frames: framesB64,
     delays_ms: delaysMs,
@@ -229,8 +256,8 @@ export function galleryPreview(source: string, id: string): GalleryPreviewResult
       trimmed_box: null,
       frames_in: framesB64.length,
       frames_out: framesB64.length,
-      duration_in_ms: framesB64.length * 120,
-      duration_out_ms: framesB64.length * 120,
+      duration_in_ms: delaysMs.reduce((sum, ms) => sum + ms, 0),
+      duration_out_ms: delaysMs.reduce((sum, ms) => sum + ms, 0),
       notes: ["dev-harness mock: not the real adapt.py pipeline"],
     },
   };

@@ -45,6 +45,8 @@ custom_components/iledclock/
   services.py services.yaml
   websocket_api.py
   store.py               design library + playlist persistence (helpers.storage.Store)
+  slots.py slot_store.py screens A/B: which content screen B takes (capability flags), per-screen record of what was sent (kind 00 / 04)
+  reminders.py reminder_store.py reminder_manager.py   named alarms & reminders: pure domain (validation, plans, ids, reconcile), persistence, the only code that writes reminders to the clock
   diagnostics.py
   strings.json translations/en.json icons.json brand/
   frontend/iledclock.js  BUILT bundle (committed)
@@ -121,9 +123,9 @@ def generative(kind: str, seconds, seed, palette) -> list[Frame]           # lif
 ## Contract C — entities (Integration agent). House rules: config-category entities are `EntityCategory.CONFIG` and
 `entity_registry_enabled_default=False` (the card/panel is where settings live); control + primary sensors enabled.
 - `light.<name>_display` — on/off (0x05), brightness (0x04, app range 5–100 ↔ HA 1–255), rgb_color (0x13 01), effects = colour modes (0x13 03 list with names).
-- `text.<name>_message` — shows a text program immediately (uses current text style defaults).
+- `text.<name>_message` — shows a text message immediately (drawn to pixel frames, default style).
 - `image.<name>_display` — PNG preview (scaled, LED-look) of the program currently on the clock (from our own record).
-- `sensor` temperature / humidity (only if device reports), firmware (diagnostic), program count (diagnostic).
+- `sensor` temperature / humidity (only if device reports), firmware (diagnostic), program count (diagnostic: programs in screen A's last upload; per-screen attributes).
 - `binary_sensor.<name>_connected` (diagnostic, connectivity).
 - `button` sync_time (config), stopwatch/countdown start-stop are services + card, not buttons.
 - `select` rotation (config, disabled), clock face (primary: uploads a clock program with the chosen style)
@@ -132,18 +134,34 @@ def generative(kind: str, seconds, seed, palette) -> list[Frame]           # lif
 
 ## Contract D — WebSocket API for the frontend (Integration implements, Frontend consumes). All require admin=False except
 where noted; `entry_id` identifies the clock.
-- `iledclock/state {entry_id}` → `{connected, busy, state: ClockState as JSON, playlist, capabilities}`
+- `iledclock/state {entry_id}` → `{connected, busy, state: ClockState as JSON, playlist, capabilities, now_showing, history, slots, reminder_list}`.
+  `slots` = `{a: SlotRecord|null, b: SlotRecord|null, last_written}` (what Home Assistant last sent to each power-button screen; the clock cannot report it);
+  `reminder_list` = the Alarms & reminders list (managed items with status, clock-only reminders, slot use); `capabilities.slots.b_accepts` and
+  `capabilities.reminders` carry the current values of the live-unverified flags in `hardware.py`. See docs/SLOTS-AND-REMINDERS.md.
 - `iledclock/subscribe {entry_id}` → event stream of the same object on every change + upload progress events `{type:"upload", ...}`
 - `iledclock/designs/list {entry_id?}` → `[{id, name, kind, frames:[{png_b64? no: rgb444 hex string of 32*16*3 nibbles}], delays:[ms], created, updated, tags}]`
   Canonical design JSON: `{id, name, kind: "image"|"animation", width:32, height:16, frames:[string hex 768 chars RGB888? ]}`
   → DECISION: frames travel as base64 of raw RGB888 (32*16*3 = 1536 bytes per frame); delays in ms per frame.
 - `iledclock/designs/save {design}` (admin) → `{id}`; `iledclock/designs/delete {design_id}` (admin)
-- `iledclock/render {entry_id, spec}` → `{frames:[b64 rgb888], delays:[ms]}` server-side rendering of: `{type:"text", text, font, color, effect}`,
+  A design also carries its playback: `speed` (`null` = Original, the authored delays untouched; `0` = Still; `1..100` = the Speed
+  slider) and `smooth` (`null` = auto, `"on"`, `"off"`). A save that leaves these keys out keeps the stored values.
+- `iledclock/designs/set_playback {design_id, speed?, smooth?}` (admin) → `{id, speed, smooth, updated}`; only the keys present change.
+  Errors: `not_found`, `invalid_playback`.
+- `iledclock/playback/preview {entry_id?, design_id? | frames, delays, clock_region?, speed?, smooth?}` → `{frames:[b64 rgb888], delays:[ms],
+  playback}` the exact frames and delays the clock will play (same code as the upload; delays may be fractional: whole device units × 1.5 ms)
+  plus `playback = {still, frames, authored_frames, added_frames, loop_ms, pace_fps, native_fps, original_speed, smooth:{state, available,
+  enabled, slides, fades, sharp, capped}}`. With `design_id`, present `speed`/`smooth` keys override the stored values. Never touches the clock.
+- `iledclock/render {entry_id, spec}` → `{frames:[b64 rgb888], delays:[ms]}` server-side rendering of: `{type:"text", text, font, color, effect, bold, speed, smooth}`
+  (the SAME frames the text show uploads: one frame if it fits 32 columns, else a marquee of at most 40 frames),
   `{type:"image", url|data_b64, fit, dither}`, `{type:"generative", kind, seconds, seed}`, `{type:"clock", style, color, h24}`
-  (clock = our best-effort preview of firmware face; mark `approximate: true`).
-- `iledclock/show {entry_id, item}` (admin) → uploads immediately as a single-program playlist-override (`item` = design id or inline spec).
+  (clock = our best-effort preview of firmware face; mark `approximate: true`), `{type:"design", design_id}` (what the clock plays: the design's
+  saved playback applied). `text`, `design`, `image` and `generative` take optional `speed` (0-100 playback speed, null/absent = Original) / `smooth`.
+- `iledclock/show {entry_id, item, slot?}` (admin) → uploads immediately as a single-program override (`item` = design id or inline spec;
+  a design item may carry `speed` / `smooth` overrides). `slot` = `"a"` (program list, default) or `"b"` (clock-page store); error `slot_unsupported`
+  when that screen cannot take the content. A `date` show is always filed on screen B. `{restore:"previous"}` re-shows the previous item of the same screen.
 - `iledclock/playlist/get|set {entry_id, playlist}` (admin): up to device max (9) items `{kind:"clock"|"date"|"text"|"design"|"timer"|"scoreboard"|"temperature"|"humidity", params, duration_s}`; `set` uploads.
-- `iledclock/command {entry_id, command, params}` (admin): thin, validated passthrough to named commands (brightness, power, rotate, alarms_set, night_mode_set, timer_switch_set, tomato_set, reminders…, countdown/stopwatch/scoreboard control, sync_time).
+- `iledclock/command {entry_id, command, params}` (admin): thin, validated passthrough to named commands (brightness, power, rotate, alarms_set, night_mode_set, timer_switch_set, tomato_set, countdown/stopwatch/scoreboard control, sync_time, `switch_screen`)
+  plus the alarms & reminders commands `reminder_set`, `reminder_set_enabled`, `reminder_delete` (`{key}` or `{id}`), `reminder_resend`, which answer `{item}`.
 
 ## Contract E — frontend (Frontend agent)
 - Lit 3 + TypeScript + esbuild, one ESM bundle `custom_components/iledclock/frontend/iledclock.js`, registered by the integration with

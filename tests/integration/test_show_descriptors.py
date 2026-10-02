@@ -61,7 +61,7 @@ class ShowOrderingTests(unittest.IsolatedAsyncioTestCase):
                 self.max_active = 0
                 self.order: list[str] = []
 
-            async def _async_show_locked(self, spec, *, restore_after_s=None):
+            async def _async_show_locked(self, spec, *, slot="a", restore_after_s=None):
                 label = spec["label"]
                 self.active += 1
                 self.max_active = max(self.max_active, self.active)

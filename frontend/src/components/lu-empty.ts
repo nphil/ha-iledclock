@@ -7,12 +7,14 @@ export class LuEmpty extends LitElement {
     title: { type: String },
     message: { type: String },
     actionLabel: { type: String, attribute: "action-label" },
+    actionVariant: { type: String, attribute: "action-variant" },
     icon: { type: String },
   };
 
   declare title: string;
   declare message: string;
   declare actionLabel: string;
+  declare actionVariant: "primary" | "secondary";
   declare icon: string;
 
   constructor() {
@@ -20,6 +22,7 @@ export class LuEmpty extends LitElement {
     this.title = "Nothing here yet";
     this.message = "Choose an action to get started.";
     this.actionLabel = "";
+    this.actionVariant = "secondary";
     this.icon = "";
   }
 
@@ -32,7 +35,7 @@ export class LuEmpty extends LitElement {
       ${this.icon ? html`<ha-icon .icon=${this.icon} aria-hidden="true"></ha-icon>` : ""}
       <h2>${this.title}</h2>
       <p>${this.message}<slot></slot></p>
-      ${this.actionLabel ? html`<lu-pill-button variant="secondary" .label=${this.actionLabel} @lu-press=${this._act}></lu-pill-button>` : ""}
+      ${this.actionLabel ? html`<lu-pill-button variant=${this.actionVariant} .label=${this.actionLabel} @lu-press=${this._act}></lu-pill-button>` : ""}
     </div>`;
   }
 

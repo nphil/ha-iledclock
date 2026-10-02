@@ -9,6 +9,7 @@ import { dragTargetIndex, type AxisRect } from "../lib/drag-reorder.ts";
 import { moveRotationItem, removeRotationItem, updateRotationDuration } from "../lib/library-state.ts";
 import { mdiIcon, type MdiIconName } from "../lib/mdi-icons.ts";
 import { SURFACES_CSS, TOKENS_CSS } from "../styles/tokens.ts";
+import { designLoopCaption } from "../lib/playback.ts";
 import "./iledclock-led-preview.ts";
 import "./iledclock-stepper.ts";
 import "./lu-empty.ts";
@@ -151,6 +152,14 @@ export class IledclockPlaylistEditor extends LitElement {
     return this.designs.find((design) => design.id === item.params.design_id);
   }
 
+  /** `Design`, or `Design · loop 6.5 s` for an animated design (`still` when set to Still). */
+  private _kindLine(item: PlaylistItem): string {
+    const label = playlistKindLabel(item.kind);
+    const design = this._itemDesign(item);
+    const caption = design ? designLoopCaption(design) : "";
+    return caption ? `${label} \u00b7 ${caption}` : label;
+  }
+
   private _renderThumbnail(item: PlaylistItem) {
     const design = this._itemDesign(item);
     if (!design) return html`<div class="thumbnail" aria-hidden="true">${mdiIcon(playlistItemIcon(item, this.designs))}</div>`;
@@ -169,7 +178,7 @@ export class IledclockPlaylistEditor extends LitElement {
             const description = describePlaylistItem(item, this.designs);
             return html`<li class="row" ${ref((element) => element ? this._rowRefs.set(index, element as HTMLElement) : this._rowRefs.delete(index))}>
               ${this._renderThumbnail(item)}
-              <div class="row-copy"><span class="row-title">${description}</span><span class="row-kind">${playlistKindLabel(item.kind)}</span></div>
+              <div class="row-copy"><span class="row-title">${description}</span><span class="row-kind">${this._kindLine(item)}</span></div>
               <span class="icon-button drag-handle ${this.disabled ? "disabled" : ""}" aria-hidden="true" @pointerdown=${(event: PointerEvent) => this._onPointerDown(index, event)} @pointermove=${this._onPointerMove} @pointerup=${this._onPointerUp} @pointercancel=${this._onPointerUp} @lostpointercapture=${this._onPointerUp}>${mdiIcon("drag")}</span>
               <div class="row-controls">
                 <div class="duration"><span>Duration</span><iledclock-stepper .value=${item.duration_s} min="1" max="3600" step="1" .label=${`Duration for ${description} in seconds`} ?disabled=${this.disabled} @value-selected=${(event: CustomEvent<{ value: number }>) => this._updateDuration(index, event)}></iledclock-stepper><span class="unit">s</span></div>
@@ -209,7 +218,7 @@ export class IledclockPlaylistEditor extends LitElement {
     .design-thumbnail iledclock-led-preview { width: 100%; height: 100%; }
     .row-copy { display: grid; gap: var(--lu-space-1); min-width: 0; }
     .row-title { overflow: hidden; color: var(--lu-ink); font: 500 var(--lu-type-label)/1.3 var(--lu-font); text-overflow: ellipsis; white-space: nowrap; }
-    .row-kind { color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); }
+    .row-kind { overflow: hidden; color: var(--lu-ink-3); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); text-overflow: ellipsis; white-space: nowrap; }
     .row-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; grid-column: 1 / -1; gap: var(--lu-space-1); min-width: 0; }
     .duration { display: inline-flex; align-items: center; gap: var(--lu-space-1); margin-inline-end: auto; color: var(--lu-ink-2); font: 500 var(--lu-type-caption)/1.2 var(--lu-font); }
     .duration iledclock-stepper { min-width: 144px; }

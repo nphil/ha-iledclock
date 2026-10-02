@@ -11,6 +11,7 @@ export class IledclockEditorInspector extends LitElement {
     onionSkin: { type: Boolean, attribute: "onion-skin" },
     frameDelay: { type: Number, attribute: "frame-delay" },
     clockRegion: { type: Boolean, attribute: "clock-region" },
+    playbackAvailable: { type: Boolean, attribute: "playback-available" },
     _moreColors: { state: true },
   };
 
@@ -20,6 +21,8 @@ export class IledclockEditorInspector extends LitElement {
   declare onionSkin: boolean;
   declare frameDelay: number;
   declare clockRegion: boolean;
+  /** The host has Speed controls to show (an animation) and supplies them in the `playback` slot. */
+  declare playbackAvailable: boolean;
   declare _moreColors: boolean;
 
   constructor() {
@@ -30,6 +33,7 @@ export class IledclockEditorInspector extends LitElement {
     this.onionSkin = true;
     this.frameDelay = 100;
     this.clockRegion = false;
+    this.playbackAvailable = false;
   }
 
   private _send(name: string, detail: Record<string, unknown>): void {
@@ -58,6 +62,7 @@ export class IledclockEditorInspector extends LitElement {
       </section>
       <section aria-labelledby="brush-heading"><h3 id="brush-heading">Brush size</h3><div class="segmented" role="group" aria-label="Brush size">${[1, 2, 3].map((size) => html`<button type="button" aria-pressed=${String(this.brushSize === size)} @click=${() => this._send("inspector-brush-changed", { size })}>${size}px</button>`)}</div></section>
       <section aria-labelledby="frame-heading"><h3 id="frame-heading">Frame</h3><label class="delay-label"><span>Delay</span><span class="delay-control"><input type="number" min="10" max="60000" step="10" aria-label="Frame delay in milliseconds" .value=${String(this.frameDelay)} @change=${(event: Event) => this._send("inspector-delay-changed", { delayMs: Number((event.target as HTMLInputElement).value) })}><span>ms</span></span></label><button type="button" class="toggle-row" aria-pressed=${String(this.onionSkin)} @click=${() => this._send("inspector-onion-changed", { enabled: !this.onionSkin })}><span class="toggle-mark" aria-hidden="true">◉</span><span>Onion skin</span><span class="toggle-state">${this.onionSkin ? "On" : "Off"}</span></button></section>
+      ${this.playbackAvailable ? html`<section aria-labelledby="playback-heading"><h3 id="playback-heading">Playback</h3><slot name="playback"></slot></section>` : nothing}
       <section aria-labelledby="composition-heading"><h3 id="composition-heading">Composition</h3><label class="toggle-row"><span class="toggle-mark" aria-hidden="true">◧</span><span>Clock region</span><input type="checkbox" aria-label="Reserve right half for live clock" .checked=${this.clockRegion} @change=${(event: Event) => this._send("inspector-clock-region-changed", { enabled: (event.target as HTMLInputElement).checked })}></label><p class="hint">Reserves the right half for the live clock.</p></section>
     </aside>`;
   }

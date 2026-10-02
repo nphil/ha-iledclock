@@ -10,6 +10,7 @@ import "./iledclock-dest-now.ts";
 import "./iledclock-dest-create.ts";
 import "./iledclock-dest-explore.ts";
 import "./iledclock-dest-library.ts";
+import "./iledclock-dest-alarms.ts";
 import "./iledclock-settings-sheet.ts";
 
 export class IledclockStudioPanel extends LitElement {
@@ -93,6 +94,7 @@ export class IledclockStudioPanel extends LitElement {
       <div class="destination" ?hidden=${route.destination !== "create"}><iledclock-dest-create .active=${route.destination === "create"} .hass=${common.hass} .entryId=${common.entryId} .route=${common.route} .narrow=${common.narrow}></iledclock-dest-create></div>
       <div class="destination" ?hidden=${route.destination !== "explore"}><iledclock-dest-explore .hass=${common.hass} .entryId=${common.entryId} .route=${common.route} .narrow=${common.narrow}></iledclock-dest-explore></div>
       <div class="destination" ?hidden=${route.destination !== "library"}><iledclock-dest-library .hass=${common.hass} .entryId=${common.entryId} .route=${common.route} .narrow=${common.narrow}></iledclock-dest-library></div>
+      <div class="destination" ?hidden=${route.destination !== "alarms"}><iledclock-dest-alarms .hass=${common.hass} .entryId=${common.entryId} .route=${common.route} .narrow=${common.narrow}></iledclock-dest-alarms></div>
       <iledclock-settings-sheet .hass=${this.hass} .entities=${this._entities()} .entryId=${this._entryId} .state=${this._state()} ?open=${this._settingsOpen} @close-requested=${this._closeSettings}></iledclock-settings-sheet>
     </iledclock-app-shell>`;
   }

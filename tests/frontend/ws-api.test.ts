@@ -6,7 +6,9 @@ import {
   buildTextRenderSpec,
   clampPlaylistDuration,
   commandRequest,
+  designsSetPlaybackRequest,
   normalizePlaylist,
+  playbackPreviewRequest,
   playlistSetRequest,
   reorderPlaylist,
   renderRequest,
@@ -85,13 +87,35 @@ test("buildTextRenderSpec trims whitespace and rejects blank text", () => {
   assert.equal(buildTextRenderSpec("   ", [255, 255, 255]), null);
 });
 
-test("buildTextRenderSpec clamps the colour to valid bytes (full precision, not RGB444) and clamps speed", () => {
-  const spec = buildTextRenderSpec("hi", [10, 130.6, 999], { speed: 9999 });
+test("buildTextRenderSpec clamps the colour to valid bytes (full precision, not RGB444)", () => {
+  const spec = buildTextRenderSpec("hi", [10, 130.6, 999]);
   assert.ok(spec && spec.type === "text");
-  if (spec && spec.type === "text") {
-    assert.deepEqual(spec.color, [10, 131, 255]);
-    assert.equal(spec.speed, 255);
-  }
+  if (spec && spec.type === "text") assert.deepEqual(spec.color, [10, 131, 255]);
+});
+
+test("buildTextRenderSpec speed is the 0-100 playback speed: whole numbers, clamped, and Original means no key", () => {
+  const speedOf = (speed: number | null | undefined): unknown => {
+    const spec = buildTextRenderSpec("hi", [255, 255, 255], { speed });
+    assert.ok(spec && spec.type === "text");
+    return spec && spec.type === "text" && "speed" in spec ? spec.speed : "absent";
+  };
+  assert.equal(speedOf(0), 0, "0 is Still, not the same as Original");
+  assert.equal(speedOf(34.4), 34);
+  assert.equal(speedOf(100), 100);
+  assert.equal(speedOf(128), 100, "the old 0-255 values are clamped, the server refuses anything above 100");
+  assert.equal(speedOf(-5), 0);
+  assert.equal(speedOf(null), "absent");
+  assert.equal(speedOf(undefined), "absent");
+  assert.equal(speedOf(Number.NaN), "absent");
+});
+
+test("buildTextRenderSpec carries effect, bold and smooth only when they are set", () => {
+  const plain = buildTextRenderSpec("hi", [255, 255, 255]);
+  assert.deepEqual(plain, { type: "text", text: "hi", color: [255, 255, 255] });
+  const full = buildTextRenderSpec("hi", [255, 255, 255], { font: "5x7", effect: "2", bold: true, speed: 40, smooth: "off" });
+  assert.deepEqual(full, { type: "text", text: "hi", color: [255, 255, 255], font: "5x7", effect: "2", bold: true, speed: 40, smooth: "off" });
+  const notBold = buildTextRenderSpec("hi", [255, 255, 255], { bold: false, smooth: null });
+  assert.deepEqual(notBold, { type: "text", text: "hi", color: [255, 255, 255], bold: false }, "bold:false is explicit, smooth:null (auto) is left out");
 });
 
 test("buildGenerativeRenderSpec clamps seconds to at least 1 and passes an integer seed through", () => {
@@ -105,4 +129,37 @@ test("buildClockRenderSpec clamps the style index into [1, styleCount]", () => {
   const high = buildClockRenderSpec(999, [255, 255, 255], true, 41);
   assert.equal(low.type === "clock" ? low.style : undefined, 1);
   assert.equal(high.type === "clock" ? high.style : undefined, 41);
+});
+
+test("designsSetPlaybackRequest sends only the keys that changed, null included", () => {
+  assert.deepEqual(designsSetPlaybackRequest("d1", { speed: 40 }), { type: "iledclock/designs/set_playback", design_id: "d1", speed: 40 });
+  assert.deepEqual(designsSetPlaybackRequest("d1", { smooth: "off" }), { type: "iledclock/designs/set_playback", design_id: "d1", smooth: "off" });
+  assert.deepEqual(designsSetPlaybackRequest("d1", { speed: null, smooth: null }), { type: "iledclock/designs/set_playback", design_id: "d1", speed: null, smooth: null });
+  assert.deepEqual(designsSetPlaybackRequest("d1", {}), { type: "iledclock/designs/set_playback", design_id: "d1" });
+});
+
+test("playbackPreviewRequest always sends speed and smooth explicitly so they override stored values", () => {
+  assert.deepEqual(playbackPreviewRequest({ designId: "d1" }, { speed: null, smooth: null }), { type: "iledclock/playback/preview", design_id: "d1", speed: null, smooth: null });
+  assert.deepEqual(playbackPreviewRequest({ designId: "d1", entryId: "e1" }, { speed: 0, smooth: "on" }), {
+    type: "iledclock/playback/preview",
+    entry_id: "e1",
+    design_id: "d1",
+    speed: 0,
+    smooth: "on",
+  });
+});
+
+test("playbackPreviewRequest with inline frames carries frames, delays and the clock region", () => {
+  const request = playbackPreviewRequest({ frames: ["AAA", "BBB"], delays: [125, 125], clockRegion: { x: 16, y: 0, w: 16, h: 16 } }, { speed: 34, smooth: "off" });
+  assert.deepEqual(request, {
+    type: "iledclock/playback/preview",
+    frames: ["AAA", "BBB"],
+    delays: [125, 125],
+    clock_region: { x: 16, y: 0, w: 16, h: 16 },
+    speed: 34,
+    smooth: "off",
+  });
+  const noRegion = playbackPreviewRequest({ frames: ["AAA"], delays: [100] }, { speed: null, smooth: null });
+  assert.ok(!("clock_region" in noRegion), "an absent region is not sent");
+  assert.equal(playbackPreviewRequest({ frames: ["AAA"], delays: [100], clockRegion: null }, { speed: null, smooth: null }).clock_region, null);
 });

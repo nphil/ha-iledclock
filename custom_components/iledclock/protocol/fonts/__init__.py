@@ -1,16 +1,15 @@
 """Bundled, original, open-licensed (MIT, matching the rest of this integration) bitmap
-fonts used to render text for the device's native scrolling-text feature (``programs.py``'s
-``TextContent``) and for local preview/animation rendering (``render.py``).
+fonts used to draw text into pixel frames (``render.py``), which the integration then uploads
+as graffiti/animation art. (``programs.py``'s native ``TextContent`` could also consume them,
+but the integration no longer uses it.)
 
 The vendor ships its own proprietary font glyph binaries (``UNICODE12``, ``UNICODE16``,
 ``32_16_large``, ``32_16_small``, ...) baked into the CoolLED1248 app's assets. Those are not
 reproduced here in any form -- not their bytes, not glyph-for-glyph tracings of their shapes.
-Every glyph below was authored from scratch for this project. What *is* reused from the
-vendor's protocol (and is a wire-format fact, not a font design choice) is the *layout* the
-device expects glyph pixel data in: full RGB888 (quantized to RGB444 on the wire, see
-``hexutil.rgb444_pixel``) column-major pixel columns, one glyph column at a time, monochrome
-white-on-transparent so an accompanying Auto/Custom-colour layer can recolour it -- see
-``programs.py``'s module docstring for the reasoning.
+Every glyph below was authored from scratch for this project. The RGB444 column-major glyph
+layout that ``programs.py``'s native-text encoder writes is only OUR choice: it does NOT match
+what the vendor app sends for a text glyph layer (a 1-bit bitmap with a header), so it is not a
+wire-format fact -- see ``programs.py``'s module docstring.
 
 Each font is a mapping of a single character to a tuple of *columns*, each column a tuple of
 booleans (top-to-bottom, lit/unlit) exactly ``height`` long. Proportional: a glyph's own

@@ -1,6 +1,7 @@
-"""Quick text message entity (Contract C: "shows a text program immediately, using current text
-style defaults"). For the notify-style temporary-message behaviour with `duration_s` and
-automatic restore, use the `show_text` service instead -- this entity is the plain, permanent
+"""Quick text message entity (Contract C: "shows a text program immediately"). The text is drawn as pixels in
+the default white 5x7 style (`show_text` explains how) and goes to screen A, the program list, until something
+else replaces it. For the notify-style temporary message with `duration_s` and automatic restore, colour, font,
+effect, speed or the choice of screen, use the `show_text` service instead -- this entity is the plain, permanent
 "put this text on the screen now" control."""
 
 from __future__ import annotations

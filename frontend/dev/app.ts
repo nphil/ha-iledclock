@@ -41,6 +41,11 @@ async function whenRendered(tag: string, el: HassAwareElement): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  if (new URLSearchParams(location.search).get("demo") === "playback") {
+    const { mountPlaybackDemo } = await import("./playback-demo.ts");
+    await mountPlaybackDemo();
+    return;
+  }
   const cardContainer = document.getElementById("card-container");
   const panelContainer = document.getElementById("panel-container");
   if (!cardContainer || !panelContainer) throw new Error("dev harness: missing mount container");

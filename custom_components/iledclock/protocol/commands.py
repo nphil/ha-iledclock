@@ -35,7 +35,7 @@ from datetime import datetime
 
 from . import color_tables
 from .hexutil import rgb444_pixel, u8, u8_str, u16be
-from .models import AlarmItem, NightMode, RGB, Reminder, TimerSwitchItem, weekday_mask
+from .models import AlarmItem, NightMode, RGB, TimerSwitchItem, weekday_mask
 
 
 def _require_range(name: str, value: int, lo: int, hi: int) -> None:
@@ -126,6 +126,20 @@ def sync_time(dt: datetime) -> bytes:
     return b"\x09" + bytes(
         (year_offset, dt.month, dt.day, dt.isoweekday(), dt.hour, dt.minute, dt.second)
     )
+
+
+def screen_toggle() -> bytes:
+    """Stock payload ``20 01``: the same thing as pressing the clock's power key once, which
+    flips between screen A and screen B.
+
+    Live evidence (2026-10-02, sent once through ``send_raw``): the clock changed from screen A
+    (an animation) to screen B (a clock). The clock NEVER replies to it, so send it one-way
+    (``IledClockClient.async_send_oneway``), not as a request. It is a TOGGLE only: there is no
+    "go to B", nothing can be read back, and physical key presses are invisible, so the visible
+    screen can not be known from this command. Behaviour with the display off or in night mode
+    is unknown. Uploading into a screen (start-frame kind 00 / 04) stays the way to choose
+    what a screen shows."""
+    return b"\x20\x01"
 
 
 def music_data(kind: int, values: list[int]) -> bytes:
@@ -495,7 +509,9 @@ def night_mode_set(cfg: NightMode) -> bytes:
 
 
 def reminders_get() -> bytes:
-    """``getReminder`` (opcode 0x1a 0x01): list summary (ids only)."""
+    """``getReminder`` (opcode 0x1a 0x01): list summary (ids only). Reminders are created and
+    edited by uploading a type-14 program (``programs.ReminderContent``, start trailer
+    ``05 <id>``), read back with `reminder_detail` and removed with `reminder_delete`."""
     return b"\x1a\x01"
 
 

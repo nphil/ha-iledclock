@@ -527,5 +527,25 @@ class RotateModesTests(unittest.TestCase):
         self.assertEqual(dict(hardware.ILEDCLOCK_32x16.rotate_modes), dict(hardware.ROTATE_MODES))
 
 
+class PlaybackLimitsTests(unittest.TestCase):
+    def test_max_pace_is_seven_delay_units_a_frame(self) -> None:
+        self.assertAlmostEqual(hardware.PLAYBACK_MAX_FPS, 1000 / (7 * hardware.DEVICE_MS_PER_DELAY_UNIT))
+        self.assertAlmostEqual(hardware.PLAYBACK_MAX_FPS, 95.24, places=2)
+
+    def test_a_representative_value_quantises_back_to_its_own_level(self) -> None:
+        """Smoothing's fade steps are stored as these, so the upload must give back exactly the level meant."""
+        for level in range(16):
+            self.assertEqual(hardware.rgb444_transfer(hardware.rgb444_representative(level)), level)
+        self.assertEqual((hardware.rgb444_representative(0), hardware.rgb444_representative(15)), (0, 255))
+
+    def test_multiplying_a_level_by_17_does_not_round_trip_which_is_why_representatives_exist(self) -> None:
+        self.assertNotEqual(hardware.rgb444_transfer(1 * 17), 1)
+
+    def test_levels_outside_0_to_15_are_refused(self) -> None:
+        for bad in (-1, 16):
+            with self.assertRaises(ValueError):
+                hardware.rgb444_representative(bad)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,12 +1,15 @@
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
-import type { ClockState, HomeAssistant, RenderResult, RenderSpec, ShowItem, StoredDesign } from "../types.ts";
+import type { Capabilities, ClockState, ContentClass, HomeAssistant, PlaybackPreviewResult, RenderResult, RenderSpec, ShowItem, StoredDesign } from "../types.ts";
 import type { PixelFrame } from "../lib/grid.ts";
 import { CLOCK_COLORS, CLOCK_FACE_COUNT, CLOCK_FACES } from "../lib/clock-faces.ts";
-import { TEXT_EFFECTS } from "../lib/text-effects.ts";
-import { buildClockRenderSpec, buildTextRenderSpec, commandRequest, designsListRequest, renderRequest } from "../lib/ws-api.ts";
+import { DEFAULT_TEXT_EFFECT, TEXT_EFFECTS, textEffectUsesColor } from "../lib/text-effects.ts";
+import { buildClockRenderSpec, buildTextRenderSpec, commandRequest, designsListRequest, playbackPreviewRequest, renderRequest } from "../lib/ws-api.ts";
 import { hexToRgb, quantizePreviewRgbLinear } from "../lib/color.ts";
-import { designToFrames } from "../lib/design-codec.ts";
+import { designToFrames, frameToBase64 } from "../lib/design-codec.ts";
+import { decodeRenderFrames } from "../lib/descriptor-preview.ts";
 import { createFrame, GRID_HEIGHT, GRID_WIDTH } from "../lib/grid.ts";
+import { PlaybackSession } from "../lib/playback-session.ts";
+import { contentClassOf } from "../lib/slots.ts";
 import { showWithUndo } from "../lib/show-with-undo.ts";
 import { navigateStudioRoute } from "../lib/route.ts";
 import { describeWsError } from "../lib/ws-query.ts";
@@ -15,8 +18,10 @@ import "./iledclock-segmented-picker.ts";
 import "./iledclock-stepper.ts";
 import "./iledclock-hold-button.ts";
 import "./iledclock-led-preview.ts";
+import "./iledclock-playback-control.ts";
 import "./iledclock-art-tile.ts";
 import "./iledclock-clock-face-thumb.ts";
+import "./iledclock-slot-choice.ts";
 import "./lu-pill-button.ts";
 import "./lu-error.ts";
 
@@ -33,21 +38,13 @@ const TIMER_PRESETS = [1, 5, 10, 25] as const;
 const TEXT_PREVIEW_DEBOUNCE_MS = 300;
 const EMPTY_FRAME = createFrame(GRID_WIDTH, GRID_HEIGHT);
 
-function decodeFrames(result: RenderResult): PixelFrame[] {
-  return result.frames.map((encoded, index) => {
-    const binary = atob(encoded);
-    const pixels = new Uint8Array(GRID_WIDTH * GRID_HEIGHT * 3);
-    for (let i = 0; i < Math.min(binary.length, pixels.length); i++) pixels[i] = binary.charCodeAt(i);
-    return { width: GRID_WIDTH, height: GRID_HEIGHT, pixels, durationMs: result.delays[index] ?? 100 };
-  });
-}
-
 /** Shared controls for Now and the Lovelace card; it owns mode state and all mode-specific behavior. */
 export class IledclockModeDeck extends LitElement {
   static properties = {
     hass: { attribute: false },
     entryId: { attribute: false },
     state: { attribute: false },
+    capabilities: { attribute: false },
     _mode: { state: true },
     _clockStyle: { state: true },
     _clockColor: { state: true },
@@ -57,9 +54,10 @@ export class IledclockModeDeck extends LitElement {
     _text: { state: true },
     _textColor: { state: true },
     _textEffect: { state: true },
-    _textSpeed: { state: true },
-    _textFrames: { state: true },
+    _textBold: { state: true },
+    _textReady: { state: true },
     _textLoading: { state: true },
+    _textError: { state: true },
     _designs: { state: true },
     _designsLoading: { state: true },
     _designsError: { state: true },
@@ -75,6 +73,8 @@ export class IledclockModeDeck extends LitElement {
   declare hass: HomeAssistant;
   declare entryId: string | undefined;
   declare state: ClockState | null;
+  /** The clock's live capabilities (what screen B takes); without them the A | B choice looks them up. */
+  declare capabilities: Capabilities | null | undefined;
   declare _mode: Mode;
   declare _clockStyle: number;
   declare _clockColor: number;
@@ -84,9 +84,10 @@ export class IledclockModeDeck extends LitElement {
   declare _text: string;
   declare _textColor: string;
   declare _textEffect: number;
-  declare _textSpeed: number;
-  declare _textFrames: PixelFrame[];
+  declare _textBold: boolean;
+  declare _textReady: boolean;
   declare _textLoading: boolean;
+  declare _textError: string | null;
   declare _designs: StoredDesign[] | null;
   declare _designsLoading: boolean;
   declare _designsError: string | null;
@@ -103,6 +104,10 @@ export class IledclockModeDeck extends LitElement {
   private _textTimer: ReturnType<typeof setTimeout> | undefined;
   private _textPreviewRevision = 0;
   private _modeResizeObserver: ResizeObserver | null = null;
+  private _textSession = this._makeTextSession();
+  private _textSessionDisposed = false;
+  /** The text frames at Original pace; the session retimes these for the Speed control. */
+  private _textAuthored: PixelFrame[] = [];
 
   constructor() {
     super();
@@ -114,9 +119,10 @@ export class IledclockModeDeck extends LitElement {
     this._background = true;
     this._text = "";
     this._textColor = "#ffffff";
-    this._textEffect = 1;
-    this._textSpeed = 80;
-    this._textFrames = [EMPTY_FRAME];
+    this._textEffect = DEFAULT_TEXT_EFFECT;
+    this._textBold = false;
+    this._textReady = false;
+    this._textError = null;
     this._textLoading = false;
     this._designs = null;
     this._designsLoading = false;
@@ -146,6 +152,11 @@ export class IledclockModeDeck extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback();
+    if (this._textSessionDisposed) {
+      this._textSessionDisposed = false;
+      this._textSession = this._makeTextSession();
+      if (this._textAuthored.length > 0) this._textSession.setSource(this._textAuthored);
+    }
     if (typeof ResizeObserver === "undefined") return;
     this._modeResizeObserver = new ResizeObserver((entries) => {
       this.toggleAttribute("compact", (entries[0]?.contentRect.width ?? 0) < 360);
@@ -159,6 +170,17 @@ export class IledclockModeDeck extends LitElement {
     this._modeResizeObserver = null;
     clearTimeout(this._textTimer);
     this._textPreviewRevision++;
+    this._textSession.dispose();
+    this._textSessionDisposed = true;
+  }
+
+  /** The Speed control for the text preview: the same session as everywhere else, fed the text's frames at Original pace. */
+  private _makeTextSession(): PlaybackSession {
+    return new PlaybackSession({
+      callWS: (request) => this.hass.callWS!<PlaybackPreviewResult>(request as never),
+      buildRequest: (state, authored) => playbackPreviewRequest({ frames: authored.map(frameToBase64), delays: authored.map((frame) => frame.durationMs) }, state),
+      onChange: () => this.requestUpdate(),
+    });
   }
 
   private async _loadDesigns(): Promise<void> {
@@ -189,12 +211,17 @@ export class IledclockModeDeck extends LitElement {
     return (this._designs ?? []).filter((design) => design.tags?.some((tag) => /^(favorite|favourite)$/i.test(tag.trim()))).slice(0, 6);
   }
 
-  private async _show(item: ShowItem, title: string): Promise<void> {
+  /** Show `item` on the screen the A | B choice names for this kind of content, then offer Undo. */
+  private async _show(item: ShowItem, title: string, contentClass: ContentClass): Promise<void> {
     if (!this.entryId || !this.hass?.callWS || this._busy) return;
     this._busy = "show";
     this._error = null;
-    await showWithUndo(this, this.hass, this.entryId, item, title);
+    await showWithUndo(this, this.hass, this.entryId, item, title, { contentClass, capabilities: this.capabilities });
     this._busy = null;
+  }
+
+  private _renderSlotChoice(contentClass: ContentClass) {
+    return html`<iledclock-slot-choice .hass=${this.hass} .entryId=${this.entryId} content-class=${contentClass} .capabilities=${this.capabilities} ?disabled=${this._busy !== null}></iledclock-slot-choice>`;
   }
 
   private async _command(command: string, params: Record<string, unknown> = {}): Promise<boolean> {
@@ -239,18 +266,33 @@ export class IledclockModeDeck extends LitElement {
   private _showClock(): void {
     if (this._showDate) {
       const dateItem = { spec: { type: "date", color: CLOCK_COLORS[this._clockColor]?.rgb ?? [255, 255, 255] } } as unknown as ShowItem;
-      void this._show(dateItem, "Date");
+      void this._show(dateItem, "Date", "date");
       return;
     }
-    void this._show({ spec: this._clockSpec() }, "Clock · style " + this._clockStyle);
+    void this._show({ spec: this._clockSpec() }, "Clock · style " + this._clockStyle, "clock");
+  }
+
+  /** The text spec for the preview (no playback: Original pace, the Speed control retimes it) or for Show (the chosen speed
+   * and smooth motion, which only exist while the text scrolls). */
+  private _textSpec(forShow: boolean): RenderSpec | null {
+    const session = this._textSession;
+    const playback = forShow && this._textReady && session.hasMotion ? { speed: session.speed, smooth: session.smooth } : {};
+    return buildTextRenderSpec(this._text, hexToRgb(this._textColor), { effect: String(this._textEffect), bold: this._textBold, ...playback });
+  }
+
+  private _clearTextPreview(): void {
+    this._textAuthored = [];
+    this._textReady = false;
+    this._textSession.setSource([]);
   }
 
   private _scheduleTextPreview(): void {
     this._textPreviewRevision++;
     clearTimeout(this._textTimer);
+    this._textError = null;
     if (!this.entryId || !this.hass?.callWS) {
       this._textLoading = false;
-      this._textFrames = [EMPTY_FRAME];
+      this._clearTextPreview();
       return;
     }
     this._textLoading = true;
@@ -265,6 +307,7 @@ export class IledclockModeDeck extends LitElement {
     this._scheduleTextPreview();
   }
 
+  /** Draw the text on the server (the same code the upload uses) and hand its frames to the Speed control. */
   private async _previewText(): Promise<void> {
     const revision = ++this._textPreviewRevision;
     const entryId = this.entryId;
@@ -273,20 +316,23 @@ export class IledclockModeDeck extends LitElement {
       this._textLoading = false;
       return;
     }
-    const spec = buildTextRenderSpec(this._text, hexToRgb(this._textColor), { effect: String(this._textEffect), speed: this._textSpeed });
+    const spec = this._textSpec(false);
     if (!spec) {
-      this._textFrames = [EMPTY_FRAME];
       this._textLoading = false;
+      this._clearTextPreview();
       return;
     }
     this._textLoading = true;
     try {
       const result = await hass.callWS<RenderResult>(renderRequest(entryId, spec));
       if (revision !== this._textPreviewRevision || entryId !== this.entryId) return;
-      this._textFrames = decodeFrames(result).slice(0, 1);
-      if (!this._textFrames.length) this._textFrames = [EMPTY_FRAME];
-    } catch {
-      if (revision === this._textPreviewRevision && entryId === this.entryId) this._textFrames = [EMPTY_FRAME];
+      this._textAuthored = decodeRenderFrames(result);
+      this._textReady = this._textAuthored.length > 0;
+      this._textSession.setSource(this._textAuthored);
+    } catch (error) {
+      if (revision !== this._textPreviewRevision || entryId !== this.entryId) return;
+      this._clearTextPreview();
+      this._textError = describeWsError(error);
     } finally {
       if (revision === this._textPreviewRevision) this._textLoading = false;
     }
@@ -297,13 +343,13 @@ export class IledclockModeDeck extends LitElement {
   }
 
   private _showText(): void {
-    const spec = buildTextRenderSpec(this._text, hexToRgb(this._textColor), { effect: String(this._textEffect), speed: this._textSpeed });
-    if (spec) void this._show({ spec }, "Text · " + this._text);
+    const spec = this._textSpec(true);
+    if (spec) void this._show({ spec }, "Text · " + this._text.trim(), "art");
   }
 
   private _showDesign(design: StoredDesign): void {
     this._selectedDesignId = design.id;
-    void this._show({ design_id: design.id }, design.name);
+    void this._show({ design_id: design.id }, design.name, contentClassOf(design));
   }
 
   private _selectDesign(event: CustomEvent<{ itemId: string }>): void {
@@ -363,20 +409,30 @@ export class IledclockModeDeck extends LitElement {
       <button type="button" class="toggle-row" role="switch" aria-checked=${this._background ? "true" : "false"} @click=${() => (this._background = !this._background)}><span>Face background</span><span class="switch ${this._background ? "on" : ""}"></span></button>
       <button type="button" class="toggle-row" role="switch" aria-checked=${this._showDate ? "true" : "false"} @click=${() => (this._showDate = !this._showDate)}><span>Show date instead of time</span><span class="switch ${this._showDate ? "on" : ""}"></span></button>
       <p class="hint">The clock can show a date program or a time face, but its firmware does not layer the date over a face.</p>
+      ${this._renderSlotChoice(this._showDate ? "date" : "clock")}
       <lu-pill-button variant="primary" label=${this._showDate ? "Show date" : "Show clock"} icon="mdi:television-play" ?disabled=${!this.entryId || this._busy !== null} ?loading=${this._busy === "show"} @lu-press=${this._showClock}></lu-pill-button>
     </div>`;
   }
 
   private _renderTextMode() {
-    const spec = buildTextRenderSpec(this._text, hexToRgb(this._textColor), { effect: String(this._textEffect), speed: this._textSpeed });
+    const spec = this._textSpec(false);
+    const session = this._textSession;
+    const usesColor = textEffectUsesColor(this._textEffect);
     return html`<div class="panel-content">
       <label class="field"><span>Message</span><input class="text-input" type="text" maxlength="64" .value=${this._text} placeholder="Type a message" @input=${this._onTextChange}></label>
       <div class="color-row text-settings">
-        <label class="field color-field"><span>Colour</span><input type="color" .value=${this._textColor} @input=${(event: Event) => { this._textColor = (event.target as HTMLInputElement).value; this._scheduleTextPreview(); }}></label>
-        <label class="field effect-field"><span>Effect</span><select .value=${String(this._textEffect)} @change=${(event: Event) => { this._textEffect = Number((event.target as HTMLSelectElement).value); this._scheduleTextPreview(); }}>${TEXT_EFFECTS.map((effect) => html`<option value=${effect.mode}>${effect.label}</option>`)}</select></label>
+        <label class="field color-field"><span>Colour</span><input type="color" .value=${this._textColor} ?disabled=${!usesColor} @input=${(event: Event) => { this._textColor = (event.target as HTMLInputElement).value; this._scheduleTextPreview(); }}></label>
+        <label class="field effect-field"><span>Effect</span><select .value=${String(this._textEffect)} @change=${(event: Event) => { this._textEffect = Number((event.target as HTMLSelectElement).value); this._scheduleTextPreview(); }}>${TEXT_EFFECTS.map((effect) => html`<option value=${effect.mode} ?selected=${effect.mode === this._textEffect}>${effect.label}</option>`)}</select></label>
       </div>
-      <label class="field slider-field"><span>Speed <strong>${this._textSpeed}</strong></span><input type="range" min="0" max="255" .value=${String(this._textSpeed)} @input=${(event: Event) => { this._textSpeed = Number((event.target as HTMLInputElement).value); this._scheduleTextPreview(); }}></label>
-      <div class="preview-wrap"><iledclock-led-preview context="thumb" .frames=${this._textFrames} .playing=${false} label="Text preview"></iledclock-led-preview>${this._textLoading ? html`<span class="preview-state" role="status">Updating preview…</span>` : nothing}</div>
+      ${usesColor ? nothing : html`<p class="hint">Rainbow effects choose their own colours.</p>`}
+      <button type="button" class="toggle-row" role="switch" aria-checked=${this._textBold ? "true" : "false"} @click=${() => { this._textBold = !this._textBold; this._scheduleTextPreview(); }}><span>Bold letters</span><span class="switch ${this._textBold ? "on" : ""}"></span></button>
+      <div class="preview-wrap">
+        <iledclock-led-preview context="hero" .frames=${this._textReady ? session.frames : [EMPTY_FRAME]} .delays=${this._textReady ? session.delays : []} .rate=${this._textReady ? session.rate : 1} .playing=${this._textReady && session.playing} label="Text preview"></iledclock-led-preview>
+        ${this._textLoading ? html`<span class="preview-state" role="status">Updating preview…</span>` : this._textReady || this._textError ? nothing : html`<span class="preview-state" role="status">Type a message to see it here</span>`}
+      </div>
+      ${this._textError ? html`<p class="error" role="alert">${this._textError}</p>` : nothing}
+      ${this._textReady && session.hasMotion ? html`<iledclock-playback-control .session=${session}></iledclock-playback-control>` : nothing}
+      ${this._renderSlotChoice("art")}
       <lu-pill-button variant="primary" label="Show text" icon="mdi:send" ?disabled=${!spec || !this.entryId || this._busy !== null} ?loading=${this._busy === "show"} @lu-press=${this._showText}></lu-pill-button>
     </div>`;
   }
@@ -401,6 +457,7 @@ export class IledclockModeDeck extends LitElement {
       ${this._renderDesignRow("Favorites", favorites)}
       ${this._renderDesignRow("Recent designs", recent)}
       ${!this._designsLoading && !this._designsError && !recent.length ? html`<p class="hint">No saved designs yet. Create one in Pixel Studio.</p>` : nothing}
+      ${this._renderSlotChoice(selected ? contentClassOf(selected) : "art")}
       <div class="button-row">
         <lu-pill-button variant="primary" label="Show on clock" icon="mdi:television-play" ?disabled=${!selected || !this.entryId || this._busy !== null} ?loading=${this._busy === "show"} @lu-press=${() => selected && this._showDesign(selected)}></lu-pill-button>
         <button type="button" class="library-link" @click=${this._openLibrary}>Open Library</button>
@@ -501,17 +558,16 @@ export class IledclockModeDeck extends LitElement {
     .text-settings { align-items: stretch; }
     .color-field { flex: 1 1 7rem; }
     .color-field input { width: 100%; min-height: var(--lu-target); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); background: var(--lu-card); }
+    .color-field input:disabled { opacity: .45; cursor: not-allowed; }
     .effect-field { flex: 2 1 9rem; }
-    .slider-field input { width: 100%; accent-color: var(--lu-accent); }
-    .slider-field strong { float: right; color: var(--lu-ink); font-variant-numeric: tabular-nums; }
-    .preview-wrap { position: relative; min-width: 0; }
+    .preview-wrap { position: relative; min-width: 0; max-width: 320px; }
     .preview-state { position: absolute; right: var(--lu-space-2); bottom: var(--lu-space-2); padding: var(--lu-space-1) var(--lu-space-2); border-radius: var(--lu-radius-pill); color: var(--lu-ink-2); background: var(--lu-card); font: 400 var(--lu-type-caption)/1.2 var(--lu-font); }
     iledclock-led-preview { width: 100%; }
     .design-row { display: grid; gap: var(--lu-space-2); }
     .designs { display: grid; grid-auto-columns: minmax(112px, 1fr); grid-auto-flow: column; gap: var(--lu-space-3); overflow-x: auto; padding: 1px 2px var(--lu-space-2); scroll-snap-type: x proximity; }
     .designs iledclock-art-tile { width: 112px; scroll-snap-align: start; }
     .button-row { display: flex; flex-wrap: wrap; gap: var(--lu-space-2); align-items: center; }
-    .button-row lu-pill-button { flex: 1 1 10rem; }
+    .button-row lu-pill-button { flex: 1 1 13rem; }
     .library-link, .secondary-button { display: inline-flex; align-items: center; justify-content: center; min-width: var(--lu-target); min-height: var(--lu-target); padding: 0 var(--lu-space-4); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-pill); color: var(--lu-ink); background: var(--lu-glass-raised); font: 500 var(--lu-type-label)/1.2 var(--lu-font); text-decoration: none; cursor: pointer; }
     .library-link { flex: 1 1 8rem; }
     .preset-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--lu-space-2); }

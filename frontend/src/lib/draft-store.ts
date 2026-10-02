@@ -1,14 +1,23 @@
 import { base64ToFrame, frameToBase64 } from "./design-codec.ts";
 import type { PixelFrame } from "./grid.ts";
+import type { SmoothSetting } from "../types.ts";
 
 const DRAFT_VERSION = 1;
 const MAX_DRAFT_FRAMES = 64;
+
+/** The design's Speed and Smooth motion choice (speed null = Original, 0 = Still, 1..100 = slider). */
+export interface EditorPlayback {
+  speed: number | null;
+  smooth: SmoothSetting;
+}
 
 export interface EditorDraftState {
   name: string;
   frames: readonly PixelFrame[];
   clockRegion: boolean;
   designId?: string | null;
+  /** Optional so drafts written before Speed existed still load; when present it counts as an edit. */
+  playback?: EditorPlayback;
 }
 
 export interface EditorDraft extends EditorDraftState {
@@ -30,12 +39,21 @@ interface SerializedDraft {
   name: string;
   clockRegion: boolean;
   designId: string | null;
+  playback?: EditorPlayback;
   savedFingerprint: string;
   savedAt: number;
   width: number;
   height: number;
   frames: string[];
   delays: number[];
+}
+
+function readPlayback(value: unknown): EditorPlayback | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { speed, smooth } = value as { speed?: unknown; smooth?: unknown };
+  const speedOk = speed === null || (typeof speed === "number" && Number.isFinite(speed) && speed >= 0 && speed <= 100);
+  const smoothOk = smooth === null || smooth === "on" || smooth === "off";
+  return speedOk && smoothOk ? { speed: speed as number | null, smooth: smooth as SmoothSetting } : null;
 }
 
 export function editorStateFingerprint(state: EditorDraftState): string {
@@ -47,6 +65,11 @@ export function editorStateFingerprint(state: EditorDraftState): string {
   };
   for (let i = 0; i < state.name.length; i++) mix(state.name.charCodeAt(i));
   mix(state.clockRegion ? 1 : 0);
+  if (state.playback) {
+    const { speed, smooth } = state.playback;
+    mix(speed === null ? -1 : Math.round(speed * 100));
+    mix(smooth === null ? 0 : smooth === "on" ? 1 : 2);
+  }
   mix(state.frames.length);
   for (const frame of state.frames) {
     mix(frame.width);
@@ -63,7 +86,7 @@ export function makeEditorDraft(
   savedFingerprint: string,
   savedAt = Date.now(),
 ): EditorDraft {
-  return {
+  const draft: EditorDraft = {
     entryId,
     name: state.name,
     frames: state.frames,
@@ -72,6 +95,8 @@ export function makeEditorDraft(
     savedFingerprint,
     savedAt,
   };
+  if (state.playback) draft.playback = { speed: state.playback.speed, smooth: state.playback.smooth };
+  return draft;
 }
 
 export function isEditorDraftDirty(draft: EditorDraft): boolean {
@@ -86,6 +111,7 @@ export function serializeEditorDraft(draft: EditorDraft): string {
     name: draft.name,
     clockRegion: draft.clockRegion,
     designId: draft.designId ?? null,
+    ...(draft.playback ? { playback: draft.playback } : {}),
     savedFingerprint: draft.savedFingerprint,
     savedAt: draft.savedAt,
     width: first?.width ?? 32,
@@ -125,7 +151,7 @@ export function deserializeEditorDraft(value: string, expectedEntryId?: string):
       if (typeof delay !== "number" || !Number.isFinite(delay)) throw new TypeError("Invalid frame delay");
       return base64ToFrame(encoded, width, height, Math.max(10, Math.round(delay)));
     });
-    return {
+    const draft: EditorDraft = {
       entryId: raw.entryId,
       name: raw.name,
       clockRegion: raw.clockRegion,
@@ -134,6 +160,9 @@ export function deserializeEditorDraft(value: string, expectedEntryId?: string):
       savedFingerprint: raw.savedFingerprint,
       savedAt: typeof raw.savedAt === "number" && Number.isFinite(raw.savedAt) ? raw.savedAt : 0,
     };
+    const playback = readPlayback(raw.playback);
+    if (playback) draft.playback = playback;
+    return draft;
   } catch {
     return null;
   }

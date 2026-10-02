@@ -1,16 +1,21 @@
 /** Searchable, filterable Library grid and its route-backed design sheet. */
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
-import type { StoredDesign } from "../types.ts";
+import type { HomeAssistant, PlaybackPreviewResult, StoredDesign } from "../types.ts";
 import type { StudioRoute } from "../lib/route.ts";
 import { navigateStudioRoute } from "../lib/route.ts";
 import type { PixelFrame } from "../lib/grid.ts";
 import { designToFrames } from "../lib/design-codec.ts";
+import { PlaybackSession, type PlaybackState } from "../lib/playback-session.ts";
+import { playbackPreviewRequest } from "../lib/ws-api.ts";
 import { designHasClockRegion, filterAndSortDesigns, type LibraryFilter, type LibrarySort } from "../lib/library-state.ts";
 import { mdiIcon } from "../lib/mdi-icons.ts";
+import { contentClassOf } from "../lib/slots.ts";
 import { SURFACES_CSS, TOKENS_CSS } from "../styles/tokens.ts";
 import "./iledclock-art-tile.ts";
 import "./iledclock-hold-button.ts";
 import "./iledclock-led-preview.ts";
+import "./iledclock-playback-control.ts";
+import "./iledclock-slot-choice.ts";
 import "./lu-empty.ts";
 import "./lu-error.ts";
 import "./lu-skeleton.ts";
@@ -25,19 +30,27 @@ const FILTERS: ReadonlyArray<{ value: LibraryFilter; label: string }> = [
   { value: "from-explore", label: "From Explore" },
 ];
 
-interface CachedDesignPreview { updated: number; frames: PixelFrame[]; delays: number[]; }
+interface CachedDesignPreview { source: StoredDesign["frames"]; delays: number[]; frames: PixelFrame[]; }
 const FRAME_CACHE = new Map<string, CachedDesignPreview>();
 
+/** Decoded frames for a design. Keyed on the stored frame list itself, so a playback change (which
+ * only touches speed/smooth/updated) keeps the decoded frames and never restarts the tiles. */
 function previewFor(design: StoredDesign): CachedDesignPreview {
   const cached = FRAME_CACHE.get(design.id);
-  if (cached?.updated === design.updated) return cached;
-  const preview = { updated: design.updated, frames: designToFrames(design), delays: design.delays };
+  if (cached && cached.source === design.frames) return cached;
+  const preview = { source: design.frames, frames: designToFrames(design), delays: design.delays };
   FRAME_CACHE.set(design.id, preview);
   return preview;
 }
 
+function storedPlayback(design: StoredDesign): PlaybackState {
+  return { speed: design.speed ?? null, smooth: design.smooth ?? null };
+}
+
 export class IledclockLibraryPanel extends LitElement {
   static properties = {
+    hass: { attribute: false },
+    entryId: { attribute: false },
     designs: { attribute: false },
     loading: { type: Boolean },
     error: { type: String },
@@ -51,6 +64,8 @@ export class IledclockLibraryPanel extends LitElement {
     _renameValue: { state: true },
   };
 
+  declare hass: HomeAssistant | undefined;
+  declare entryId: string | undefined;
   declare designs: StoredDesign[];
   declare loading: boolean;
   declare error: string | null;
@@ -64,6 +79,8 @@ export class IledclockLibraryPanel extends LitElement {
   declare _renameValue: string;
 
   private _routeSeen = false;
+  private _session: PlaybackSession | null = null;
+  private _sessionDesignId: string | null = null;
 
   constructor() {
     super();
@@ -80,7 +97,45 @@ export class IledclockLibraryPanel extends LitElement {
     this._renameValue = "";
   }
 
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this._disposeSession();
+  }
+
+  /** One session per opened design sheet: it follows the design id, not `updated`, so saving a speed
+   * (which bumps `updated`) never re-sources the preview or refetches. */
+  private _syncSession(): void {
+    const design = this.route.destination === "library" && this.route.design ? this._selectedDesign : undefined;
+    if (!design) {
+      this._disposeSession();
+      return;
+    }
+    if (this._session && this._sessionDesignId === design.id) return;
+    this._disposeSession();
+    const id = design.id;
+    const session = new PlaybackSession({
+      callWS: (request) => {
+        if (!this.hass?.callWS) return Promise.reject(new Error("Home Assistant connection is unavailable."));
+        return this.hass.callWS<PlaybackPreviewResult>(request);
+      },
+      buildRequest: (state) => playbackPreviewRequest({ designId: id }, state),
+      onChange: () => this.requestUpdate(),
+    });
+    this._session = session;
+    this._sessionDesignId = id;
+    session.setSource(designToFrames(design), { state: storedPlayback(design) });
+    // Reset means Original, not "the value this design was opened with".
+    session.setDefaultState({ speed: null, smooth: null });
+  }
+
+  private _disposeSession(): void {
+    this._session?.dispose();
+    this._session = null;
+    this._sessionDesignId = null;
+  }
+
   protected willUpdate(changed: PropertyValues): void {
+    this._syncSession();
     if (!changed.has("route")) return;
     if (!this._routeSeen) {
       this._routeSeen = true;
@@ -160,6 +215,22 @@ export class IledclockLibraryPanel extends LitElement {
   private _delete(id: string): void {
     this._dispatch("design-delete-requested", { id });
     this._closeDesignSheet();
+  }
+
+  private _onPlaybackCommit(design: StoredDesign, event: CustomEvent<PlaybackState>): void {
+    event.stopPropagation();
+    const requested: PlaybackState = { speed: event.detail.speed, smooth: event.detail.smooth };
+    this._dispatch("design-playback-requested", { id: design.id, ...requested, failed: () => this._revertPlayback(design.id, requested) });
+  }
+
+  /** The save failed: put the slider back on what is stored, unless the user has already moved on. */
+  private _revertPlayback(id: string, requested: PlaybackState): void {
+    const session = this._session;
+    const stored = this.designs.find((item) => item.id === id);
+    if (!session || this._sessionDesignId !== id || !stored) return;
+    const now = session.state;
+    if (now.speed !== requested.speed || now.smooth !== requested.smooth) return;
+    session.setState(storedPlayback(stored), { commit: true });
   }
 
   private _show(design: StoredDesign): void {
@@ -266,7 +337,7 @@ export class IledclockLibraryPanel extends LitElement {
               <p>${selectedDesign ? (selectedDesign.kind === "animation" ? "Animated design" : "Still design") : "This design may have been deleted."}</p>
             </div>
           </div>
-          ${selectedDesign ? this._renderDesignSheet(selectedDesign) : html`
+          ${selectedDesign ? html`${this._renderDesignSheet(selectedDesign)}${this._renderDesignActions(selectedDesign)}` : html`
             <lu-empty title="Design not found" message="This saved design is no longer available." action-label="Back to Library" @empty-action=${this._closeDesignSheet}></lu-empty>
           `}
         </lu-sheet>
@@ -310,17 +381,30 @@ export class IledclockLibraryPanel extends LitElement {
 
   private _renderDesignSheet(design: StoredDesign) {
     const { frames, delays } = previewFor(design);
+    const session = this._session && this._sessionDesignId === design.id && this._session.hasMotion ? this._session : null;
     const canRename = this._renameValue.trim().length > 0 && this._renameValue.trim() !== design.name;
     return html`
       <div class="design-sheet-body">
-        <div class="hero"><iledclock-led-preview context="hero" .frames=${frames} .delays=${delays} ?playing=${design.kind === "animation"} .label=${design.name}></iledclock-led-preview></div>
+        <div class="hero">${session
+          ? html`<iledclock-led-preview context="hero" .frames=${session.frames} .delays=${session.delays} .rate=${session.rate} ?playing=${session.playing} .label=${design.name}></iledclock-led-preview>`
+          : html`<iledclock-led-preview context="hero" .frames=${frames} .delays=${delays} ?playing=${design.kind === "animation"} .label=${design.name}></iledclock-led-preview>`}</div>
         <label class="rename-field">
           <span>Design name</span>
           <input type="text" maxlength="80" autocomplete="off" .value=${this._renameValue || design.name} ?disabled=${this.disabled} @input=${this._renameInput} @keydown=${(event: KeyboardEvent) => this._onRenameKeydown(event, design)} />
         </label>
         <div class="rename-action"><lu-pill-button variant="secondary" label="Save name" ?disabled=${this.disabled || !canRename} @lu-press=${() => this._saveRename(design)}></lu-pill-button></div>
+        ${session ? html`<div class="playback"><iledclock-playback-control .session=${session} @playback-commit=${(event: CustomEvent<PlaybackState>) => this._onPlaybackCommit(design, event)}></iledclock-playback-control></div>` : nothing}
+      </div>
+    `;
+  }
+
+  /** Everything the user can do with the design lives in the sheet's footer, so it is always in view while the body scrolls. */
+  private _renderDesignActions(design: StoredDesign) {
+    return html`
+      <div slot="footer" class="design-footer">
+        <iledclock-slot-choice .hass=${this.hass} .entryId=${this.entryId} content-class=${contentClassOf(design)} ?disabled=${this.disabled}></iledclock-slot-choice>
         <div class="design-actions">
-          <lu-pill-button variant="primary" label="Show on clock" icon="mdi:television-play" ?disabled=${this.disabled} @lu-press=${() => this._show(design)}></lu-pill-button>
+          <lu-pill-button class="primary-action" variant="primary" label="Show on clock" icon="mdi:television-play" ?disabled=${this.disabled} @lu-press=${() => this._show(design)}></lu-pill-button>
           <lu-pill-button variant="secondary" label="Edit" icon="mdi:draw" ?disabled=${this.disabled} @lu-press=${() => this._edit(design)}></lu-pill-button>
           <lu-pill-button variant="secondary" label="Duplicate" icon="mdi:content-copy" ?disabled=${this.disabled} @lu-press=${() => this._duplicate(design.id)}></lu-pill-button>
           <lu-pill-button variant="secondary" label="Add to rotation" icon="mdi:playlist-plus" ?disabled=${this.disabled} @lu-press=${() => this._addToRotation([design.id])}></lu-pill-button>
@@ -366,6 +450,8 @@ export class IledclockLibraryPanel extends LitElement {
     .rename-field input { box-sizing: border-box; width: 100%; min-height: var(--lu-target); padding: 0 var(--lu-space-3); border: 1px solid var(--lu-edge); border-radius: var(--lu-radius-control); color: var(--lu-ink); background: var(--lu-card); font: 400 var(--lu-type-body)/1.2 var(--lu-font); }
     .rename-field input:focus-visible { outline: 2px solid var(--lu-accent); outline-offset: 2px; }
     .rename-action { display: flex; justify-content: flex-end; }
+    .playback { min-width: 0; }
+    .design-footer { display: grid; gap: var(--lu-space-3); min-width: 0; }
     .design-actions { display: flex; flex-wrap: wrap; gap: var(--lu-space-2); }
     .delete-action { display: flex; justify-content: flex-end; }
     .delete-action iledclock-hold-button { width: min(100%, 20rem); }

@@ -100,23 +100,6 @@ class NightMode:
 
 
 @dataclass(frozen=True)
-class Reminder:
-    """``reminders_set``-adjacent per-item content (opcode 0x1a); also the shape of
-    ``ReminderDetail`` (opcode 0x1a 0x02) minus ``remind_id``, which the detail reply
-    carries separately."""
-
-    year: int  # two-digit, i.e. YY not YYYY (vendor: actual year - 2000)
-    month: int
-    day: int
-    hour: int
-    minute: int
-    title: str
-    sound: int = 1
-    repeat_type: int = 0  # 0=never, 1=every day, 2=weekly on this reminder's weekday
-    duration: int = 10  # seconds the on-screen popup stays up
-
-
-@dataclass(frozen=True)
 class Segment:
     """One coloured glyph box on the 32x16 panel: colour + position + size, in device
     pixels. Used for every "one field of a clock/date/time-count/scoreboard content"

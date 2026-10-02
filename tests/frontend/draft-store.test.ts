@@ -79,3 +79,41 @@ test("malformed or unsupported drafts are ignored", () => {
   malformed.version = 99;
   assert.equal(deserializeEditorDraft(JSON.stringify(malformed)), null);
 });
+
+test("a speed or smooth change alone makes the draft unsaved, and it survives a reload", () => {
+  const state = { ...draftState(), playback: { speed: null, smooth: "off" as const } };
+  const baseline = editorStateFingerprint(state);
+  assert.equal(isEditorDraftDirty(makeEditorDraft("entry", state, baseline)), false);
+  assert.equal(isEditorDraftDirty(makeEditorDraft("entry", { ...state, playback: { speed: 40, smooth: "off" } }, baseline)), true);
+  assert.equal(isEditorDraftDirty(makeEditorDraft("entry", { ...state, playback: { speed: 0, smooth: "off" } }, baseline)), true);
+  assert.equal(isEditorDraftDirty(makeEditorDraft("entry", { ...state, playback: { speed: null, smooth: "on" } }, baseline)), true);
+  assert.equal(isEditorDraftDirty(makeEditorDraft("entry", { ...state, playback: { speed: null, smooth: null } }, baseline)), true);
+
+  const edited = makeEditorDraft("entry", { ...state, playback: { speed: 40, smooth: "on" } }, baseline);
+  const restored = deserializeEditorDraft(serializeEditorDraft(edited), "entry");
+  assert.ok(restored);
+  assert.deepEqual(restored.playback, { speed: 40, smooth: "on" });
+  assert.equal(isEditorDraftDirty(restored), true);
+});
+
+test("a draft written before Speed existed still loads, with no playback to restore", () => {
+  const old = makeEditorDraft("entry", { ...draftState(), name: "Edited" }, editorStateFingerprint(draftState()));
+  const raw = JSON.parse(serializeEditorDraft(old)) as Record<string, unknown>;
+  assert.equal("playback" in raw, false);
+  const restored = deserializeEditorDraft(JSON.stringify(raw), "entry");
+  assert.ok(restored);
+  assert.equal(restored.playback, undefined);
+  assert.equal(isEditorDraftDirty(restored), true);
+  assert.equal(isEditorDraftDirty({ ...restored, name: "Orbit" }), false);
+});
+
+test("an unreadable playback field is dropped instead of discarding the whole draft", () => {
+  const source = makeEditorDraft("entry", { ...draftState(), playback: { speed: 10, smooth: "off" } }, "baseline");
+  const raw = JSON.parse(serializeEditorDraft(source)) as Record<string, unknown>;
+  for (const bad of [{ speed: 250, smooth: "off" }, { speed: 10, smooth: "maybe" }, "fast", { speed: "10", smooth: null }]) {
+    raw.playback = bad;
+    const restored = deserializeEditorDraft(JSON.stringify(raw), "entry");
+    assert.ok(restored);
+    assert.equal(restored.playback, undefined);
+  }
+});

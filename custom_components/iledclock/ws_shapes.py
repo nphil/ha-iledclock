@@ -11,16 +11,26 @@ from __future__ import annotations
 
 import base64
 from typing import Any, Sequence
+
+from . import hardware
 from .const import (
     CLOCK_STYLE_MAX,
+    DISPLAY_WIDTH,
     MAX_ALARMS,
     MAX_PLAYLIST_ITEMS,
-    MAX_REMINDERS,
     MAX_TIMER_SWITCHES,
+    REMINDER_DURATIONS_S,
+    REMINDER_MAX_FRAMES,
+    REMINDER_NAME_MAX_UTF16,
+    REMINDER_REPEATS,
+    SLOT_B,
+    SLOTS,
     TEXT_COLOR_MODE_MAX,
 )
 from .designs import Design
 from .playlist import PlaylistItem, playlist_item_to_json
+from .retime import Retimed
+from .slots import slot_accepts
 from .state import (
     AlarmState,
     ClockState,
@@ -72,6 +82,8 @@ def shape_timer_switch(item: TimerSwitchState) -> dict[str, Any]:
 
 
 def shape_reminder(reminder: ReminderState) -> dict[str, Any]:
+    """One reminder as the clock reports it (`ReminderItem` of types.ts): `year` is the real calendar year,
+    `repeat_type` the clock's own 0-4 enum, `week_mask` Mon = bit 0 .. Sun = bit 6."""
     return {
         "id": reminder.id,
         "content": reminder.content,
@@ -80,7 +92,10 @@ def shape_reminder(reminder: ReminderState) -> dict[str, Any]:
         "day": reminder.day,
         "hour": reminder.hour,
         "minute": reminder.minute,
-        "repeat": reminder.repeat,
+        "repeat_type": reminder.repeat_type,
+        "week_mask": reminder.week_mask,
+        "duration": reminder.duration,
+        "sound": reminder.sound,
     }
 
 
@@ -146,16 +161,29 @@ def shape_clock_state(state: ClockState) -> dict[str, Any]:
 
 def shape_capabilities(state: ClockState) -> dict[str, Any]:
     """Static device limits plus the two facts we can only know from having actually seen a
-    reading (`has_temperature`/`has_humidity`: not every unit reports both sensors)."""
+    reading (`has_temperature`/`has_humidity`: not every unit reports both sensors), plus the
+    current values of the live-unverified capability flags in `hardware` (screen B contents, the
+    reminder id range and week-mask support) so Pixel Studio never hard-codes them."""
     return {
         "max_playlist_items": MAX_PLAYLIST_ITEMS,
         "clock_styles": CLOCK_STYLE_MAX,
         "text_color_modes": TEXT_COLOR_MODE_MAX,
         "max_alarms": MAX_ALARMS,
         "max_timer_switches": MAX_TIMER_SWITCHES,
-        "max_reminders": MAX_REMINDERS,
+        "max_reminders": hardware.REMINDER_ID_MAX - hardware.REMINDER_ID_MIN + 1,
         "has_temperature": state.temperature is not None,
         "has_humidity": state.humidity is not None,
+        "slots": {"ids": list(SLOTS), "b_accepts": list(slot_accepts(SLOT_B))},
+        "reminders": {
+            "capacity": hardware.REMINDER_ID_MAX - hardware.REMINDER_ID_MIN + 1,
+            "id_min": hardware.REMINDER_ID_MIN,
+            "id_max": hardware.REMINDER_ID_MAX,
+            "week_mask": hardware.REMINDER_WEEK_MASK_SUPPORTED,
+            "name_max": REMINDER_NAME_MAX_UTF16,
+            "durations": list(REMINDER_DURATIONS_S),
+            "repeats": list(REMINDER_REPEATS),
+            "max_frames": REMINDER_MAX_FRAMES,
+        },
     }
 
 
@@ -171,9 +199,14 @@ def shape_state_event(
     playlist: Sequence[PlaylistItem],
     now_showing: dict[str, Any] | None = None,
     show_history: Sequence[dict[str, Any]] = (),
+    slots: dict[str, Any] | None = None,
+    reminder_list: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Contract D `iledclock/state` response and every `iledclock/subscribe` push:
-    `{connected, busy, state, playlist, capabilities, now_showing, history}`."""
+    `{connected, busy, state, playlist, capabilities, now_showing, history, slots, reminder_list}`.
+    `slots` is the JSON the slot store builds (`{"a": record|null, "b": record|null,
+    "last_written": "a"|"b"|null}`); `reminder_list` the JSON the reminder manager builds (null
+    until the manager exists or the clock has never been read). See docs/SLOTS-AND-REMINDERS.md."""
     return {
         "connected": connected,
         "busy": busy,
@@ -182,6 +215,8 @@ def shape_state_event(
         "capabilities": shape_capabilities(state),
         "now_showing": dict(now_showing) if now_showing is not None else None,
         "history": [dict(item) for item in show_history],
+        "slots": dict(slots) if slots is not None else {"a": None, "b": None, "last_written": None},
+        "reminder_list": dict(reminder_list) if reminder_list is not None else None,
     }
 
 
@@ -200,6 +235,23 @@ def shape_frames_payload(frames: Sequence[bytes], delays_ms: Sequence[int]) -> d
         "frames": [base64.b64encode(frame).decode("ascii") for frame in frames],
         "delays": list(delays_ms),
     }
+
+
+def _pad_rgb888(frame: bytes, width: int) -> bytes:
+    """Black columns on the right so an art-width frame fills the panel again."""
+    full = DISPLAY_WIDTH
+    if width >= full:
+        return frame
+    stride, blank = width * 3, bytes((full - width) * 3)
+    return b"".join(frame[at : at + stride] + blank for at in range(0, len(frame), stride))
+
+
+def shape_playback_payload(played: Retimed, width: int) -> dict[str, Any]:
+    """`iledclock/playback/preview` result: the frames and delays the clock will play (padded back to
+    the full panel when only `width` art columns are played) and what smoothing did to them."""
+    payload = shape_frames_payload([_pad_rgb888(frame, width) for frame in played.frames], played.delays_ms)
+    payload["playback"] = played.info.to_json()
+    return payload
 
 
 def shape_upload_progress(

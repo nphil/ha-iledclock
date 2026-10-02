@@ -18,16 +18,15 @@ ScoreBoard/Temperature/Humidity) use the *linear* mapping (``hexutil.rgb444_line
 frames, and this package's own from-scratch Text glyph rendering) uses the *curved* mapping
 (``hexutil.rgb444_pixel``, ``getColorDataWithColorWithRGB444Transfer``).
 
-TEXT CONTENT IS NOT GOLDEN-VECTOR-VERIFIED, AND CANNOT BE: the vendor's own text encoders
-(``getDataWithTextContentProgramContent``, ``getDataWithTextCustomColorProgramContent``) read
-glyph shapes out of the app's proprietary font binaries (``UNICODE12``, ``UNICODE16``, ...),
-which this project does not have and would not ship even if it did (Contract A: only our own
-bundled open-licensed fonts, see ``fonts/``). What *is* a verified wire-format fact (not a
-font design choice) is everything around the glyph pixels: the tag/header field layout, and
-that content pixel data is plain RGB444 column-major pixel columns with no colour field of its
-own on ``ILedClockTextContentProgramContent`` -- meaning the device expects a white-on-
-transparent shape mask that the accompanying Auto/Custom-colour layer recolours. This module
-renders our bundled fonts exactly that way.
+TEXT CONTENT (`TextContent`) IS NOT USED BY THE INTEGRATION ANY MORE, AND ITS GLYPH LAYER IS
+KNOWN NOT TO MATCH THE VENDOR WIRE FORMAT. The encoders stay (the tag-05/06 colour layers are
+vendor-verified against golden vectors), but the tag-01 glyph layer written here -- raw RGB444
+pixel columns -- is not what the vendor app sends: the app ships its own 1-bit glyph bitmaps
+with a header, taken from proprietary font binaries (``UNICODE12``, ``UNICODE16``, ...) that
+this project does not have and would not ship (Contract A: only our own bundled open-licensed
+fonts, see ``fonts/``). A clock given this layer drew nothing (BlankText report). The
+integration therefore draws text to pixel frames and uploads those as graffiti/animation
+(``program_builder.frames_to_content``); `TextContent` is kept only for byte-level completeness.
 
 GIF-FILE / RESOURCE-ID / ENCRYPTED-FILE ANIMATION OVERLOADS: ``getDataWithAnimationCombineProgram``
 has three more overloads beyond the pixel-frame one (`AnimationContent`/tag ``03 01``) that read
@@ -45,6 +44,7 @@ resource I/O is not this module's concern (see ``encode_gif_file_animation`` etc
 from __future__ import annotations
 
 import datetime
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Union
 
@@ -267,22 +267,114 @@ class FrameContent:
 
 @dataclass(frozen=True)
 class ReminderContent:
-    """``ILedClockReminderProgramContent`` (tag 13). Not constructed by ``program_builder.py``
-    (Contract A: reminders are read-only from this integration's side -- no create/set opcode
-    exists, only list/detail/delete), implemented here for Contract A / golden-vector
-    completeness. ``remind_id`` is not part of this content's own wire bytes -- the *upload
-    start frame*'s trailer needs it separately (see :func:`plan_upload`)."""
+    """``ILedClockReminderProgramContent`` (tag 13): one reminder / named alarm that the clock
+    stores in its OWN reminder slots (so it rings without Home Assistant). Uploaded with
+    program type 14; ``remind_id`` is not part of this content's own wire bytes -- the *upload
+    start frame*'s ``05 <id>`` trailer carries it (see :func:`plan_upload`). A reminder may be
+    uploaded together with art contents (graffiti/animation) after it in the same program.
+
+    ``year`` is the wire value: the full year minus 2000 (use :attr:`full_year` /
+    :meth:`from_full_year` for 2026-style years). ``repeat_type`` is 0 once, 1 every day,
+    2 weekly on the weekday of the date, 3 monthly on the day of the date, 4 yearly on the
+    date. The weekday-mask byte is derived exactly like the vendor app does (type 1 -> 0x7F,
+    type 2 -> the bit of the date's weekday (Mon = bit 0 .. Sun = bit 6), anything else ->
+    0) unless ``week_mask`` is given, which is then written verbatim (whether the clock
+    honours a custom mask is the open question behind ``hardware.REMINDER_WEEK_MASK_SUPPORTED``).
+
+    Only WIRE ranges are validated here (what fits in the byte fields); the 16-slot id range,
+    the allowed durations and the 20-character name limit are policy of the domain layer."""
 
     remind_id: int
     title: str
-    year: int  # two-digit, i.e. actual year - 2000 (matches `models.Reminder`)
+    year: int  # two-digit wire value, i.e. actual year - 2000
     month: int
     day: int
     hour: int
     minute: int
     sound: int = 1
-    repeat_type: int = 0  # 0=never/once, 1=every day, 2=weekly on this reminder's weekday
-    duration: int = 10
+    repeat_type: int = 0
+    duration: int = 30  # seconds the alarm rings (two bytes on the wire)
+    week_mask: int | None = None
+
+    def __post_init__(self) -> None:
+        def check(name: str, value: int, low: int, high: int) -> None:
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError(f"reminder {name} must be a whole number, got {value!r}")
+            if not low <= value <= high:
+                raise ValueError(f"reminder {name} must be {low}-{high}, got {value}")
+
+        check("remind_id", self.remind_id, 0, 255)
+        check("year", self.year, 0, 255)
+        check("month", self.month, 1, 12)
+        check("day", self.day, 1, 31)
+        try:
+            datetime.date(2000 + self.year, self.month, self.day)
+        except ValueError:
+            raise ValueError(
+                f"reminder date {2000 + self.year}-{self.month:02d}-{self.day:02d} does not exist"
+            ) from None
+        check("hour", self.hour, 0, 23)
+        check("minute", self.minute, 0, 59)
+        check("sound", self.sound, 0, 255)
+        check("repeat_type", self.repeat_type, 0, 4)
+        check("duration", self.duration, 0, 65535)
+        if self.week_mask is not None:
+            check("week_mask", self.week_mask, 0, 127)
+        if not isinstance(self.title, str) or not self.title:
+            raise ValueError("reminder title must not be empty")
+        if any(unicodedata.category(ch) == "Cc" for ch in self.title):
+            raise ValueError("reminder title must not contain control characters")
+        try:
+            size = len(self.title.encode("utf-8"))
+        except UnicodeEncodeError:
+            raise ValueError("reminder title is not valid text") from None
+        if size > 255:
+            raise ValueError(f"reminder title is {size} bytes in UTF-8, the limit is 255")
+
+    @property
+    def full_year(self) -> int:
+        """The real calendar year (``2000 + year``)."""
+        return 2000 + self.year
+
+    @classmethod
+    def from_full_year(
+        cls,
+        remind_id: int,
+        title: str,
+        full_year: int,
+        month: int,
+        day: int,
+        hour: int,
+        minute: int,
+        sound: int = 1,
+        repeat_type: int = 0,
+        duration: int = 30,
+        week_mask: int | None = None,
+    ) -> "ReminderContent":
+        """Build from a 2000+ year; the wire field only holds ``full_year - 2000`` (0-255)."""
+        return cls(
+            remind_id=remind_id,
+            title=title,
+            year=full_year - 2000,
+            month=month,
+            day=day,
+            hour=hour,
+            minute=minute,
+            sound=sound,
+            repeat_type=repeat_type,
+            duration=duration,
+            week_mask=week_mask,
+        )
+
+    def resolved_week_mask(self) -> int:
+        """The weekday-mask byte that goes on the wire (see the class docstring)."""
+        if self.week_mask is not None:
+            return self.week_mask
+        if self.repeat_type == 1:
+            return 127
+        if self.repeat_type == 2:
+            return 1 << (datetime.date(self.full_year, self.month, self.day).isoweekday() - 1)
+        return 0
 
 
 Content = Union[
@@ -617,13 +709,7 @@ def _encode_reminder(c: ReminderContent) -> bytes:
     body += b"\x13" + b"\x00" * 8
     body += hexutil.u8(c.sound) + hexutil.u8(c.year) + hexutil.u8(c.month) + hexutil.u8(c.day)
     body += hexutil.u8(c.hour) + hexutil.u8(c.minute) + hexutil.u8(c.repeat_type)
-    if c.repeat_type == 1:
-        body += hexutil.u8(127)
-    elif c.repeat_type == 2:
-        weekday = datetime.date(2000 + c.year, c.month, c.day).isoweekday()  # 1=Mon..7=Sun
-        body += hexutil.u8(1 << (weekday - 1))
-    else:
-        body += b"\x00"
+    body += hexutil.u8(c.resolved_week_mask())
     body += u16be(c.duration)
     title_bytes = c.title.encode("utf-8")
     body += hexutil.u8(len(title_bytes)) + title_bytes
@@ -795,11 +881,30 @@ def _data_for_program(program: Program) -> bytes:
     return b"".join(encode_content(c) for c in program.contents)
 
 
+def _content_number(content: Content) -> int:
+    """How many vendor combine-programs one `Content` stands for in the content-count byte of
+    ``getDataWithProgram``: a `TextContent` is a text item plus its glyph layer (2), plus one
+    more when it carries a decorative `frame`; every other content is 1."""
+    if isinstance(content, TextContent):
+        return 2 + (1 if content.frame is not None else 0)
+    return 1
+
+
 def _data_with_program(program: Program) -> bytes:
-    """``getDataWithProgram``: 8 reserved zero bytes, the content count, one more reserved
-    zero byte, then the concatenated content data. This whole blob (uncompressed) is what
-    gets CRC'd and LZSS-compressed for upload."""
-    return b"\x00" * 8 + hexutil.u8(len(program.contents)) + b"\x00" + _data_for_program(program)
+    """``getDataWithProgram``: 8 reserved zero bytes, the content count (the SUM of
+    :func:`_content_number`, not the number of `Content` objects), one more reserved zero
+    byte, then the concatenated content data. This whole blob (uncompressed) is what gets
+    CRC'd and LZSS-compressed for upload."""
+    count = sum(_content_number(c) for c in program.contents)
+    return b"\x00" * 8 + hexutil.u8(count) + b"\x00" + _data_for_program(program)
+
+
+def program_fingerprint(program: Program) -> tuple[str, int]:
+    """``(crc, length)`` of the program's uncompressed blob: the CRC-32 as 8 lowercase hex
+    characters and the blob length in bytes -- exactly what the upload start frame carries, so
+    it identifies one program's content for the per-screen record."""
+    blob = _data_with_program(program)
+    return crc_code(blob).hex(), len(blob)
 
 
 def _start_frame(

@@ -12,6 +12,12 @@ Requests are reassembled with the same `protocol.framing.FrameAssembler` the fir
 answered from the replies recorded from the live clock (`tests/live_replies_2026-09-25.json`),
 and every decoded request payload is kept in `written` so a test can assert exactly what the
 integration put on the wire.
+
+It also keeps the clock's own reminder slots: a type-14 program upload (start frame trailer `05 <id>`) is
+collected chunk by chunk, checked (LZSS, CRC, length) and parsed into a stored reminder like the firmware
+would keep it, `1a 01` / `1a 02 <id>` answer from what is stored and `1a 03 <id>` deletes. Seed one with
+`add_reminder` (a reminder made in the vendor app), and script failures with `reminder_delete_results`,
+`reminder_start_ack_opcode`, `start_ack_result` and `chunk_ack_result(s)`.
 """
 
 from __future__ import annotations
@@ -19,6 +25,7 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +35,7 @@ from homeassistant.components.bluetooth import SOURCE_LOCAL, BluetoothServiceInf
 
 from custom_components.iledclock.const import BLE_CHAR_UUID, BLE_LOCAL_NAME, BLE_SERVICE_UUID
 from custom_components.iledclock.protocol import framing, responses
+from custom_components.iledclock.protocol.crc import crc_code
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LIVE_REPLIES_PATH = REPO_ROOT / "tests" / "live_replies_2026-09-25.json"
@@ -49,6 +57,116 @@ OPCODE_CHECK_PASSWORD = 0x0D
 #: sessions; `tests/live_replies_2026-09-25.json` covers the read-only opcodes only).
 PASSWORD_OK_FRAME = bytes.fromhex("010002060d0003")
 PASSWORD_REJECTED_PAYLOAD = bytes((OPCODE_CHECK_PASSWORD, 0x01))
+
+#: Reminder list / detail / delete (`1a 01` / `1a 02 <id>` / `1a 03 <id>`).
+OPCODE_REMINDER = 0x1A
+#: Offset of the start frame's trailer (unframed payload: 02, crc 4, length 4, index, count, 00, 8 zeros).
+_START_TRAILER = 20
+_REMINDER_TRAILER_KIND = 0x05
+
+
+def lzss_decompress(data: bytes) -> bytes:
+    """Undo `protocol.lzss.compress` (the vendor's Okumura LZSS: 512-byte ring primed with zeros, 18-byte
+    matches, threshold 2, flag byte LSB first with 1 = literal). The integration never decodes -- the firmware
+    does -- so the fake clock brings its own."""
+    ring_size, ring_start, threshold = 512, 512 - 18, 2
+    ring = bytearray(ring_size)
+    position, out, index, flags = ring_start, bytearray(), 0, 0
+    while index < len(data):
+        flags >>= 1
+        if not flags & 0x100:
+            flags = data[index] | 0xFF00
+            index += 1
+            if index >= len(data):
+                break
+        if flags & 1:
+            byte = data[index]
+            index += 1
+            out.append(byte)
+            ring[position] = byte
+            position = (position + 1) & (ring_size - 1)
+        else:
+            if index + 1 >= len(data):
+                break
+            low, high = data[index], data[index + 1]
+            index += 2
+            source = low | ((high & 0xF0) << 4)
+            for step in range((high & 0x0F) + threshold + 1):
+                byte = ring[(source + step) & (ring_size - 1)]
+                out.append(byte)
+                ring[position] = byte
+                position = (position + 1) & (ring_size - 1)
+    return bytes(out)
+
+
+@dataclass
+class StoredReminder:
+    """One reminder as the clock keeps it, in the fields `1a 02` reports (`year` is the clock's own year - 2000)."""
+
+    id: int
+    title: str
+    year: int
+    month: int
+    day: int
+    hour: int
+    minute: int
+    repeat_type: int = 0
+    week_mask: int = 0
+    duration: int = 30
+    sound: int = 1
+    #: Tag byte of every content that followed the reminder header in the uploaded program (art), in order.
+    attachment_tags: list[int] = field(default_factory=list)
+
+    def detail_payload(self) -> bytes:
+        """The `1a 02` reply: id, sound, YY, MM, DD, hh, mm, repeat type, week mask, duration (2), title length, title."""
+        title = self.title.encode("utf-8")
+        return (
+            bytes((OPCODE_REMINDER, 0x02, self.id, self.sound, self.year, self.month, self.day, self.hour,
+                   self.minute, self.repeat_type, self.week_mask))
+            + self.duration.to_bytes(2, "big") + bytes((len(title),)) + title
+        )
+
+
+def parse_reminder_blob(reminder_id: int, blob: bytes) -> StoredReminder:
+    """Read an uploaded type-14 program blob (`00 x8, content count, 00, contents...`): the first content is the
+    reminder header (`u32 length, 13, 8 zeros, sound, YY, MM, DD, hh, mm, repeat, mask, duration u16, title
+    length, title`), the rest is art whose tags are kept."""
+    contents: list[tuple[int, bytes]] = []
+    offset = 10
+    while offset + 4 <= len(blob):
+        length = int.from_bytes(blob[offset : offset + 4], "big")
+        if length < 5:
+            raise ValueError(f"bad content length {length} at {offset}")
+        contents.append((blob[offset + 4], blob[offset + 4 : offset + length]))
+        offset += length
+    if not contents or contents[0][0] != 0x13:
+        raise ValueError("a reminder program must start with the reminder header (tag 13)")
+    body = contents[0][1]
+    title_length = body[19]
+    return StoredReminder(
+        id=reminder_id,
+        title=body[20 : 20 + title_length].decode("utf-8", errors="replace"),
+        year=body[10], month=body[11], day=body[12], hour=body[13], minute=body[14],
+        repeat_type=body[15], week_mask=body[16], duration=int.from_bytes(body[17:19], "big"), sound=body[9],
+        attachment_tags=[tag for tag, _ in contents[1:]],
+    )
+
+
+@dataclass
+class _ReminderUpload:
+    """A reminder program being uploaded: what its start frame promised and the compressed pieces so far."""
+
+    id: int
+    crc: bytes
+    length: int
+    pieces: dict[int, bytes] = field(default_factory=dict)
+
+
+def _start_frame_reminder_id(payload: bytes) -> int | None:
+    """The reminder id of a start frame whose trailer is `05 <id>`; None for every other kind of upload."""
+    if len(payload) == _START_TRAILER + 2 and payload[_START_TRAILER] == _REMINDER_TRAILER_KIND:
+        return payload[_START_TRAILER + 1]
+    return None
 
 
 def _live_reply_table() -> dict[tuple[int, int | None], bytes]:
@@ -152,6 +270,15 @@ class FakeClockDevice:
         self.start_ack_result = 0
         self.chunk_ack_result = 0
         self.chunk_ack_results: dict[int, int] = {}
+        #: Reminders: which opcode a start ack is spelled with (`02 <result>`, or the vendor's other spelling
+        #: `1a <result>`, DeviceManager.java:4425-4476), and `1a 03 <id>` results per id (0 = deleted, anything
+        #: else refuses and leaves the reminder in its slot). `start_ack_result` / `chunk_ack_result(s)` apply
+        #: to reminder uploads too.
+        self.reminder_start_ack_opcode = OPCODE_PROGRAM_START
+        self.reminder_delete_results: dict[int, int] = {}
+        #: The clock's reminder slots by id: what `1a 01` lists and `1a 02 <id>` reports.
+        self.reminders: dict[int, StoredReminder] = {}
+        self._reminder_upload: _ReminderUpload | None = None
         #: Disconnect after this many decoded requests (None == never).
         self.disconnect_after_requests: int | None = None
 
@@ -207,11 +334,20 @@ class FakeClockDevice:
     def _reply_for(self, payload: bytes) -> bytes | None:
         opcode = payload[0]
         if opcode == OPCODE_PROGRAM_START:
-            return bytes((OPCODE_PROGRAM_START, self.start_ack_result))
+            reminder_id = _start_frame_reminder_id(payload)
+            self._reminder_upload = (
+                _ReminderUpload(reminder_id, crc=payload[1:5], length=int.from_bytes(payload[5:9], "big"))
+                if reminder_id is not None
+                else None
+            )
+            ack_opcode = OPCODE_PROGRAM_START if reminder_id is None else self.reminder_start_ack_opcode
+            return bytes((ack_opcode, self.start_ack_result))
         if opcode == OPCODE_PROGRAM_CHUNK:
             # `_chunk()`'s layout: [opcode, 0x00, total_len(4), index(2), chunk_len(2), data, xor]
             index = int.from_bytes(payload[6:8], "big")
             result = self.chunk_ack_results.get(index, self.chunk_ack_result)
+            if result == 0:
+                result = self._take_reminder_chunk(payload, index)
             return (
                 bytes((OPCODE_PROGRAM_CHUNK, 0x00)) + index.to_bytes(2, "big") + bytes((result,))
             )
@@ -220,9 +356,73 @@ class FakeClockDevice:
             return None
         if key in self.reply_overrides:
             return self.reply_overrides[key]
+        if opcode == OPCODE_REMINDER:
+            reply = self._reminder_reply(payload)
+            if reply is not None:
+                return reply
         if key in LIVE_REPLIES:
             return LIVE_REPLIES[key]
         return _generic_ack(key)
+
+    # -- the clock's reminder slots ----------------------------------------------------------
+
+    def add_reminder(
+        self,
+        reminder_id: int,
+        title: str,
+        *,
+        year: int = 26,
+        month: int = 1,
+        day: int = 1,
+        hour: int = 0,
+        minute: int = 0,
+        repeat_type: int = 0,
+        week_mask: int = 0,
+        duration: int = 30,
+        sound: int = 1,
+    ) -> StoredReminder:
+        """Put a reminder in a slot as if it had been made in the vendor app (`year` is the clock's own 2-digit year)."""
+        stored = StoredReminder(
+            reminder_id, title, year, month, day, hour, minute, repeat_type, week_mask, duration, sound
+        )
+        self.reminders[reminder_id] = stored
+        return stored
+
+    def _take_reminder_chunk(self, payload: bytes, index: int) -> int:
+        """Collect one accepted data chunk of a reminder upload. Once every piece is in, the firmware's own checks
+        run: the decompressed program must have the length and CRC the start frame announced (else data error 3,
+        and the upload stays open for the client's retry); then it is stored in the slot."""
+        upload = self._reminder_upload
+        if upload is None:
+            return 0
+        total = int.from_bytes(payload[2:6], "big")
+        size = int.from_bytes(payload[8:10], "big")
+        upload.pieces[index] = payload[10 : 10 + size]
+        if sum(len(piece) for piece in upload.pieces.values()) < total:
+            return 0
+        blob = lzss_decompress(b"".join(upload.pieces[position] for position in sorted(upload.pieces)))
+        if len(blob) != upload.length or crc_code(blob) != upload.crc:
+            return 3
+        self.reminders[upload.id] = parse_reminder_blob(upload.id, blob)
+        self._reminder_upload = None
+        return 0
+
+    def _reminder_reply(self, payload: bytes) -> bytes | None:
+        sub = payload[1] if len(payload) > 1 else None
+        if sub == 0x01:
+            ids = sorted(self.reminders)
+            return bytes((OPCODE_REMINDER, 0x01, len(ids))) + bytes(ids)
+        if sub == 0x02 and len(payload) >= 3:
+            stored = self.reminders.get(payload[2])
+            if stored is None:  # a slot nobody uses reads back as all zeros
+                return bytes((OPCODE_REMINDER, 0x02, payload[2])) + bytes(11)
+            return stored.detail_payload()
+        if sub == 0x03 and len(payload) >= 3:
+            status = self.reminder_delete_results.get(payload[2], 0)
+            if status == 0:
+                self.reminders.pop(payload[2], None)
+            return bytes((OPCODE_REMINDER, 0x03, status))
+        return None
 
     def _notify(self, payload: bytes) -> None:
         if self._notify_callback is None:  # pragma: no cover - the client always subscribes first

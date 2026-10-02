@@ -55,7 +55,7 @@ Chunked data (large programs): tag (1B) + total_len(4B-LE) + chunk_idx(2B-LE) + 
 20. **Temperature & Humidity (Opcode 19)** — ILedClockTemperatureAndHumidityActivity.java (201-byte stub). Source selection (internal/external) TBD. State: likely read via opcode 19.
 
 ### Data & Communication
-21. **Reminder / Notification (Opcode 1a, Max 16)** — ILedClockReminderActivity.java. Reminder ID 1–16 (random, line 399–416), content (UTF-8), date (year offset from 2000, month, day, line 274), time (hour 0–23, minute 0–59, line 275), repeat type (never / every day / bitmask Mon–Sun, line 276). State: read via 1a 01 (list), then 1a 02 (per-ID detail). Delete: 1a [cmd] [id].
+21. **Reminder / Notification (Opcode 1a, Max 16)** — ILedClockReminderActivity.java. Reminder ID 1–16 (unique, picked from the ids not yet in use, lines 210–224), content/title (UTF-8, up to 20 characters in the app), date (year offset from 2000, month, day, line 274), time (hour 0–23, minute 0–59, line 275), repeat type 0–4 (never / every day / weekly / monthly / yearly; the weekday-mask byte is derived from the type, ILedClockUtils.java:4344–4375). Reminders are stored on the clock itself and ring without the phone; they are created/edited by uploading a type-14 program (reminder content + optional art contents, start trailer `05 <id>`) and can be art-composable. State: read via 1a 01 (list), then 1a 02 (per-ID detail). Delete: 1a 03 [id].
 
 22. **Time Sync (Opcode 09)** — getSynchronizeTime() line 4834. Year (offset 2000), month 1–12, day 1–31, hour 0–23, minute 0–59, second 0–59, day-of-week. Send-only; triggered on clock/timer entry (onCreate).
 

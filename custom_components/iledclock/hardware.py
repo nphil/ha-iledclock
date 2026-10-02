@@ -47,6 +47,15 @@ __all__ = [
     "power_limited",
     "power_limited_frame",
     "quantize_delay_ms",
+    "device_delay_units",
+    "DEVICE_MS_PER_DELAY_UNIT",
+    "ANIMATION_MIN_FRAME_UNITS",
+    "PLAYBACK_MAX_FPS",
+    "PLAYBACK_MIN_FPS",
+    "SMOOTH_MAX_FRAMES",
+    "SMOOTH_TARGET_STEP_MS",
+    "SMOOTH_MIN_STEP_MS",
+    "rgb444_representative",
     "frame_budget",
     "NativeLayer",
     "NATIVE_LAYERS",
@@ -337,6 +346,57 @@ DEVICE_MS_PER_DELAY_UNIT: float = 1.5
 def device_delay_units(real_ms: float) -> int:
     """Wire value for a frame that should stay on screen for `real_ms` of real time."""
     return max(1, min(ANIMATION_DELAY_WIRE_MAX_MS, round(real_ms / DEVICE_MS_PER_DELAY_UNIT)))
+
+
+# ---------------------------------------------------------------------------
+# Playback speed and smoothing limits (the per-design Speed slider, `retime.py`)
+# ---------------------------------------------------------------------------
+#
+# All of these are calibration points for ONE real clock, judged by eye (docs/HARDWARE.md, "Live
+# session 2026-09-26"), not facts of the firmware. Change a number here and the slider, the preview
+# and the upload all follow, because `retime.py` reads nothing else.
+
+#: Fewest delay units one frame may last. [DEVICE] 7 units = 10.5 ms real (~95 frames a second) is the
+#: fastest setting seen to play smoothly. Whether the panel really shows every frame at or below this
+#: is unmeasured (the true ceiling may be the panel refresh, not the delay field), so the slider's
+#: 100% ("Max") is exactly this and no faster.
+ANIMATION_MIN_FRAME_UNITS: int = 7
+
+#: Pace of the Speed slider's 100% position, in frames a second, derived from the two constants above.
+PLAYBACK_MAX_FPS: float = 1000.0 / (ANIMATION_MIN_FRAME_UNITS * DEVICE_MS_PER_DELAY_UNIT)
+
+#: Pace of the slider's slowest position that still moves (position 0 is "Still", one picture).
+PLAYBACK_MIN_FPS: float = 0.5
+
+#: Most frames smoothing may leave in one animation. [VENDOR] the vendor's own animation editor stops
+#: at 40 (ILedClockAnimationActivity.java:46,141-142); 32 full-panel frames were also verified live.
+#: Authored designs may still hold up to `const.DESIGN_MAX_FRAMES`; only in-between frames respect this.
+SMOOTH_MAX_FRAMES: int = 40
+
+#: Longest a single step may stay on screen before smoothing adds in-between frames to cut it up (ms).
+#: [INFERENCE] starting value; judge it by eye on the real LEDs (a ticker at 3 px a step: cut, shifted, crossfaded).
+SMOOTH_TARGET_STEP_MS: int = 45
+
+#: Shortest an in-between step may be (ms); finer steps would only flicker. [INFERENCE] as above.
+SMOOTH_MIN_STEP_MS: int = 21
+
+
+def rgb444_representative(nibble: int) -> int:
+    """A 0-255 value that the curved transfer (`rgb444_transfer`) maps back to exactly `nibble`: the
+    middle of that nibble's bin (0 and 15 map to the extremes). Frames that carry a colour the
+    clock must show at a given nibble level (smoothing's fade steps) store this value, so the
+    upload quantises them to exactly the level that was meant and the preview shows a colour from
+    the same bin. Re-applying the curve to `n * 17` instead would NOT round-trip (17 -> 0)."""
+    if not 0 <= nibble <= 15:
+        raise ValueError(f"nibble {nibble!r} out of range 0..15")
+    if nibble == 0:
+        return 0
+    if nibble == 15:
+        return 255
+    low = 48 + 14 * (nibble - 1)  # first value of this bin
+    high = min(47 + 14 * nibble, 237)  # last value of this bin (238 and up is nibble 15)
+    return (low + high + 1) // 2
+
 
 
 def quantize_delay_ms(
@@ -892,9 +952,14 @@ NATIVE_LAYERS: dict[str, NativeLayer] = {
             "repeatType": "0=never / 1=every_day / 2=every_week / 3=every_month / 4=every_year "
             "[VENDOR light/iledclock/ILedClockReminderRepeatDialog.java RepeatItem ids]",
         },
-        notes="Not really composable with art as a visual layer (it is a scheduled text "
-        "notification), included for completeness since the assignment's firmware-native "
-        "feature list names it explicitly.",
+        notes="A scheduled alarm stored in the clock's own reminder slots, so it rings without "
+        "Home Assistant. It IS art-composable: the vendor app uploads a reminder content "
+        "(tag 13) followed by graffiti/animation contents in the same type-14 program, and "
+        "the start frame carries the trailer `05 <id>`. Ids are picked from 1-16 not already "
+        "in use [VENDOR light/iledclock/ILedClockReminderActivity.java:210-224]. Repeat is a "
+        "type 0-4 (once / daily / weekly / monthly / yearly); the weekday-mask byte is derived "
+        "from the type unless set explicitly [VENDOR ILedClockUtils.java:4344-4375]. Read with "
+        "opcode 1a 01/02 and deleted with 1a 03; the integration creates and edits them too.",
     ),
 }
 
@@ -956,3 +1021,47 @@ class LayerModel:
 
 
 LAYER_MODEL = LayerModel()
+
+
+# ---------------------------------------------------------------------------
+# Live-unverified clock behaviours: capability flags (conservative defaults)
+# ---------------------------------------------------------------------------
+# Each constant below names something the real clock has NOT been observed doing yet. The default
+# is the conservative choice (the one that cannot make the clock do anything unproven). After the
+# matching live test (docs/SLOTS-AND-REMINDERS.md, "Live tests") flip the constant HERE and nothing
+# else: services, the websocket API and Pixel Studio read these at call time (always as
+# `hardware.NAME`, never `from .hardware import NAME`, so tests can patch them), and the studio
+# learns the current values from `capabilities` in the `iledclock/state` payload.
+
+#: [LIVE TEST: slot-B art] May plain art / animation / text / generated effects be written to screen B
+#: (the clock-page store, start-frame kind byte 04) as a standalone type-7 program? The kind byte is
+#: the best guess for which store an upload lands in, and the vendor only ever writes clock, date and
+#: temperature pages there. False: screen B takes clock-type pages only and Pixel Studio says so.
+SLOT_B_ACCEPTS_ART: bool = False
+
+#: Art with a firmware clock beside it ("Icon with clock") has exactly the vendor Clock tab's page
+#: shape (an animation layer plus a clock layer, program type 7, `04 01 <10>` trailer), so screen B
+#: takes it by default. Set False if the slot-B art test shows the clock page store rejects it.
+SLOT_B_ACCEPTS_ART_WITH_CLOCK: bool = True
+
+#: [LIVE TEST T6: reminder id range] Ids the clock accepts for a reminder. The vendor app only ever
+#: makes 1..16, but a reminder made in the vendor app read back as id 0 on the live clock. Allocation
+#: uses the lowest free id in this range. If test T6 shows 0..15, set MIN=0, MAX=15.
+REMINDER_ID_MIN: int = 1
+REMINDER_ID_MAX: int = 16
+
+#: [LIVE TEST T7: weekday mask] May one reminder carry several weekdays (repeat type 1 with a partial
+#: week mask, e.g. Mon-Fri = 0x1F)? The vendor never sends one. False: a Mon-Fri item uses five clock
+#: slots (one weekly reminder per day); True: it uses one.
+REMINDER_WEEK_MASK_SUPPORTED: bool = False
+
+#: [LIVE TEST T3: playlist safety] Does uploading a reminder (start frame index 0 / count 1, kind
+#: trailer `05 <id>`) leave screen A's program list and screen B untouched? The firmware most likely
+#: routes by the trailer, but if it treated (0, 1) as "replace the program list" the rotation would be
+#: wiped. False: after every reminder write Home Assistant re-sends screen A's last program list (cheap:
+#: an unchanged program is answered "already present" and no data chunks go out).
+REMINDER_UPLOAD_PRESERVES_SLOTS: bool = False
+
+#: Seconds to let the clock settle after the last data chunk of a reminder before reading it back to
+#: verify (the vendor app waits 1000 ms before reporting success, DeviceManager.java:4313-4316).
+REMINDER_SAVE_SETTLE_S: float = 1.0

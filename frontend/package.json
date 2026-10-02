@@ -10,6 +10,7 @@
     "build:dev": "esbuild src/main.ts --bundle --format=esm --platform=browser --target=es2021 --outfile=../custom_components/iledclock/frontend/iledclock.js --sourcemap",
     "watch": "esbuild src/main.ts --bundle --format=esm --platform=browser --target=es2021 --outfile=../custom_components/iledclock/frontend/iledclock.js --sourcemap --watch",
     "build:harness": "esbuild dev/app.ts --bundle --format=esm --platform=browser --target=es2021 --outfile=dev/dist/app.js --sourcemap",
+    "harness:bridge": "python3 dev/retime-bridge.py",
     "harness": "npm run build:dev && mkdir -p dev/dist && cp ../custom_components/iledclock/frontend/iledclock.js dev/dist/iledclock.js && cp ../custom_components/iledclock/frontend/iledclock.js.map dev/dist/iledclock.js.map && npm run build:harness && node dev/serve.mjs",
     "test": "node --test ../tests/frontend",
     "test:bun": "bun test ../tests/frontend",

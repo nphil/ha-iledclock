@@ -1,6 +1,6 @@
 """Every iLedClock service (Contract A/B, "covering every app feature" that has a real service-
-shaped action -- see program_builder.py's module docstring for what deliberately has none:
-reminder creation and decorative borders).
+shaped action; decorative borders deliberately have none). Alarms and reminders are created, switched
+on and off and deleted by `reminder_set`, `reminder_set_enabled` and `reminder_delete`.
 
 Registration is idempotent (`hass.services.has_service` guard) since `async_setup` can, in
 principle, run once per config entry attempt.
@@ -12,7 +12,8 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.const import WEEKDAYS
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
@@ -26,6 +27,8 @@ from .const import (
     ATTR_COLOR_MODE,
     ATTR_COUNT_DOWN,
     ATTR_DATA_B64,
+    ATTR_DATE,
+    ATTR_DAYS,
     ATTR_DESIGN_ID,
     ATTR_DITHER,
     ATTR_DURATION_S,
@@ -39,9 +42,11 @@ from .const import (
     ATTR_HOURS24,
     ATTR_ID,
     ATTR_IS_BOLD,
+    ATTR_KEY,
     ATTR_KIND,
     ATTR_MINUTE,
     ATTR_MINUTES,
+    ATTR_NAME,
     ATTR_ON,
     ATTR_OPCODE,
     ATTR_PAYLOAD_HEX,
@@ -51,12 +56,15 @@ from .const import (
     ATTR_SECONDS,
     ATTR_SEED,
     ATTR_SHOW_SECONDS,
+    ATTR_SLOT,
+    ATTR_SMOOTH,
     ATTR_SPEED,
     ATTR_START,
     ATTR_START_HOUR,
     ATTR_START_MINUTE,
     ATTR_STYLE,
     ATTR_TEXT,
+    ATTR_TIME,
     ATTR_TIMEOUT_S,
     ATTR_TIMER_SWITCHES,
     ATTR_URL,
@@ -64,6 +72,7 @@ from .const import (
     CLOCK_COLOR_MIN,
     CLOCK_STYLE_MAX,
     CLOCK_STYLE_MIN,
+    DEFAULT_SLOT,
     DOMAIN,
     GENERATIVE_KINDS,
     GENERATIVE_SECONDS_MAX,
@@ -80,6 +89,9 @@ from .const import (
     NIGHT_MODE_WAKE_MINUTES_MIN,
     PLAYLIST_DURATION_MAX_S,
     PLAYLIST_DURATION_MIN_S,
+    REMINDER_DURATIONS_S,
+    REMINDER_KINDS,
+    REMINDER_REPEATS,
     REQUEST_TIMEOUT_S,
     SCOREBOARD_MINUTES_MAX,
     SCOREBOARD_MINUTES_MIN,
@@ -92,7 +104,10 @@ from .const import (
     SERVICE_COUNTDOWN_RUN,
     SERVICE_NIGHT_MODE,
     SERVICE_RELEASE_LINK,
+    SERVICE_SWITCH_SCREEN,
     SERVICE_REMINDER_DELETE,
+    SERVICE_REMINDER_SET,
+    SERVICE_REMINDER_SET_ENABLED,
     SERVICE_SCOREBOARD_RUN,
     SERVICE_SCOREBOARD_SET_SCORE,
     SERVICE_SCOREBOARD_SET_TIME,
@@ -108,10 +123,10 @@ from .const import (
     SERVICE_STOPWATCH_RESET,
     SERVICE_STOPWATCH_RUN,
     SERVICE_SYNC_TIME,
+    SLOTS,
     TEXT_COLOR_MODE_MAX,
     TEXT_COLOR_MODE_MIN,
-    TEXT_SPEED_MAX,
-    TEXT_SPEED_MIN,
+    TEXT_MODE_MAX_LENGTH,
     TOMATO_MINUTES_MAX,
     TOMATO_MINUTES_MIN,
     WIRE_BYTE_MAX,
@@ -145,6 +160,17 @@ def _coordinator_for_device(hass: HomeAssistant, device_id: str) -> IledClockCoo
     )
 
 
+def _playback_overrides(call: ServiceCall) -> dict[str, Any]:
+    """The Speed / Smooth motion a show service was given, as the keys `iledclock/show` understands;
+    empty when the caller left them out."""
+    overrides: dict[str, Any] = {}
+    if ATTR_SPEED in call.data:
+        overrides["speed"] = call.data[ATTR_SPEED]
+    if ATTR_SMOOTH in call.data:
+        overrides["smooth"] = "on" if call.data[ATTR_SMOOTH] else "off"
+    return overrides
+
+
 async def _async_guard(coro: Any) -> Any:
     """Every handler funnels its actual work through this so a client/protocol failure becomes
     a proper `HomeAssistantError` for the caller (automation trace, UI toast) instead of an
@@ -163,24 +189,38 @@ _MINUTE = vol.All(vol.Coerce(int), vol.Range(min=0, max=59))
 _SECOND = vol.All(vol.Coerce(int), vol.Range(min=0, max=59))
 _REPEAT = vol.All(vol.Coerce(int), vol.Range(min=0, max=0x7F))
 
+#: The Speed slider of Pixel Studio: 0 = a still picture, 100 = the fastest the clock can play. Left out,
+#: the design's own saved speed (or the animation's own timing, or a text's own scroll pace) is used.
+_PLAYBACK_SPEED = vol.All(vol.Coerce(float), vol.Range(min=0, max=100))
+_PLAYBACK_FIELDS = {
+    vol.Optional(ATTR_SPEED): _PLAYBACK_SPEED,
+    vol.Optional(ATTR_SMOOTH): cv.boolean,
+}
+#: Which of the clock's two screens (the power button switches between them) a show goes to: A, the program
+#: list, unless told otherwise. B, the clock-page store, only takes clock-type pages for now.
+_SLOT_FIELD = {vol.Optional(ATTR_SLOT, default=DEFAULT_SLOT): vol.In(SLOTS)}
+_RGB = vol.All(cv.ensure_list, [vol.All(vol.Coerce(int), vol.Range(min=0, max=255))], vol.Length(min=3, max=3))
+
 SHOW_TEXT_SCHEMA = vol.Schema(
     {
         **_DEVICE_ID,
-        vol.Required(ATTR_TEXT): cv.string,
+        vol.Required(ATTR_TEXT): vol.All(cv.string, vol.Length(max=TEXT_MODE_MAX_LENGTH)),
+        vol.Optional(ATTR_COLOR, default=lambda: [255, 255, 255]): _RGB,
         vol.Optional(ATTR_COLOR_MODE, default=1): vol.All(
             vol.Coerce(int), vol.Range(min=TEXT_COLOR_MODE_MIN, max=TEXT_COLOR_MODE_MAX)
         ),
-        vol.Optional(ATTR_SPEED, default=230): vol.All(
-            vol.Coerce(int), vol.Range(min=TEXT_SPEED_MIN, max=TEXT_SPEED_MAX)
-        ),
         vol.Optional(ATTR_FONT): cv.string,
-        vol.Optional(ATTR_IS_BOLD, default=True): cv.boolean,
+        vol.Optional(ATTR_IS_BOLD, default=False): cv.boolean,
         vol.Optional(ATTR_DURATION_S): vol.All(
             vol.Coerce(int), vol.Range(min=PLAYLIST_DURATION_MIN_S, max=PLAYLIST_DURATION_MAX_S)
         ),
+        **_PLAYBACK_FIELDS,
+        **_SLOT_FIELD,
     }
 )
-SHOW_DESIGN_SCHEMA = vol.Schema({**_DEVICE_ID, vol.Required(ATTR_DESIGN_ID): cv.string})
+SHOW_DESIGN_SCHEMA = vol.Schema(
+    {**_DEVICE_ID, vol.Required(ATTR_DESIGN_ID): cv.string, **_PLAYBACK_FIELDS, **_SLOT_FIELD}
+)
 SHOW_IMAGE_SCHEMA = vol.Schema(
     {
         **_DEVICE_ID,
@@ -188,6 +228,8 @@ SHOW_IMAGE_SCHEMA = vol.Schema(
         vol.Optional(ATTR_DATA_B64): cv.string,
         vol.Optional(ATTR_FIT, default="contain"): vol.In(("contain", "cover", "stretch")),
         vol.Optional(ATTR_DITHER, default=True): cv.boolean,
+        **_PLAYBACK_FIELDS,
+        **_SLOT_FIELD,
     }
 )
 SHOW_GENERATIVE_SCHEMA = vol.Schema(
@@ -198,6 +240,8 @@ SHOW_GENERATIVE_SCHEMA = vol.Schema(
             vol.Coerce(int), vol.Range(min=GENERATIVE_SECONDS_MIN, max=GENERATIVE_SECONDS_MAX)
         ),
         vol.Optional(ATTR_SEED): vol.Coerce(int),
+        **_PLAYBACK_FIELDS,
+        **_SLOT_FIELD,
     }
 )
 SET_PLAYLIST_SCHEMA = vol.Schema(
@@ -211,6 +255,7 @@ CLOCK_FACE_SCHEMA = vol.Schema(
         vol.Optional(ATTR_HOURS24, default=True): cv.boolean,
         vol.Optional(ATTR_SHOW_SECONDS, default=False): cv.boolean,
         vol.Optional(ATTR_BACKGROUND, default=True): cv.boolean,
+        **_SLOT_FIELD,
     }
 )
 COUNTDOWN_RESET_SCHEMA = vol.Schema(
@@ -301,7 +346,36 @@ NIGHT_MODE_SCHEMA = vol.Schema(
         ),
     }
 )
-REMINDER_DELETE_SCHEMA = vol.Schema({**_DEVICE_ID, vol.Required(ATTR_ID): vol.Coerce(int)})
+#: Alarms & reminders (docs/SLOTS-AND-REMINDERS.md). `days` are weekday names here ("mon" .. "sun"); the studio's
+#: websocket commands use numbers 0 (Monday) to 6 (Sunday) for the same thing.
+REMINDER_SET_SCHEMA = vol.Schema(
+    {
+        **_DEVICE_ID,
+        vol.Optional(ATTR_KEY): cv.string,
+        vol.Required(ATTR_NAME): cv.string,
+        vol.Optional(ATTR_KIND): vol.In(REMINDER_KINDS),
+        vol.Required(ATTR_TIME): cv.time,
+        vol.Optional(ATTR_DATE): cv.date,
+        vol.Optional(ATTR_REPEAT): vol.In(REMINDER_REPEATS),
+        vol.Optional(ATTR_DAYS): cv.weekdays,
+        vol.Optional(ATTR_DURATION_S): vol.All(vol.Coerce(int), vol.In(REMINDER_DURATIONS_S)),
+        vol.Optional(ATTR_DESIGN_ID): cv.string,
+        vol.Optional(ATTR_ENABLED): cv.boolean,
+    }
+)
+REMINDER_SET_ENABLED_SCHEMA = vol.Schema(
+    {**_DEVICE_ID, vol.Required(ATTR_KEY): cv.string, vol.Required(ATTR_ENABLED): cv.boolean}
+)
+REMINDER_DELETE_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            **_DEVICE_ID,
+            vol.Exclusive(ATTR_ID, "target"): vol.Coerce(int),
+            vol.Exclusive(ATTR_KEY, "target"): cv.string,
+        }
+    ),
+    cv.has_at_least_one_key(ATTR_ID, ATTR_KEY),
+)
 SEND_RAW_SCHEMA = vol.Schema(
     {
         **_DEVICE_ID,
@@ -323,20 +397,28 @@ def async_setup_services(hass: HomeAssistant) -> None:
         spec: dict[str, Any] = {
             "type": "text",
             ATTR_TEXT: call.data[ATTR_TEXT],
-            ATTR_COLOR_MODE: call.data[ATTR_COLOR_MODE],
-            ATTR_SPEED: call.data[ATTR_SPEED],
+            ATTR_COLOR: call.data[ATTR_COLOR],
+            # The vendor's colour mode, kept as the service's `color_mode`: only 1 (one colour), 2 (rainbow
+            # along the text) and 4 (every letter its own colour) look different. On record it is the `effect`.
+            "effect": call.data[ATTR_COLOR_MODE],
             ATTR_IS_BOLD: call.data[ATTR_IS_BOLD],
+            **_playback_overrides(call),
         }
         if ATTR_FONT in call.data:
             spec[ATTR_FONT] = call.data[ATTR_FONT]
         await _async_guard(
-            coordinator.async_show(spec, restore_after_s=call.data.get(ATTR_DURATION_S))
+            coordinator.async_show(
+                spec, slot=call.data[ATTR_SLOT], restore_after_s=call.data.get(ATTR_DURATION_S)
+            )
         )
 
     async def show_design(call: ServiceCall) -> None:
         coordinator = _coordinator_for_device(hass, call.data[ATTR_DEVICE_ID])
         await _async_guard(
-            coordinator.async_show({"type": "design", ATTR_DESIGN_ID: call.data[ATTR_DESIGN_ID]})
+            coordinator.async_show(
+                {"type": "design", ATTR_DESIGN_ID: call.data[ATTR_DESIGN_ID], **_playback_overrides(call)},
+                slot=call.data[ATTR_SLOT],
+            )
         )
 
     async def show_image(call: ServiceCall) -> None:
@@ -351,7 +433,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
                     ATTR_DATA_B64: call.data.get(ATTR_DATA_B64),
                     ATTR_FIT: call.data[ATTR_FIT],
                     ATTR_DITHER: call.data[ATTR_DITHER],
-                }
+                    **_playback_overrides(call),
+                },
+                slot=call.data[ATTR_SLOT],
             )
         )
 
@@ -364,7 +448,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
                     ATTR_KIND: call.data[ATTR_KIND],
                     ATTR_SECONDS: call.data[ATTR_SECONDS],
                     ATTR_SEED: call.data.get(ATTR_SEED),
-                }
+                    **_playback_overrides(call),
+                },
+                slot=call.data[ATTR_SLOT],
             )
         )
 
@@ -382,6 +468,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
             coordinator.async_set_clock_face(
                 call.data[ATTR_STYLE], call.data[ATTR_COLOR], call.data[ATTR_HOURS24], call.data[ATTR_SHOW_SECONDS],
                 background=call.data[ATTR_BACKGROUND],
+                slot=call.data[ATTR_SLOT],
             )
         )
 
@@ -461,9 +548,39 @@ def async_setup_services(hass: HomeAssistant) -> None:
             )
         )
 
+    async def reminder_set(call: ServiceCall) -> dict[str, Any]:
+        """Create (no `key`) or edit (`key`) an alarm or reminder; what the call leaves out keeps its value on an
+        edit and takes its default on a new one. Answers `{"item": ...}` to a caller that asks for a response, so
+        an automation can learn the `key` of what it made."""
+        coordinator = _coordinator_for_device(hass, call.data[ATTR_DEVICE_ID])
+        data = call.data
+        raw: dict[str, Any] = {"name": data[ATTR_NAME], "hour": data[ATTR_TIME].hour, "minute": data[ATTR_TIME].minute}
+        for attribute, field in ((ATTR_KEY, "key"), (ATTR_KIND, "kind"), (ATTR_REPEAT, "repeat"),
+                                 (ATTR_DURATION_S, "duration_s"), (ATTR_ENABLED, "enabled")):
+            if attribute in data:
+                raw[field] = data[attribute]
+        if ATTR_DATE in data:
+            raw["date"] = data[ATTR_DATE].isoformat()
+        if ATTR_DAYS in data:
+            raw["days"] = [WEEKDAYS.index(day) for day in data[ATTR_DAYS]]
+        if ATTR_DESIGN_ID in data:  # an empty design id means "draw the name as text"
+            design_id = data[ATTR_DESIGN_ID]
+            raw["attachment"] = {"kind": "design", "design_id": design_id} if design_id else {"kind": "text"}
+        return {"item": await _async_guard(coordinator.reminders.async_save(raw))}
+
+    async def reminder_set_enabled(call: ServiceCall) -> dict[str, Any]:
+        coordinator = _coordinator_for_device(hass, call.data[ATTR_DEVICE_ID])
+        item = await _async_guard(
+            coordinator.reminders.async_set_enabled(call.data[ATTR_KEY], call.data[ATTR_ENABLED])
+        )
+        return {"item": item}
+
     async def reminder_delete(call: ServiceCall) -> None:
         coordinator = _coordinator_for_device(hass, call.data[ATTR_DEVICE_ID])
-        await _async_guard(coordinator.async_reminder_delete(call.data[ATTR_ID]))
+        if ATTR_KEY in call.data:
+            await _async_guard(coordinator.reminders.async_delete(key=call.data[ATTR_KEY]))
+        else:
+            await _async_guard(coordinator.async_reminder_delete(call.data[ATTR_ID]))
 
     async def sync_time(call: ServiceCall) -> None:
         coordinator = _coordinator_for_device(hass, call.data[ATTR_DEVICE_ID])
@@ -480,6 +597,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 call.data[ATTR_OPCODE], call.data[ATTR_PAYLOAD_HEX], call.data[ATTR_TIMEOUT_S]
             )
         )
+
+    async def switch_screen(call: ServiceCall) -> None:
+        coordinator = _coordinator_for_device(hass, call.data[ATTR_DEVICE_ID])
+        await _async_guard(coordinator.async_switch_screen())
 
     hass.services.async_register(DOMAIN, SERVICE_SHOW_TEXT, show_text, schema=SHOW_TEXT_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SHOW_DESIGN, show_design, schema=SHOW_DESIGN_SCHEMA)
@@ -504,7 +625,16 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(DOMAIN, SERVICE_SET_POMODORO, set_pomodoro, schema=SET_POMODORO_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_NIGHT_MODE, night_mode, schema=NIGHT_MODE_SCHEMA)
+    hass.services.async_register(
+        DOMAIN, SERVICE_REMINDER_SET, reminder_set, schema=REMINDER_SET_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_REMINDER_SET_ENABLED, reminder_set_enabled, schema=REMINDER_SET_ENABLED_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
     hass.services.async_register(DOMAIN, SERVICE_REMINDER_DELETE, reminder_delete, schema=REMINDER_DELETE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SYNC_TIME, sync_time, schema=DEVICE_ONLY_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_RELEASE_LINK, release_link, schema=DEVICE_ONLY_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SEND_RAW, send_raw, schema=SEND_RAW_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SWITCH_SCREEN, switch_screen, schema=DEVICE_ONLY_SCHEMA)

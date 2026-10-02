@@ -11,20 +11,36 @@ pick real numbers the way that UI would have -- this module is that "something",
 for every content kind. The device's own `style_index`/`layer_type`/colour-mode fields still
 drive most of the visual character; this just gives every upload well-formed geometry to sit in.
 
-Two playlist kinds have no builder here because they have nothing to build: `reminders` are
-read-only from this integration's side (Contract A exposes no create/set opcode, only
-list/detail/delete -- see coordinator.py), so `protocol.programs.ReminderContent` is never
-constructed by us; and `FrameContent` (decorative borders) isn't wired to any playlist kind or
-service -- it's a minor ancillary content type, not one of the vendor app's 25 numbered
-features, so no dedicated user-facing control was added for it.
+Text is drawn, not sent as the clock's own scrolling-text content: the glyph layer built for that did not
+match the vendor's wire format and the clock drew nothing (BlankText report). `text_playback_frames` draws the
+text to pixel frames (`protocol.render.text_frames`), applies the show's Speed and Smooth motion, and the frames
+go out as picture content like any other art; `TextContent` stays in `protocol` but is not used here.
+Reminders are built by `reminders.py`, and `FrameContent` (decorative borders) isn't wired to any playlist kind or
+service -- it's a minor ancillary content type, not one of the vendor app's 25 numbered features, so no
+dedicated user-facing control was added for it.
+
+`build_slot_b_program` builds what goes to the clock's second screen (the clock-page store, start-frame kind 04):
+one standalone page that is never part of the program list.
 """
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Any, Mapping, Sequence
 
-from .const import CLOCK_COLOR_RGB, DISPLAY_HEIGHT, DISPLAY_WIDTH
+from .const import (
+    CLOCK_COLOR_RGB,
+    DEFAULT_PLAYLIST_DURATION_S,
+    DESIGN_MAX_FRAMES,
+    DISPLAY_HEIGHT,
+    DISPLAY_WIDTH,
+    SLOT_A,
+    SLOT_B,
+    TEXT_COLOR_MODE_MAX,
+    TEXT_COLOR_MODE_MIN,
+    TEXT_MAX_FRAMES,
+    TEXT_MODE_MAX_LENGTH,
+)
 from .clock_styles import CLOCK_STYLES
 from .clock_backgrounds import CLOCK_BACKGROUNDS, DATE_BACKGROUND, ClockBackground
 from .content_layouts import (
@@ -34,9 +50,12 @@ from .content_layouts import (
     TEMPERATURE_LAYOUT,
     TIME_COUNT_LAYOUTS,
 )
-from .designs import Design
+from . import retime
+from .designs import Design, decode_frame, validate_clock_region
 from .hardware import device_delay_units, power_limited_frame
 from .playlist import PlaylistItem
+from .protocol import render as protocol_render
+from .protocol.fonts import DEFAULT_FONT, get_font
 from .protocol.models import Frame, Segment
 from .protocol.programs import (
     AnimationContent,
@@ -48,11 +67,9 @@ from .protocol.programs import (
     Program,
     ScoreboardContent,
     TemperatureContent,
-    TextAutoColor,
-    TextContent,
-    TextCustomColor,
     TimeCountContent,
 )
+from .slots import content_class_of, require_slot_accepts
 
 
 class ProgramBuildError(ValueError):
@@ -277,41 +294,76 @@ def _humidity_content(params: Mapping[str, Any]) -> HumidityContent:
 
 
 
-def _text_content(params: Mapping[str, Any]) -> TextContent:
-    """`text` is used from three different vocabularies: playlist items / the `show_text`
-    service (`color_mode` int 1-28), a saved design has no text content at all, and a
-    `RenderSpec`-originated show (`iledclock/show`'s `item.spec`, `type: "text"`) which instead
-    carries a flat `color` RGB triple and an optional `effect` -- sent by the frontend as a
-    *string* even though it is always a plain numeric colour-mode index (`String(mode)`).
-    Priority: explicit per-character `colors` > `effect`/`color_mode` (an auto colour-cycle) >
-    a flat `color` applied to every character > the default effect."""
+@dataclass(frozen=True)
+class TextSpec:
+    """A text show, playlist item or studio preview, checked and in one shape (`parse_text_spec`)."""
+
+    text: str
+    font: str
+    color: tuple[int, int, int]
+    effect: int
+    bold: bool
+    speed: float | int | None
+    smooth: str | None
+
+
+def parse_text_spec(params: Mapping[str, Any]) -> TextSpec:
+    """Read the text keys of a show, a playlist item or an `iledclock/render` spec. Two vocabularies meet here and
+    both work: `effect` or `color_mode` (the vendor's colour modes 1-28; only 1, 2 and 4 look different, see
+    `protocol.render.text_frames`) and `is_bold` or `bold`. `color` is an RGB list (or a 0-7 clock colour number),
+    default white. `speed` is the playback speed every show has (0 = still ... 100 = fastest, absent = Original)
+    and `smooth` likewise; the clock's old 0-255 text speed no longer exists. Raises `ProgramBuildError` (a
+    ValueError) with a message meant for the user."""
     text = str(_require(params, "text"))
-    colors_raw = params.get("colors")
-    effect = params.get("effect", params.get("color_mode"))
-    flat_color = params.get("color")
-    speed_auto = int(params.get("speed", 230))
-    speed_custom = int(params.get("speed", 255))
+    if len(text) > TEXT_MODE_MAX_LENGTH:
+        raise ProgramBuildError(f"That text is too long: {TEXT_MODE_MAX_LENGTH} characters at most.")
+    font = str(params["font"]) if params.get("font") else DEFAULT_FONT
+    try:
+        get_font(font)
+    except ValueError as err:
+        raise ProgramBuildError(str(err)) from err
+    try:
+        color = _resolve_color(params.get("color"))
+    except (TypeError, ValueError) as err:
+        raise ProgramBuildError("The text colour must be three numbers (red, green, blue) from 0 to 255.") from err
+    raw_effect = params.get("effect", params.get("color_mode"))
+    effect = protocol_render.TEXT_EFFECT_SOLID
+    if raw_effect is not None:
+        try:
+            effect = int(raw_effect)
+        except (TypeError, ValueError):
+            effect = 0
+        if isinstance(raw_effect, bool) or not TEXT_COLOR_MODE_MIN <= effect <= TEXT_COLOR_MODE_MAX:
+            raise ProgramBuildError(
+                f"The text effect must be a number from {TEXT_COLOR_MODE_MIN} to {TEXT_COLOR_MODE_MAX}."
+            )
+    return TextSpec(
+        text=text,
+        font=font,
+        color=color,
+        effect=effect,
+        bold=bool(params.get("is_bold", params.get("bold", False))),
+        speed=retime.validate_speed(params.get("speed")),
+        smooth=retime.validate_smooth(params.get("smooth")),
+    )
 
-    if colors_raw is not None:
-        color: TextAutoColor | TextCustomColor = TextCustomColor(
-            colors=[tuple(c) for c in colors_raw], speed=speed_custom
-        )
-    elif effect is not None:
-        color = TextAutoColor(effect=int(effect), speed=speed_auto)
-    elif flat_color is not None:
-        rgb = tuple(int(component) & 0xFF for component in flat_color)
-        color = TextCustomColor(colors=[rgb] * len(text), speed=speed_custom)
-    else:
-        color = TextAutoColor(effect=1, speed=speed_auto)
 
-    kwargs: dict[str, Any] = {"text": text, "color": color}
-    if "font" in params:
-        kwargs["font"] = str(params["font"])
-    if "is_bold" in params:
-        kwargs["is_bold"] = bool(params["is_bold"])
-    if "move_space" in params:
-        kwargs["move_space"] = int(params["move_space"])
-    return TextContent(**kwargs)
+def text_playback_frames(params: Mapping[str, Any]) -> list[Frame]:
+    """The frames the clock plays for a text show: the text drawn with at most `TEXT_MAX_FRAMES` frames, then given
+    the show's Speed and Smooth motion like every other picture (`retimed_frames`; no speed leaves it at its own
+    pace). A show, a playlist item and the studio's preview (`iledclock/render`) all come through here, so what is
+    previewed is exactly what is uploaded."""
+    spec = parse_text_spec(params)
+    frames = protocol_render.text_frames(
+        spec.text, spec.font, spec.color, effect=spec.effect, bold=spec.bold, max_frames=TEXT_MAX_FRAMES
+    )
+    return retimed_frames(frames, {"speed": spec.speed, "smooth": spec.smooth})
+
+
+def _text_content(params: Mapping[str, Any]) -> Content:
+    """A text playlist item: one picture when the text fits the panel (or is shown still), else an animation."""
+    frames = text_playback_frames(params)
+    return frames_to_content(frames, still=len(frames) == 1)
 
 
 def _rgb888_to_frame(data: bytes, *, width: int, height: int, duration_ms: int) -> Frame:
@@ -324,18 +376,96 @@ def _rgb888_to_frame(data: bytes, *, width: int, height: int, duration_ms: int) 
                 for col in range(width)
             ]
         )
-    return Frame(pixels=pixels, duration_ms=duration_ms)
+    return Frame(pixels=pixels, duration_ms=duration_ms, width=width, height=height)
 
 
-def design_to_frames(design: Design) -> list[Frame]:
+def art_width(design: Design) -> int:
+    """Columns of the panel a design's art occupies: all of them, or only those left of the clock
+    region ("Icon with clock": the art and the firmware's live clock never overlap, because
+    overlap/transparency semantics are unconfirmed on this firmware)."""
+    return design.clock_region[0] if design.clock_region is not None else design.width
+
+
+def _crop_rgb888(frame: bytes, full_width: int, width: int) -> bytes:
+    if width >= full_width:
+        return frame
+    stride, keep = full_width * 3, width * 3
+    return b"".join(frame[at : at + keep] for at in range(0, len(frame), stride))
+
+
+def retime_art(
+    frames: Sequence[bytes],
+    delays_ms: Sequence[float],
+    speed: float | int | None,
+    smooth: str | None,
+    clock_region: tuple[int, int, int, int] | None = None,
+) -> retime.Retimed:
+    """`retime.retime` for full-panel RGB888 frames, working on the art columns only: with a clock
+    region (x, y, w, h) just the columns left of it are uploaded, so only those are judged and
+    returned (`x` columns wide). Frames that are not a saved design yet (the editor's work in
+    progress) come through here too."""
+    width = clock_region[0] if clock_region is not None else DISPLAY_WIDTH
+    cropped = [_crop_rgb888(frame, DISPLAY_WIDTH, width) for frame in frames]
+    return retime.retime(cropped, delays_ms, speed, smooth, width=width, height=DISPLAY_HEIGHT)
+
+
+def inline_playback(msg: Mapping[str, Any]) -> tuple[retime.Retimed, int]:
+    """`iledclock/playback/preview` for frames sent inline (the panel previewing a Speed and Smooth
+    motion setting for a picture that is not a saved design yet): `frames` (base64 RGB888), `delays`
+    (ms), optional `clock_region`, `speed`, `smooth`. Returns the result and the art width. Raises
+    ValueError (DesignValidationError is one) for anything malformed."""
+    raw_frames, delays = msg.get("frames"), msg.get("delays")
+    if not raw_frames or delays is None or len(raw_frames) != len(delays) or len(raw_frames) > DESIGN_MAX_FRAMES:
+        raise ValueError(f"send 1 to {DESIGN_MAX_FRAMES} frames with one delay each, or a design_id")
+    frames = [decode_frame(raw, index) for index, raw in enumerate(raw_frames)]
+    region = validate_clock_region(msg.get("clock_region"))
+    played = retime_art(frames, delays, msg.get("speed"), msg.get("smooth"), region)
+    return played, region[0] if region is not None else DISPLAY_WIDTH
+
+
+def design_playback(design: Design, overrides: Mapping[str, Any] | None = None) -> retime.Retimed:
+    """The frames and delays (art columns only, see `art_width`) the clock plays for `design`: its
+    stored Speed and Smooth motion, unless `overrides` carries a `speed` and/or `smooth` key (a
+    service call, or the panel previewing a slider position that is not saved yet). The preview, the
+    Now hero and the upload all come through here, so they cannot disagree."""
+    speed, smooth = design.speed, design.smooth
+    if overrides:
+        speed = overrides.get("speed", speed)
+        smooth = overrides.get("smooth", smooth)
+    return retime_art(design.frames, design.delays_ms, speed, smooth, design.clock_region)
+
+
+def design_play_frames(design: Design, overrides: Mapping[str, Any] | None = None) -> tuple[list[Frame], retime.Retimed]:
+    """`design_playback` as pixel `Frame`s with their delays in real milliseconds."""
+    played = design_playback(design, overrides)
+    width = art_width(design)
+    frames = [
+        _rgb888_to_frame(frame, width=width, height=design.height, duration_ms=delay)
+        for frame, delay in zip(played.frames, played.delays_ms)
+    ]
+    return frames, played
+
+
+def retimed_frames(frames: Sequence[Frame], overrides: Mapping[str, Any]) -> list[Frame]:
+    """Apply a `speed` / `smooth` given alongside rendered frames (`show_image`, `show_generative`) the
+    same way a design's are applied. Without a speed the frames are left exactly as they are."""
+    speed = retime.validate_speed(overrides.get("speed"))
+    smooth = retime.validate_smooth(overrides.get("smooth"))
+    if speed is None or len(frames) < 2:
+        return list(frames)
+    flat = [bytes(channel for row in frame.pixels for pixel in row for channel in pixel) for frame in frames]
+    played = retime.retime(flat, [frame.duration_ms for frame in frames], speed, smooth)
     return [
-        _rgb888_to_frame(frame, width=design.width, height=design.height, duration_ms=delay)
-        for frame, delay in zip(design.frames, design.delays_ms)
+        _rgb888_to_frame(data, width=DISPLAY_WIDTH, height=DISPLAY_HEIGHT, duration_ms=delay)
+        for data, delay in zip(played.frames, played.delays_ms)
     ]
 
 
-def _crop_columns(frame: Frame, width: int) -> Frame:
-    return replace(frame, pixels=[row[:width] for row in frame.pixels], width=width)
+def poster_frame(frames: Sequence[Frame]) -> Frame:
+    """The frame that stands for an animation as a single picture: the one with the most lit LEDs (the same rule
+    `retime.poster_frame_index` gives a speed-0 "still" show)."""
+    flat = [bytes(channel for row in frame.pixels for pixel in row for channel in pixel) for frame in frames]
+    return frames[retime.poster_frame_index(flat)]
 
 
 #: Clock styles the vendor draws inside part of the panel (it pairs them with background art),
@@ -382,14 +512,9 @@ def _design_content(params: Mapping[str, Any], designs: Mapping[str, Design]) ->
     design = designs.get(design_id)
     if design is None:
         raise ProgramBuildError(f"no saved design with id {design_id!r}")
-    frames = design_to_frames(design)
-    width = design.width
-    if design.clock_region is not None:
-        # "Icon with clock": the art only occupies the columns left of the clock, so the two
-        # layers never overlap (overlap/transparency semantics are unconfirmed on this firmware).
-        width = design.clock_region[0]
-        frames = [_crop_columns(f, width) for f in frames]
-    if design.kind == "image":
+    frames, _played = design_play_frames(design, params)
+    width = art_width(design)
+    if design.kind == "image" or len(frames) == 1:
         art: Content = GraffitiContent(
             start_column=0, start_row=0, show_width=width, show_height=design.height,
             pixels=frames[0],
@@ -482,6 +607,68 @@ def build_programs(
 def build_single_program(content: Content, *, duration_s: int, is_clock: bool = False) -> Program:
     """For `show_*` (a one-item playlist override, Contract D's `iledclock/show`)."""
     return Program(contents=[content], show_count=duration_s, is_clock_in_list=is_clock)
+
+
+def program_screen(program: Program) -> str:
+    """The screen the clock files `program` in. The start frame's kind byte decides, and the program's type
+    decides the kind (`protocol.programs._start_frame`): a date (type 6), a temperature-and-humidity page (19) and a
+    clock that is not part of a program list (7) carry kind 04, the clock-page store = screen B, whichever screen was
+    asked for (proven live: a date sent as a one-item playlist replaced B and left A alone). Everything else lands
+    on screen A's side. Tests pin this against the real start frame."""
+    program_type = program.resolved_program_type()
+    if program_type in (6, 19) or (program_type == 7 and not program.is_clock_in_list):
+        return SLOT_B
+    return SLOT_A
+
+
+def show_content_class(kind: str, params: Mapping[str, Any], designs: Mapping[str, Design]) -> str:
+    """The content class (`const.CONTENT_CLASSES`) of a show, which decides what screen B takes. A saved design is
+    `art_clock` when it has a firmware clock beside its art. Raises `ProgramBuildError` for an unknown type or a
+    design that is not in `designs`."""
+    has_clock_region = False
+    if kind == "design":
+        design = designs.get(str(params.get("design_id", "")))
+        if design is None:
+            raise ProgramBuildError(f"no saved design with id {params.get('design_id')!r}")
+        has_clock_region = design.clock_region is not None
+    try:
+        return content_class_of(kind, has_clock_region=has_clock_region)
+    except ValueError as err:
+        raise ProgramBuildError(str(err)) from err
+
+
+def _content_list(built: Content | list[Content]) -> list[Content]:
+    return list(built) if isinstance(built, list) else [built]
+
+
+def build_slot_b_program(
+    kind: str, params: Mapping[str, Any], *, designs: Mapping[str, Design], art: Content | None = None
+) -> Program:
+    """One standalone page for the clock's second screen (the clock-page store; start-frame kind byte 04, index 0
+    of 1): never part of the program list, so a page written here leaves screen A alone. What each kind becomes:
+
+    * `clock`: `[background, clock]`, program type 7 (trailer `04 01 10`), as the vendor's Clock tab writes it;
+    * `date`: `[background, date]`, type 6 (trailer `04 01 5`);
+    * `temperature` and `humidity`: ONE temperature-and-humidity page, type 19 (trailer `04 01 5`);
+    * a design with a firmware clock beside its art: `[art, clock]`, type 7;
+    * plain art (text, image, generated effect, design without a clock; `art` carries content that was already
+      rendered): the art as a type-7 page -- the live-unverified experiment behind `hardware.SLOT_B_ACCEPTS_ART`.
+
+    Raises `slots.SlotUnsupportedError` before anything is built when screen B does not take the content (timers
+    and scoreboards never; plain art while the flag is off) and `ProgramBuildError` for an unknown design."""
+    require_slot_accepts(SLOT_B, show_content_class(kind, params, designs))
+    if kind == "clock":
+        contents, program_type = _content_list(_clock_content(params)), 7
+    elif kind == "date":
+        contents, program_type = _content_list(_date_content_with_background(params)), 6
+    elif kind in ("temperature", "humidity"):
+        contents, program_type = [_temperature_content(params), _humidity_content(params)], 19
+    else:
+        contents = [art] if art is not None else _content_list(_BUILDERS[kind](params, designs))
+        program_type = 7
+    return Program(
+        contents=contents, show_count=DEFAULT_PLAYLIST_DURATION_S, is_clock_in_list=False, program_type=program_type
+    )
 
 
 def _power_limit_frame(frame: Frame, brightness: int) -> Frame:
