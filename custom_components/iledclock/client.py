@@ -81,6 +81,9 @@ class IledClockClient:
         self._pending_chunks: dict[int, asyncio.Future[ProgramChunkAck]] = {}
         self._cancel_idle_disconnect: Callable[[], None] | None = None
         self._idle_timeout: float = 60.0
+        #: Set once, by `async_release_for_shutdown`, and never cleared: from then on this
+        #: process must not open another GATT link (Home Assistant is going down).
+        self._closing = False
 
     @property
     def address(self) -> str:
@@ -183,9 +186,30 @@ class IledClockClient:
         async with self._lock:
             await self._async_disconnect_locked()
 
+    async def async_release_for_shutdown(self) -> None:
+        """Home Assistant is stopping: latch the client closed, then drop any open link.
+
+        The latch comes first, so nothing (a refresh, a command, the daily time sync) can open a
+        new link afterwards -- `_async_ensure_connected_locked` refuses. The open link is then
+        dropped WITHOUT waiting for the request lock, so a half-finished upload cannot hold the
+        release hostage; the lock is taken afterwards only to let an in-flight connect notice
+        the latch and undo itself. Unlike `async_release`, this is one-way. Callers bound it."""
+        self._closing = True
+        self._cancel_scheduled_idle_disconnect()
+        client, self._client = self._client, None
+        self._fail_all_pending(IledClockConnectionError("shutting down"))
+        if client is not None and client.is_connected:
+            await client.disconnect()
+        async with self._lock:
+            await self._async_disconnect_locked()
+
     # -- Connection lifecycle -------------------------------------------------------------
 
     async def _async_ensure_connected_locked(self) -> None:
+        if self._closing:
+            raise IledClockConnectionError(
+                f"iLedClock {self._address}: Home Assistant is shutting down; not connecting"
+            )
         if self.is_connected:
             return
 
@@ -209,6 +233,16 @@ class IledClockClient:
             raise IledClockConnectionError(
                 f"could not connect to {self._address}: {err}"
             ) from err
+
+        if self._closing:
+            # Shutdown began while the connect was in flight: hand the link straight back.
+            try:
+                await client.disconnect()
+            except Exception as err:  # noqa: BLE001 - best effort, we are shutting down
+                _LOGGER.debug("iLedClock %s: disconnect raised %s", self._address, err)
+            raise IledClockConnectionError(
+                f"iLedClock {self._address}: Home Assistant is shutting down; not connecting"
+            )
 
         self._client = client
         self._assembler = FrameAssembler()
@@ -435,8 +469,8 @@ class IledClockClient:
 
     def _schedule_idle_disconnect(self) -> None:
         self._cancel_scheduled_idle_disconnect()
-        if self._idle_timeout <= 0:
-            return  # 0 == keep connected indefinitely (Contract B)
+        if self._idle_timeout <= 0 or self._closing:
+            return  # 0 == keep connected indefinitely (Contract B); closing == already released
         self._cancel_idle_disconnect = async_call_later(
             self._hass, self._idle_timeout, self._async_on_idle_timeout
         )

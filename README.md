@@ -140,7 +140,7 @@ columns is one still picture; longer text scrolls and never uses more than 40 fr
 | `iledclock.reminder_delete` | Delete an alarm or reminder by `key`, or one that exists only on the clock by `id` |
 | `iledclock.switch_screen` | Press the clock's power key once: flips between screen A and B (a toggle, the clock gives no feedback) |
 | `iledclock.sync_time` | Sync time now |
-| `iledclock.release_link` | Disconnect now, freeing the Bluetooth link |
+| `iledclock.release_link` | Disconnect now, freeing the Bluetooth link (this also happens by itself when Home Assistant shuts down or restarts, so the proxy is not left holding a stale link) |
 | `iledclock.send_raw` | Advanced: send a raw opcode/payload directly |
 
 ## Known limitations (honestly disclosed)

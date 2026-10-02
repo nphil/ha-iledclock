@@ -14,7 +14,7 @@ from homeassistant.components import panel_custom
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import CONF_ADDRESS, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HassJob, HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
@@ -92,6 +92,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: IledClockConfigEntry) ->
     address = entry.data[CONF_ADDRESS]
     coordinator = IledClockCoordinator(hass, entry, address)
     coordinator.async_setup()
+    entry.async_on_unload(
+        hass.async_add_shutdown_job(
+            HassJob(
+                coordinator.async_release_at_shutdown,
+                f"iledclock release BLE link {entry.title}",
+            )
+        )
+    )
 
     library = async_get_design_library(hass)
     await library.async_load()

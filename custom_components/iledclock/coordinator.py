@@ -21,6 +21,7 @@ import asyncio
 import base64
 import binascii
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from functools import partial
@@ -106,6 +107,9 @@ from .store import IledClockDesignLibrary, IledClockPlaylistStore, IledClockShow
 from .ws_shapes import shape_upload_progress
 
 _LOGGER = logging.getLogger(__name__)
+
+#: Upper bound for the shutdown-time release; HA gives all shutdown jobs one shared 20 s budget.
+SHUTDOWN_RELEASE_TIMEOUT_S = 8.0
 
 # Forward reference as a string: this alias is used in type hints throughout the integration
 # before `IledClockCoordinator` is defined below. `ConfigEntry.__class_getitem__` happily stores
@@ -349,6 +353,32 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             self._unsub_daily_sync = None
         self._cancel_pending_restore()
         await self.client.async_release()
+
+    async def async_release_at_shutdown(self) -> None:
+        """Home Assistant shutdown job (Stage 1, before `bluetooth` and the ESPHome proxies go away).
+
+        Latches the client so nothing reconnects, then releases the GATT link so the proxy
+        is not left holding a ghost link. Bounded to 8 s, never raises, and deliberately does
+        NOT unload the entry (that would write a wave of `unavailable` states)."""
+        if self._unsub_daily_sync is not None:
+            self._unsub_daily_sync()
+            self._unsub_daily_sync = None
+        started = time.monotonic()
+        try:
+            async with asyncio.timeout(SHUTDOWN_RELEASE_TIMEOUT_S):
+                await self.client.async_release_for_shutdown()
+        except TimeoutError:
+            _LOGGER.warning(
+                "Timed out releasing BLE link to %s at shutdown after %.0f s",
+                self.address, SHUTDOWN_RELEASE_TIMEOUT_S,
+            )
+        except Exception as err:  # noqa: BLE001 - a shutdown job must never raise
+            _LOGGER.warning("Could not release BLE link to %s at shutdown: %s", self.address, err)
+        else:
+            _LOGGER.info(
+                "Released BLE link to %s at shutdown in %.2f s",
+                self.address, time.monotonic() - started,
+            )
 
     async def _async_daily_time_sync(self, _now: datetime) -> None:
         await self._async_try(commands.sync_time(dt_util.now()), "daily time sync")
