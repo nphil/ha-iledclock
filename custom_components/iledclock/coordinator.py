@@ -323,6 +323,11 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         self.busy = False
 
         self.data = ClockState(address=address)
+        #: False until one refresh has really read the clock. Until then every entity is unavailable (startup
+        #: contract S3): the defaults in `ClockState` are placeholders, not readings.
+        self.has_data = False
+        #: The first refresh, running in the background while setup waits for it (see `__init__.py`).
+        self.startup_refresh: asyncio.Task[None] | None = None
 
     @property
     def address(self) -> str:
@@ -350,6 +355,12 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
 
     async def async_unload(self) -> None:
         self.async_quiet_for_shutdown()
+        # A first refresh still connecting in the background holds the client's lock; stop it first so the
+        # release below does not wait for the connect to give up on its own.
+        refresh, self.startup_refresh = self.startup_refresh, None
+        if refresh is not None and not refresh.done():
+            refresh.cancel()
+            await asyncio.wait({refresh})
         await self.client.async_release()
 
     @callback
@@ -430,6 +441,7 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             return self.data  # the release cut this pass short; do not publish a half-read state
         changes["connected"] = True
         changes["consecutive_failures"] = 0
+        self.has_data = True
         changes["last_updated"] = dt_util.utcnow().timestamp()
         reminders = changes.pop("reminders", None)
         if reminders is not None and self.reminders.read_is_current(reminder_token):

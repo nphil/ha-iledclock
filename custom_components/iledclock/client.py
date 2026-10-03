@@ -29,6 +29,7 @@ from homeassistant.helpers.event import async_call_later
 from .chunking import chunk_bytes, chunk_size_for_mtu
 from .const import (
     BLE_CHAR_UUID,
+    CONNECT_STEP_TIMEOUT_S,
     REQUEST_TIMEOUT_S,
     UPLOAD_CHUNK_RETRIES,
     UPLOAD_PACKAGE_SIZE,
@@ -244,15 +245,16 @@ class IledClockClient:
             )
 
         try:
-            client = await establish_connection(
-                BleakClientWithServiceCache,
-                ble_device,
-                ble_device.name or self._address,
-                disconnected_callback=self._on_disconnected,
-            )
+            async with asyncio.timeout(CONNECT_STEP_TIMEOUT_S):
+                client = await establish_connection(
+                    BleakClientWithServiceCache,
+                    ble_device,
+                    ble_device.name or self._address,
+                    disconnected_callback=self._on_disconnected,
+                )
         except (BleakError, TimeoutError, asyncio.TimeoutError) as err:
             raise IledClockConnectionError(
-                f"could not connect to {self._address}: {err}"
+                f"could not connect to {self._address}: {err or 'timed out'}"
             ) from err
 
         if self._is_closing:
@@ -269,10 +271,11 @@ class IledClockClient:
         self._assembler = FrameAssembler()
 
         try:
-            await client.start_notify(BLE_CHAR_UUID, self._on_notify)
-        except BleakError as err:
+            async with asyncio.timeout(CONNECT_STEP_TIMEOUT_S):
+                await client.start_notify(BLE_CHAR_UUID, self._on_notify)
+        except (BleakError, TimeoutError) as err:
             await self._async_disconnect_locked()
-            raise self._link_error(f"could not enable notifications: {err}") from err
+            raise self._link_error(f"could not enable notifications: {err or 'timed out'}") from err
 
         try:
             result = await self._async_request_locked(commands.check_password(self._password))
@@ -305,8 +308,9 @@ class IledClockClient:
         self._fail_all_pending(self._link_error("disconnected"))
         if client is not None and client.is_connected:
             try:
-                await client.disconnect()
-            except BleakError as err:
+                async with asyncio.timeout(CONNECT_STEP_TIMEOUT_S):
+                    await client.disconnect()
+            except (BleakError, TimeoutError) as err:
                 _LOGGER.debug("iLedClock %s: disconnect raised %s", self._address, err)
 
     # -- Notifications --------------------------------------------------------------------

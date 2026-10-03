@@ -9,10 +9,11 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTemperature
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import SLOT_A
+from .const import DOMAIN, SLOT_A
 from .coordinator import IledClockConfigEntry, IledClockCoordinator
 from .entity import IledClockEntity
 from .state import ClockState
@@ -60,18 +61,40 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: IledClockConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
     coordinator = entry.runtime_data
-    entities: list[IledClockSensor] = [
-        IledClockSensor(coordinator, FIRMWARE),
-        IledClockProgramCountSensor(coordinator),
-    ]
-    # Contract C: "only if device reports" -- decided once, at setup, from the first successful
-    # refresh (`async_config_entry_first_refresh` has already run by the time platforms are
-    # forwarded); a unit that never reports one simply never gets that entity.
-    if coordinator.data.temperature is not None:
-        entities.append(IledClockSensor(coordinator, TEMPERATURE))
-    if coordinator.data.humidity is not None:
-        entities.append(IledClockSensor(coordinator, HUMIDITY))
-    async_add_entities(entities)
+    async_add_entities(
+        [
+            IledClockSensor(coordinator, FIRMWARE),
+            IledClockProgramCountSensor(coordinator),
+        ]
+    )
+
+    # Contract C: "only if device reports". Setup no longer waits for the clock (startup contract S3), so
+    # these are made as soon as one is known to exist: at once when the entity registry already has it
+    # (a unit that reported it before; it stays unavailable until the first read), otherwise the moment a
+    # refresh delivers a reading. A unit that never reports one never gets that entity.
+    registry = er.async_get(hass)
+    pending = {TEMPERATURE.key: TEMPERATURE, HUMIDITY.key: HUMIDITY}
+
+    @callback
+    def _add_reported() -> None:
+        reported = {
+            TEMPERATURE.key: coordinator.data.temperature is not None,
+            HUMIDITY.key: coordinator.data.humidity is not None,
+        }
+        known = [
+            description
+            for key, description in pending.items()
+            if reported[key]
+            or registry.async_get_entity_id("sensor", DOMAIN, f"{coordinator.address}_{key}") is not None
+        ]
+        for description in known:
+            del pending[description.key]
+        if known:
+            async_add_entities([IledClockSensor(coordinator, description) for description in known])
+
+    _add_reported()
+    if pending:
+        entry.async_on_unload(coordinator.async_add_listener(_add_reported))
 
 
 class IledClockSensor(IledClockEntity, SensorEntity):

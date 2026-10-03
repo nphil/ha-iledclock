@@ -40,6 +40,6 @@ class IledClockEntity(CoordinatorEntity[IledClockCoordinator]):
     def available(self) -> bool:
         """`CoordinatorEntity.available` (`coordinator.last_update_success`), which only goes
         `False` once the coordinator's own consecutive-failure tolerance is exhausted -- see
-        `coordinator.py`'s module docstring. This override exists only to make that contract
-        explicit and give every entity one place to add device-specific nuance later."""
-        return super().available
+        `coordinator.py`'s module docstring -- and, before the first refresh has really read the clock
+        (setup no longer waits for it), unavailable rather than showing placeholder values."""
+        return super().available and self.coordinator.has_data

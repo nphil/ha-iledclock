@@ -7,14 +7,17 @@ builds one `IledClockCoordinator` per configured clock.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
+from functools import partial
 from pathlib import Path
 
 from homeassistant.components import panel_custom
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import CONF_ADDRESS, Platform
-from homeassistant.core import HassJob, HomeAssistant
+from homeassistant.core import HassJob, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
@@ -28,6 +31,7 @@ from .const import (
     PANEL_ICON,
     PANEL_TITLE,
     PANEL_URL_PATH,
+    SETUP_BUDGET_S,
     STATIC_PATH,
 )
 from .coordinator import IledClockConfigEntry, IledClockCoordinator
@@ -116,6 +120,7 @@ async def _async_refuse_while_shutting_down(
 async def async_setup_entry(hass: HomeAssistant, entry: IledClockConfigEntry) -> bool:
     await _async_refuse_while_shutting_down(hass, None)
     address = entry.data[CONF_ADDRESS]
+    started = time.monotonic()
     coordinator = IledClockCoordinator(hass, entry, address)
     coordinator.async_setup()
     entry.async_on_unload(
@@ -141,13 +146,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: IledClockConfigEntry) ->
     await coordinator.async_seed_showing_from_playlist()
     await _async_refuse_while_shutting_down(hass, coordinator)
 
-    await coordinator.async_config_entry_first_refresh()
+    # Startup contract S1/S2: the first refresh (connect, password handshake, status reads) runs as a task
+    # the entry owns; setup waits for it only inside what is left of the budget. Whatever the clock does,
+    # setup returns, entities start unavailable, and fill in when the refresh lands.
+    refresh = coordinator.startup_refresh = entry.async_create_background_task(
+        hass, coordinator.async_refresh(), f"iledclock first refresh {entry.title}"
+    )
+    try:
+        async with asyncio.timeout(max(0.0, SETUP_BUDGET_S - (time.monotonic() - started))):
+            await asyncio.shield(refresh)
+    except TimeoutError:
+        _LOGGER.info(
+            "iLedClock %s did not answer within %.0f s; setup continues and the first read finishes in the background",
+            address, SETUP_BUDGET_S,
+        )
     await _async_refuse_while_shutting_down(hass, coordinator)
 
     entry.runtime_data = coordinator
+    entry.async_on_unload(coordinator.async_add_listener(partial(_async_sync_firmware, hass, coordinator)))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _async_sync_firmware(hass, coordinator)
     return True
+
+
+@callback
+def _async_sync_firmware(hass: HomeAssistant, coordinator: IledClockCoordinator) -> None:
+    """The device's firmware version arrives with the first read, which may land after the entities were
+    created (so without it); put it on the device record as soon as it is known."""
+    firmware = coordinator.data.firmware
+    if firmware is None:
+        return
+    registry = dr.async_get(hass)
+    for device in dr.async_entries_for_config_entry(registry, coordinator.entry.entry_id):
+        if device.sw_version != str(firmware):
+            registry.async_update_device(device.id, sw_version=str(firmware))
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: IledClockConfigEntry) -> bool:

@@ -298,6 +298,11 @@ def clock_face_style(name: str) -> int | None:
 CONSECUTIVE_FAILURES_FOR_UNAVAILABLE = 3
 #: Contract B: request/reply timeout and per-chunk upload retry count (app: MAX_RETRY 3, 5000ms).
 REQUEST_TIMEOUT_S = 5.0
+#: Startup contract S1: `async_setup_entry` returns within this many seconds, whatever the clock does; the
+#: first refresh (connect, password handshake, status reads) carries on in the background after that.
+SETUP_BUDGET_S = 5.0
+#: Startup contract S4: no single connect / notify-subscribe / disconnect step may hang longer than this.
+CONNECT_STEP_TIMEOUT_S = 10.0
 UPLOAD_CHUNK_RETRIES = 3
 #: Contract B: SplitWriter 180-byte chunks, 15ms inter-chunk spacing.
 MAX_WRITE_CHUNK = 180
