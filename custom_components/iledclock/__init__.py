@@ -184,9 +184,15 @@ def _async_sync_firmware(hass: HomeAssistant, coordinator: IledClockCoordinator)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: IledClockConfigEntry) -> bool:
+    coordinator = entry.runtime_data
+    # Before the platforms go: a first reading arriving mid-unload would otherwise add the late
+    # temperature/humidity sensors to a platform that is being torn down.
+    await coordinator.async_stop_startup()
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
-        await entry.runtime_data.async_unload()
+        await coordinator.async_unload()
+    else:
+        coordinator.async_resume_startup()
     return unloaded
 
 

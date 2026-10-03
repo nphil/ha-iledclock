@@ -227,3 +227,144 @@ async def test_stuck_connect_fails_fast(hass, config_entry, clock: FakeClockDevi
         with pytest.raises(IledClockConnectionError, match="could not connect"):
             await client.async_connect()
         assert time.monotonic() - started < 2.0
+
+
+async def test_reading_that_lands_during_unload_adds_no_sensors(
+    hass, make_config_entry, clock: FakeClockDevice, slow_radio: _SlowRadio
+) -> None:
+    """Reload race: the first temperature/humidity reading must not create entities on a sensor platform that
+    is being unloaded (they would clash with the replacements). The pending first read is stopped, and late
+    additions refused, before the platforms go."""
+    clock.reply_overrides[responses.response_key(bytes.fromhex("1901"))] = bytes.fromhex("190101653c")
+    entry = make_config_entry()
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    coordinator = entry.runtime_data
+    real_unload_platforms = hass.config_entries.async_unload_platforms
+
+    async def _unload_then_clock_answers(*args, **kwargs):
+        result = await real_unload_platforms(*args, **kwargs)
+        slow_radio.open.set()  # the link comes up only once the platforms are gone
+        await asyncio.sleep(0.5)
+        return result
+
+    with patch.object(hass.config_entries, "async_unload_platforms", _unload_then_clock_answers):
+        assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert coordinator.has_data is False
+    assert clock.connections == 0
+    registry = er.async_get(hass)
+    assert registry.async_get_entity_id("sensor", "iledclock", f"{clock.address}_temperature") is None
+    assert registry.async_get_entity_id("sensor", "iledclock", f"{clock.address}_humidity") is None
+
+
+async def test_late_additions_refuse_once_unloading_starts(
+    hass, make_config_entry, clock: FakeClockDevice, slow_radio: _SlowRadio
+) -> None:
+    """Even if a reading is already in flight (a periodic refresh, not the cancelled first one), the late-add
+    listener does nothing once the entry is unloading."""
+    clock.reply_overrides[responses.response_key(bytes.fromhex("1901"))] = bytes.fromhex("190101653c")
+    entry = make_config_entry()
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    coordinator = entry.runtime_data
+
+    coordinator.unloading = True
+    slow_radio.open.set()
+    await _until(lambda: coordinator.has_data or coordinator.startup_refresh.done())
+    await hass.async_block_till_done()
+
+    assert coordinator.data.temperature == 22.5
+    assert "temperature" not in _entities(hass, entry)
+
+
+async def test_failed_unload_resumes_the_first_read(
+    hass, make_config_entry, clock: FakeClockDevice, slow_radio: _SlowRadio
+) -> None:
+    """If the platforms refuse to unload the entry stays loaded: the stopped first read starts again, and the
+    late sensors are still added."""
+    clock.reply_overrides[responses.response_key(bytes.fromhex("1901"))] = bytes.fromhex("190101653c")
+    entry = make_config_entry()
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    coordinator = entry.runtime_data
+
+    async def _refuse(*args, **kwargs):
+        return False
+
+    with patch.object(hass.config_entries, "async_unload_platforms", _refuse):
+        assert not await hass.config_entries.async_unload(entry.entry_id)
+    assert coordinator.unloading is False
+
+    slow_radio.open.set()
+    await _until(lambda: coordinator.has_data)
+    await hass.async_block_till_done()
+    assert "temperature" in _entities(hass, entry)
+
+    await coordinator.async_unload()  # the entry is FAILED_UNLOAD (not unloadable again); clean up by hand
+    await coordinator.async_shutdown()
+
+
+async def test_subscribe_passes_a_backend_timeout_shorter_than_the_outer_guard(
+    hass, config_entry, clock: FakeClockDevice
+) -> None:
+    """S8: the proxy backend's own `timeout` bounds the subscribe so it can unregister its notification handler;
+    cancelling it from outside would leave a stale handler on the proxy connection."""
+    from custom_components.iledclock.const import CONNECT_STEP_TIMEOUT_S, NOTIFY_BACKEND_TIMEOUT_S
+
+    client = config_entry.runtime_data.client
+    await client.async_release()
+    seen: list[dict] = []
+    real = FakeGattClient.start_notify
+
+    async def _spy(self, char_specifier, callback, **kwargs):
+        seen.append(kwargs)
+        await real(self, char_specifier, callback, **kwargs)
+
+    with patch.object(FakeGattClient, "start_notify", _spy):
+        await client.async_connect()
+
+    assert seen == [{"timeout": NOTIFY_BACKEND_TIMEOUT_S}]
+    assert NOTIFY_BACKEND_TIMEOUT_S * 2 <= CONNECT_STEP_TIMEOUT_S  # two proxy round-trips fit inside the guard
+
+
+async def test_backend_subscribe_timeout_is_a_connection_error_not_a_hang(
+    hass, config_entry, clock: FakeClockDevice
+) -> None:
+    """S8: a backend that gives up on its own (raising TimeoutError after its `timeout`) ends the attempt as an
+    ordinary connection error; the link is handed back."""
+    client = config_entry.runtime_data.client
+    await client.async_release()
+
+    async def _backend_gives_up(self, char_specifier, callback, **kwargs):
+        assert kwargs["timeout"] > 0
+        raise TimeoutError
+
+    with patch.object(FakeGattClient, "start_notify", _backend_gives_up):
+        with pytest.raises(IledClockConnectionError, match="notifications"):
+            await client.async_connect()
+    assert clock.connected is False
+
+
+async def test_a_cancelled_disconnect_finishes_in_the_background(
+    hass, config_entry, clock: FakeClockDevice
+) -> None:
+    """S8: teardown is not abandoned half-way when its caller is cancelled (the shutdown job's bound)."""
+    gate = asyncio.Event()
+    finished: list[bool] = []
+
+    async def _slow_disconnect(self, **kwargs) -> None:
+        await gate.wait()
+        finished.append(True)
+        self._device.mark_disconnected()
+
+    with patch.object(FakeGattClient, "disconnect", _slow_disconnect):
+        release = asyncio.create_task(config_entry.runtime_data.client.async_release())
+        await asyncio.sleep(0.05)
+        release.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await release
+        assert finished == []
+        gate.set()
+        await asyncio.sleep(0.05)
+
+    assert finished == [True]
+    assert clock.connected is False

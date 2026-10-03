@@ -328,6 +328,8 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
         self.has_data = False
         #: The first refresh, running in the background while setup waits for it (see `__init__.py`).
         self.startup_refresh: asyncio.Task[None] | None = None
+        #: Set when the entry starts unloading; late entity additions refuse from then on.
+        self.unloading = False
 
     @property
     def address(self) -> str:
@@ -353,14 +355,29 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
                 hour=TIME_SYNC_HOUR, minute=TIME_SYNC_MINUTE, second=0,
             )
 
-    async def async_unload(self) -> None:
-        self.async_quiet_for_shutdown()
-        # A first refresh still connecting in the background holds the client's lock; stop it first so the
-        # release below does not wait for the connect to give up on its own.
+    async def async_stop_startup(self) -> None:
+        """First step of every unload/reload: nothing may add entities any more (`unloading`), and a first
+        refresh still connecting in the background is stopped (it holds the client's lock, so the release
+        that follows would otherwise wait for the connect to give up on its own). A reading that lands while
+        the platforms are being unloaded must not create entities on a platform that is going away."""
+        self.unloading = True
         refresh, self.startup_refresh = self.startup_refresh, None
         if refresh is not None and not refresh.done():
             refresh.cancel()
             await asyncio.wait({refresh})
+
+    def async_resume_startup(self) -> None:
+        """The unload failed and the entry stays loaded: undo `async_stop_startup`, picking the first read
+        back up if it never happened."""
+        self.unloading = False
+        if not self.has_data and self.startup_refresh is None:
+            self.startup_refresh = self.entry.async_create_background_task(
+                self.hass, self.async_refresh(), f"iledclock first refresh {self.entry.title}"
+            )
+
+    async def async_unload(self) -> None:
+        self.async_quiet_for_shutdown()
+        await self.async_stop_startup()
         await self.client.async_release()
 
     @callback

@@ -77,6 +77,8 @@ async def async_setup_entry(
 
     @callback
     def _add_reported() -> None:
+        if coordinator.unloading:
+            return  # the platform is being torn down; a reload builds a fresh one
         reported = {
             TEMPERATURE.key: coordinator.data.temperature is not None,
             HUMIDITY.key: coordinator.data.humidity is not None,

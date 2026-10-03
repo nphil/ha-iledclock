@@ -303,6 +303,9 @@ REQUEST_TIMEOUT_S = 5.0
 SETUP_BUDGET_S = 5.0
 #: Startup contract S4: no single connect / notify-subscribe / disconnect step may hang longer than this.
 CONNECT_STEP_TIMEOUT_S = 10.0
+#: Startup contract S8: passed to `start_notify(timeout=...)`; bounds each proxy round-trip of a subscribe (two on
+#: some connections), so the backend's own error path runs, well inside `CONNECT_STEP_TIMEOUT_S`.
+NOTIFY_BACKEND_TIMEOUT_S = 4.0
 UPLOAD_CHUNK_RETRIES = 3
 #: Contract B: SplitWriter 180-byte chunks, 15ms inter-chunk spacing.
 MAX_WRITE_CHUNK = 180

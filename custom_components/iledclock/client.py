@@ -30,6 +30,7 @@ from .chunking import chunk_bytes, chunk_size_for_mtu
 from .const import (
     BLE_CHAR_UUID,
     CONNECT_STEP_TIMEOUT_S,
+    NOTIFY_BACKEND_TIMEOUT_S,
     REQUEST_TIMEOUT_S,
     UPLOAD_CHUNK_RETRIES,
     UPLOAD_PACKAGE_SIZE,
@@ -205,7 +206,7 @@ class IledClockClient:
         client, self._client = self._client, None
         self._fail_all_pending(self._link_error("shutting down"))
         if client is not None and client.is_connected:
-            await client.disconnect()
+            await self._async_disconnect_client(client, CONNECT_STEP_TIMEOUT_S)
         async with self._lock:
             await self._async_disconnect_locked()
 
@@ -260,7 +261,7 @@ class IledClockClient:
         if self._is_closing:
             # Shutdown began while the connect was in flight: hand the link straight back.
             try:
-                await client.disconnect()
+                await self._async_disconnect_client(client, CONNECT_STEP_TIMEOUT_S)
             except Exception as err:  # noqa: BLE001 - best effort, we are shutting down
                 _LOGGER.debug("iLedClock %s: disconnect raised %s", self._address, err)
             raise IledClockShuttingDownError(
@@ -272,7 +273,10 @@ class IledClockClient:
 
         try:
             async with asyncio.timeout(CONNECT_STEP_TIMEOUT_S):
-                await client.start_notify(BLE_CHAR_UUID, self._on_notify)
+                # The backend's own `timeout` bounds each proxy round-trip and runs its error path, which
+                # unregisters the notification handler; cancelling the call from outside would leave it
+                # registered on the proxy connection. The outer guard is only a safety net.
+                await client.start_notify(BLE_CHAR_UUID, self._on_notify, timeout=NOTIFY_BACKEND_TIMEOUT_S)
         except (BleakError, TimeoutError) as err:
             await self._async_disconnect_locked()
             raise self._link_error(f"could not enable notifications: {err or 'timed out'}") from err
@@ -308,10 +312,21 @@ class IledClockClient:
         self._fail_all_pending(self._link_error("disconnected"))
         if client is not None and client.is_connected:
             try:
-                async with asyncio.timeout(CONNECT_STEP_TIMEOUT_S):
-                    await client.disconnect()
+                await self._async_disconnect_client(client, CONNECT_STEP_TIMEOUT_S)
             except (BleakError, TimeoutError) as err:
                 _LOGGER.debug("iLedClock %s: disconnect raised %s", self._address, err)
+
+    async def _async_disconnect_client(self, client: BleakClient, wait_s: float) -> None:
+        """Drop `client`'s link, waiting at most `wait_s` for the proxy to confirm. The disconnect itself runs
+        as a task of its own, so neither the step limit nor a cancelled caller (the shutdown job's 8 s bound,
+        an unloading entry) abandons it half-way: it finishes in the background and its outcome is only
+        logged. A confirmed failure still raises."""
+        task = self._hass.async_create_background_task(client.disconnect(), f"iledclock disconnect {self._address}")
+        done, _pending = await asyncio.wait({task}, timeout=wait_s)
+        if not done:
+            task.add_done_callback(lambda t: t.cancelled() or t.exception())  # keep the outcome from being logged unretrieved
+            raise TimeoutError(f"disconnect did not finish within {wait_s:.0f} s")
+        task.result()
 
     # -- Notifications --------------------------------------------------------------------
 
