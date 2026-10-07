@@ -227,7 +227,7 @@ Two source ids:
 
 ## 6. Quality gates
 - Python: `tests/{protocol,gallery,hardware,integration}` unittest, `tests/ha` pytest (real HA). New: vendor source
-  (recorded fixtures from `/data/home/tmp/vendor-gallery/`, XOR decode, categories, locale fallback, paging),
+  (recorded fixtures from `/data/home/PixelClock/research/gallery-checks/vendor-gallery/`, XOR decode, categories, locale fallback, paging),
   animations feed decode, media view error mapping/timeouts, Divoom fixes, now_showing/undo.
 - Frontend: `npx tsc --noEmit`, `bun test ../tests/frontend`, `npm run build`. New pure-lib tests: led-size policy,
   route parsing, shelf loading state machine, tile retry/backoff, draft autosave.

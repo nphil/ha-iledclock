@@ -602,7 +602,7 @@ The vendor OTA file for this exact build is application-only: a 34-byte vendor h
 SFC-scrambled JLFS application area. It does not contain the resident bootloader or a full flash dump.
 All five downloaded vendor builds decrypt, re-encrypt byte-for-byte, and regenerate their known
 checks, including the header CRC32. The full evidence, original vendor files and reproduction scripts
-are archived in `/data/home/iledclock-research/` (`clockfw-analysis/REPORT.md` and
+are archived in `/data/home/PixelClock/research/` (`clockfw-analysis/REPORT.md` and
 `clockfw-analysis/POMODORO-REPLACEMENT.md`).
 
 - **Chip/firmware family:** AC695X / JieLi BR23, pi32v2 code, application entry `0x01E00120`.

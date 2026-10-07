@@ -1,6 +1,6 @@
 # iLedClock for Home Assistant — architecture & contracts
 
-Repo: `/data/home/ha-iledclock` (git, branch `main`; GitHub `nphil/ha-iledclock` later). HA domain `iledclock`, title "iLedClock".
+Repo: `/data/home/PixelClock/ha-iledclock` (git, branch `main`; GitHub `nphil/ha-iledclock`). HA domain `iledclock`, title "iLedClock".
 Device: BLE name `iLedClock`, service `0000fff0-0000-1000-8000-00805f9b34fb`, char `0000fff1-0000-1000-8000-00805f9b34fb`
 (write-without-response + notify), 32x16 RGB (RGB444 on the wire), JieLi AC695x firmware 0x21. Live test unit
 `01:00:00:67:0D:8A` in the Plant Room, reached through ESPHome BLE proxies.
