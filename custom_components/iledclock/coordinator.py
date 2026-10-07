@@ -197,7 +197,9 @@ def _night_mode_state(nm: NightMode) -> NightModeState:
         start_m=nm.start_minute,
         end_h=nm.end_hour,
         end_m=nm.end_minute,
-        device_off=nm.device_state_enabled,
+        # The clock's flag means "keep the display on (dimmed) at night" [DEVICE 2026-10-06]: with it set, the
+        # night window's start switched an off display ON; cleared, the display stayed off. `device_off` is its opposite.
+        device_off=not nm.device_state_enabled,
         brightness=nm.brightness,
         wake_minutes=nm.wake_up_duration,
         voice=nm.voice_control_enabled,
@@ -212,7 +214,7 @@ def _night_mode_cfg(state: NightModeState, **overrides: Any) -> NightMode:
         "start_minute": state.start_m,
         "end_hour": state.end_h,
         "end_minute": state.end_m,
-        "device_state_enabled": state.device_off,
+        "device_state_enabled": not state.device_off,
         "brightness": state.brightness,
         "wake_up_duration": state.wake_minutes,
         "voice_control_enabled": state.voice,

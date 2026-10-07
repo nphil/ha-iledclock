@@ -524,7 +524,19 @@ async def test_ws_command_night_mode_set_maps_ws_field_names(hass, hass_ws_clien
     written = clock.last_request(0x14, 0x01)
     assert written is not None
     # ..., brightness, voice, wake, sensitivity (vendor call site; confirmed on the live clock)
-    assert written == bytes((0x14, 0x01, 1, 22, 30, 7, 0, 1, 10, 1, 15, 3))
+    # device_off True clears the clock's keep-the-display-on flag (byte 7) [DEVICE 2026-10-06]
+    assert written == bytes((0x14, 0x01, 1, 22, 30, 7, 0, 0, 10, 1, 15, 3))
+
+
+async def test_night_mode_keep_on_flag_reads_as_display_not_off(hass, hass_ws_client, config_entry) -> None:
+    """The fake clock replays the live 2026-09-25 night-mode reply, whose flag byte is 1. That flag keeps the display
+    on (dimmed) all night [DEVICE 2026-10-06: it switched an off display on at the night window's start], so Home
+    Assistant must show "Turn display off during night mode" as off."""
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "iledclock/state", "entry_id": config_entry.entry_id})
+    night = (await client.receive_json())["result"]["state"]["night_mode"]
+    assert night["enabled"] is True
+    assert night["device_off"] is False
 
 
 async def test_ws_command_unknown_command_errors(hass, hass_ws_client, config_entry) -> None:

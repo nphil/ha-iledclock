@@ -545,7 +545,7 @@ async def _async_dispatch_command(
             start_minute=int(params["start_m"]),
             end_hour=int(params["end_h"]),
             end_minute=int(params["end_m"]),
-            device_state_enabled=bool(params["device_off"]),
+            device_state_enabled=not bool(params["device_off"]),  # the clock's flag keeps the display on
             brightness=int(params["brightness"]),
             wake_up_duration=int(params["wake_minutes"]),
             voice_control_enabled=bool(params["voice"]),

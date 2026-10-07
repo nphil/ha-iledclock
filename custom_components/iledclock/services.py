@@ -540,7 +540,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 start_minute=call.data[ATTR_START_MINUTE],
                 end_hour=call.data[ATTR_END_HOUR],
                 end_minute=call.data[ATTR_END_MINUTE],
-                device_state_enabled=call.data["device_off"],
+                device_state_enabled=not call.data["device_off"],  # the clock's flag keeps the display on
                 brightness=call.data["brightness"],
                 wake_up_duration=call.data["wake_minutes"],
                 voice_control_enabled=call.data["voice"],

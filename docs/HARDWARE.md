@@ -629,7 +629,7 @@ are archived in `/data/home/iledclock-research/` (`clockfw-analysis/REPORT.md` a
 | enabled | `01` | on |
 | start | `15:00` | 21:00 |
 | end | `08:00` | 08:00 |
-| deviceStateEnabled | `01` | device stays "on" logically during night mode |
+| deviceStateEnabled | `01` | **keep the display on (dimmed to `brightness`) during night mode** — see below |
 | brightness | `19`=25 | dimmed night brightness |
 | voiceControlEnabled | `01` | on |
 | wakeUpDuration | `1e`=30 | minutes — self-consistent round number |
@@ -639,6 +639,22 @@ are archived in `/data/home/iledclock-research/` (`clockfw-analysis/REPORT.md` a
 directly from the receive-side parsing code, not assumed from an earlier project doc's
 guessed order, and is internally self-consistent: both booleans decode to clean 0/1 and both
 numeric fields decode to plausible round numbers under this ordering, unlike the alternative.)
+
+**Night mode switches the display on by itself [DEVICE 2026-10-06].** Display turned off from Home
+Assistant first, sound wake off, clock power flag read over BLE before and ~25 s after each change:
+
+| change | deviceStateEnabled | power flag after |
+|---|---|---|
+| night window **starts** | 1 | **on** (was off) |
+| night window **starts** | 0 | off (stayed off) |
+| night window **ends** | 0 | **on** (was off) |
+| night mode switched **off** inside its window | 0 | **on** (was off) |
+
+So the flag means "keep the display on at night", the opposite of how the integration labelled it
+before 0.3.3 ("Turn display off"), which is why an off clock came back on just after 21:00 every night.
+Ending night mode always switches the display on, whatever it was. HA's own periodic reads do not
+(six full reads in four minutes inside the night window left it off). An unexplained switch-on at
+05:29 one morning was most likely sound wake (voiceControlEnabled was 1); not tested.
 
 ### 9.4 Other live replies decoded (supplementary, not core to art capability)
 

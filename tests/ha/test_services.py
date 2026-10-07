@@ -298,7 +298,8 @@ async def test_night_mode_service_field_names(hass, config_entry, clock: FakeClo
         blocking=True,
     )
     # ..., brightness, voice, wake, sensitivity (vendor call site; confirmed on the live clock)
-    assert clock.last_request(0x14, 0x01) == bytes((0x14, 0x01, 1, 23, 15, 6, 45, 1, 20, 0, 10, 4))
+    # device_off True clears the clock's keep-the-display-on flag (byte 7) [DEVICE 2026-10-06]
+    assert clock.last_request(0x14, 0x01) == bytes((0x14, 0x01, 1, 23, 15, 6, 45, 0, 20, 0, 10, 4))
 
 
 async def test_reminder_delete(hass, config_entry, clock: FakeClockDevice, device_id: str) -> None:
