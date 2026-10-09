@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
+from collections import deque
 from collections.abc import Callable
 from typing import Any
 
@@ -25,11 +27,19 @@ from bleak_retry_connector import BleakClientWithServiceCache, establish_connect
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant, callback as ha_callback
 from homeassistant.helpers.event import async_call_later
+from homeassistant.util import slugify
 
 from .chunking import chunk_bytes, chunk_size_for_mtu
 from .const import (
     BLE_CHAR_UUID,
     CONNECT_STEP_TIMEOUT_S,
+    DROP_WINDOW_S,
+    GHOST_ACTION,
+    GHOST_CALL_DEADLINE_S,
+    GHOST_HANDLES,
+    GHOST_LISTEN_S,
+    GHOST_RETRY_S,
+    GHOST_SILENCE_S,
     NOTIFY_BACKEND_TIMEOUT_S,
     REQUEST_TIMEOUT_S,
     UPLOAD_CHUNK_RETRIES,
@@ -77,7 +87,16 @@ class IledClockProtocolError(IledClockError):
 class IledClockClient:
     """One instance per config entry / per physical clock."""
 
-    def __init__(self, hass: HomeAssistant, address: str, password: str) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        address: str,
+        password: str,
+        *,
+        last_holder: Callable[[], str | None] | None = None,
+        on_route: Callable[[str], None] | None = None,
+        on_link_change: Callable[[], None] | None = None,
+    ) -> None:
         self._hass = hass
         self._address = address
         self._password = password
@@ -91,6 +110,21 @@ class IledClockClient:
         #: Set once, by `async_release_for_shutdown`, and never cleared: from then on this
         #: process must not open another GATT link (Home Assistant is going down).
         self._closing = False
+        # Silent-ghost watch: since when the clock has had no link from us and been heard by nobody (None once
+        # it advertised), the proxy that last held it (named by `last_holder`, told through `on_route` when a
+        # link starts), when the next try is due, and how many tries this silence has had.
+        self._last_holder = last_holder or (lambda: None)
+        self._on_route = on_route
+        self._on_link_change = on_link_change
+        #: ESPHome node name of the scanner carrying the link right now (None while there is no link).
+        self.route_adapter: str | None = None
+        #: Monotonic stamps of unexpected link drops (the clock or the proxy ended a link we did not end).
+        self._drops: deque[float] = deque()
+        self._silent_since: float | None = time.monotonic()
+        self._next_ghost_try: float | None = None
+        self._ghost_tries = 0
+        self.ghost_links_freed = 0
+        self.last_ghost_try: str | None = None
 
     @property
     def address(self) -> str:
@@ -99,6 +133,22 @@ class IledClockClient:
     @property
     def is_connected(self) -> bool:
         return self._client is not None and self._client.is_connected
+
+    def drops_in_window(self) -> int:
+        """Unexpected link drops during the last hour."""
+        cutoff = time.monotonic() - DROP_WINDOW_S
+        while self._drops and self._drops[0] < cutoff:
+            self._drops.popleft()
+        return len(self._drops)
+
+    def link_snapshot(self) -> dict[str, Any]:
+        """Plain-data view of the link for the diagnostics dump and the connected sensor."""
+        return {
+            "route_adapter": self.route_adapter,
+            "drops_1h": self.drops_in_window(),
+            "ghost_links_freed": self.ghost_links_freed,
+            "last_ghost_try": self.last_ghost_try,
+        }
 
     def set_idle_timeout(self, seconds: float) -> None:
         """0 means "keep connected"; see `_schedule_idle_disconnect`."""
@@ -236,6 +286,12 @@ class IledClockClient:
         if self.is_connected:
             return
 
+        await self._async_free_silent_ghost()
+        if self._is_closing:
+            raise IledClockShuttingDownError(
+                f"iLedClock {self._address}: Home Assistant is shutting down; not connecting"
+            )
+
         ble_device = bluetooth.async_ble_device_from_address(
             self._hass, self._address, connectable=True
         )
@@ -269,6 +325,7 @@ class IledClockClient:
             )
 
         self._client = client
+        self._note_route(client)
         self._assembler = FrameAssembler()
 
         try:
@@ -293,7 +350,11 @@ class IledClockClient:
 
     def _on_disconnected(self, _client: BleakClient) -> None:
         _LOGGER.debug("iLedClock %s disconnected", self._address)
+        unexpected = self._client is not None and not self._is_closing  # we did not end it: `_client` is still set
         self._client = None
+        if unexpected:
+            self._drops.append(time.monotonic())
+        self._mark_session_ended()
         self._fail_all_pending(self._link_error("disconnected"))
 
     def _fail_all_pending(self, error: Exception) -> None:
@@ -309,6 +370,8 @@ class IledClockClient:
     async def _async_disconnect_locked(self) -> None:
         self._cancel_scheduled_idle_disconnect()
         client, self._client = self._client, None
+        if client is not None:
+            self._mark_session_ended()
         self._fail_all_pending(self._link_error("disconnected"))
         if client is not None and client.is_connected:
             try:
@@ -327,6 +390,103 @@ class IledClockClient:
             task.add_done_callback(lambda t: t.cancelled() or t.exception())  # keep the outcome from being logged unretrieved
             raise TimeoutError(f"disconnect did not finish within {wait_s:.0f} s")
         task.result()
+
+    # -- Silent ghost link ------------------------------------------------------------------
+
+    def _note_route(self, client: Any) -> None:
+        """Remember which proxy carries the link (its ESPHome node name, never a MAC string)."""
+        adapter = getattr(getattr(client, "_connected_scanner", None), "adapter", None)
+        adapter = adapter if isinstance(adapter, str) and adapter else None
+        changed = adapter != self.route_adapter
+        self.route_adapter = adapter
+        if adapter is not None and self._on_route is not None:
+            self._on_route(adapter)
+        if changed:
+            self._notify_link_change()
+
+    def _notify_link_change(self) -> None:
+        if self._on_link_change is not None and not self._is_closing:
+            self._on_link_change()
+
+    def _mark_session_ended(self) -> None:
+        """From here the clock should advertise again; if nobody hears it, it is held somewhere else."""
+        changed, self.route_adapter = self.route_adapter is not None, None
+        if self._is_closing:
+            return
+        self._silent_since, self._next_ghost_try, self._ghost_tries = time.monotonic(), None, 0
+        if changed:
+            self._notify_link_change()
+
+    def _heard_since(self, moment: float) -> bool:
+        """Any scanner heard the clock after `moment` (Home Assistant's monotonic clock)."""
+        info = bluetooth.async_last_service_info(self._hass, self._address, connectable=True)
+        return info is not None and info.time > moment
+
+    async def _async_free_silent_ghost(self) -> None:
+        """Free the clock from a ghost link on the proxy that last held it, once it has gone silent.
+
+        Runs at the top of every connect attempt, under the request lock. Each connection handle on that
+        proxy is disconnected in turn (HCI Disconnect, a clean termination) until the clock is heard again; a
+        healthy link hit on the way drops and reconnects in seconds, which is the price of not being able to
+        tell handles apart. Never raises, and ends early once Home Assistant's shutdown latches.
+        """
+        if self._silent_since is None or self._is_closing:
+            return
+        if self._heard_since(self._silent_since):
+            self._silent_since = None
+            return
+        now = time.monotonic()
+        if self._next_ghost_try is None:
+            self._next_ghost_try = self._silent_since + GHOST_SILENCE_S
+        if now < self._next_ghost_try:
+            return
+        pause = GHOST_RETRY_S[min(self._ghost_tries, len(GHOST_RETRY_S) - 1)]
+        self._next_ghost_try = now + pause
+        self._ghost_tries += 1
+        holder = self._last_holder()
+        service = f"{slugify(holder)}_{GHOST_ACTION}" if holder else ""
+        if not service or not self._hass.services.has_service("esphome", service):
+            self.last_ghost_try = f"silent; {holder or 'no proxy known'} cannot free a link"
+            return
+        started = time.monotonic()
+        for handle in GHOST_HANDLES:
+            try:
+                async with asyncio.timeout(GHOST_CALL_DEADLINE_S):
+                    await self._hass.services.async_call("esphome", service, {"handle": handle}, blocking=True)
+            except Exception as err:  # noqa: BLE001 - a failed call must never break the connect path
+                self.last_ghost_try = f"{holder} refused connection {handle}: {err or type(err).__name__}"
+                _LOGGER.warning("iLedClock %s: could not free connection %s on %s (%s)", self._address, handle, holder, err)
+                return
+            if await self._listen_for_clock(started):
+                self.ghost_links_freed += 1
+                self._silent_since = None
+                self.last_ghost_try = f"freed connection {handle} on {holder}"
+                _LOGGER.info(
+                    "iLedClock %s: freed a ghost link on %s (connection %s); the clock is back", self._address, holder, handle
+                )
+                return
+            if self._is_closing:
+                return
+        self._next_ghost_try = time.monotonic() + pause  # the pause counts from the end of the pass
+        self.last_ghost_try = f"still silent after freeing connections on {holder}"
+        _LOGGER.warning(
+            "iLedClock %s: still silent after freeing every connection on %s; it may be unplugged (next try in %.0f min)",
+            self._address,
+            holder,
+            pause / 60,
+        )
+
+    async def _listen_for_clock(self, since: float) -> bool:
+        """Wait up to `GHOST_LISTEN_S` for the clock to be heard; ends early once shutdown latches."""
+        end = time.monotonic() + GHOST_LISTEN_S
+        while not self._is_closing:
+            if self._heard_since(since):
+                return True
+            remaining = end - time.monotonic()
+            if remaining <= 0:
+                return False
+            await asyncio.sleep(min(remaining, 0.25))
+        return False
 
     # -- Notifications --------------------------------------------------------------------
 

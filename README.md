@@ -26,6 +26,20 @@ has recently seen.
   disconnecting (0 = stay connected). Keeping this short is friendlier to the vendor phone app
   and other Bluetooth proxy clients sharing the same device.
 - **Refresh interval** — how often (minutes) Home Assistant polls the clock's full state.
+
+### A clock that goes silent behind a Bluetooth proxy
+
+If a proxy glitches, its radio can keep the clock's connection after the proxy itself has forgotten
+it. The clock then believes it is still connected and stops advertising, so nothing can reach it.
+When the clock has not been heard by any adapter or proxy for 3 minutes after its link ended, the
+next connection attempt asks the proxy that last carried the link to drop its connections one at a
+time (the `force_disconnect_handle` action of the house proxy firmware) until the clock is heard
+again. If it stays silent (it may just be unplugged) it tries again after 30 minutes, 2 hours, then
+every 6 hours. Proxies without that action are left alone. Diagnostics show `ghost_links_freed` and
+`last_ghost_try`.
+
+The **Connected** sensor also carries link attributes (`hold`, `drops_1h`, `proxy`, `preferred_proxy`,
+`via_preferred_proxy`) for dashboards.
 - **Device password** — must match the 6-character password stored on the clock (default
   `000000`).
 - **Keep the clock's time synced** — syncs Home Assistant's time to the clock on first connect

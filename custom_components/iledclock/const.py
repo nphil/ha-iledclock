@@ -306,6 +306,26 @@ CONNECT_STEP_TIMEOUT_S = 10.0
 #: Startup contract S8: passed to `start_notify(timeout=...)`; bounds each proxy round-trip of a subscribe (two on
 #: some connections), so the backend's own error path runs, well inside `CONNECT_STEP_TIMEOUT_S`.
 NOTIFY_BACKEND_TIMEOUT_S = 4.0
+#: Silent ghost link: a clock that no scanner has heard for this long since its link ended (or since this
+#: integration started) is presumed held by a proxy that forgot the link it still holds (live 2026-10-08 on
+#: another BLE device: 22 h silent, freed at once by disconnecting connection 0). This clock only talks when
+#: asked, so nothing else would notice.
+GHOST_SILENCE_S = 180.0
+#: Pause between later tries while the clock stays silent (it may simply be unplugged), counted from the end of a
+#: try; the last value repeats.
+GHOST_RETRY_S = (1800.0, 7200.0, 21600.0)
+#: Connection handles freed on that proxy, one at a time: its three slots plus the ghost.
+GHOST_HANDLES = (0, 1, 2, 3)
+#: How long to listen for the clock after each handle, and how long the proxy gets to take each call.
+GHOST_LISTEN_S = 5.0
+GHOST_CALL_DEADLINE_S = 5.0
+#: The ESPHome action that sends an HCI Disconnect for one connection handle (the house proxy firmware); a proxy
+#: without it is left alone.
+GHOST_ACTION = "force_disconnect_handle"
+#: Config-entry data key: the ESPHome node name of the proxy that last carried the link.
+CONF_LAST_HOLDING_PROXY = "last_holding_proxy"
+#: The connected sensor's `drops_1h` counts unexpected link drops over this many seconds.
+DROP_WINDOW_S = 3600.0
 UPLOAD_CHUNK_RETRIES = 3
 #: Contract B: SplitWriter 180-byte chunks, 15ms inter-chunk spacing.
 MAX_WRITE_CHUNK = 180

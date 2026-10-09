@@ -33,6 +33,7 @@ async def async_get_config_entry_diagnostics(
                 "last_update_success": coordinator.last_update_success,
                 "consecutive_failures": data.consecutive_failures,
                 "is_connected": coordinator.client.is_connected,
+                "link": coordinator.client.link_snapshot(),
                 "active_item": (
                     {"kind": coordinator.active_item.kind, "duration_s": coordinator.active_item.duration_s}
                     if coordinator.active_item is not None

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -43,3 +45,16 @@ class IledClockConnectedBinarySensor(IledClockEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         return self.coordinator.data.connected
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Link facts in the house convention the RF dashboard discovers links by (same keys as the other BLE
+        integrations). This integration has no preferred-proxy option, so those two stay empty."""
+        link = self.coordinator.client.link_snapshot()
+        return {
+            "hold": self.coordinator.link_held,
+            "drops_1h": link["drops_1h"],
+            "proxy": link["route_adapter"],
+            "preferred_proxy": "",
+            "via_preferred_proxy": None,
+        }

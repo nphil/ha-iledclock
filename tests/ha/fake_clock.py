@@ -27,6 +27,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from bleak.backends.device import BLEDevice
@@ -258,6 +259,8 @@ class FakeClockDevice:
         self.disconnections = 0
         self.notify_subscriptions: list[str] = []
         self.connected = False
+        #: ESPHome node name of the proxy the next link goes through (None: a local adapter, no name).
+        self.scanner_adapter: str | None = None
 
         # -- how it should misbehave -------------------------------------------------------
         #: Raised instead of establishing a link (a `BleakError` in practice).
@@ -487,6 +490,12 @@ class FakeGattClient:
     @property
     def mtu_size(self) -> int:
         return self._device.mtu_size
+
+    @property
+    def _connected_scanner(self) -> Any:
+        """What habluetooth's client wrapper exposes: the scanner carrying this link."""
+        adapter = self._device.scanner_adapter
+        return SimpleNamespace(adapter=adapter) if adapter is not None else None
 
     async def start_notify(
         self, char_specifier: str, callback: Callable[[str, bytearray], None], **kwargs: Any

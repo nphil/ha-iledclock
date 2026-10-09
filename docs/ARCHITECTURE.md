@@ -115,6 +115,11 @@ def generative(kind: str, seconds, seed, palette) -> list[Frame]           # lif
   Periodic refresh every 15 min (option) reads device info, night mode, alarms, timer switches, tomato, reminders,
   temp/humidity, countdown/stopwatch/scoreboard status. Time sync on first connect after HA start and daily at 03:30 local.
 - Unavailable only after 3 consecutive failed refreshes; last good state is kept meanwhile.
+- Silent ghost link (0.3.9): the clock only answers requests, so a proxy that kept a link its host forgot goes unnoticed. The
+  client records the proxy carrying each link (`scanner.adapter`, persisted as entry data `last_holding_proxy`); at the top of
+  every connect attempt, once no scanner has heard the clock for `GHOST_SILENCE_S` since the last link ended, it calls that
+  proxy's `esphome.<slug>_force_disconnect_handle` for handles 0..3 until the clock is heard (retry 30 min, 2 h, then 6 h,
+  counted from the end of a pass). Under the request lock, bounded per call, never after the shutdown latch.
 - `iledclock.release_link` service disconnects now and reports honestly.
 - Uploads: `plan_upload` for each program in the playlist with index i, count n; send start, await ProgramStartAck, send chunks
   awaiting ProgramChunkAck(index), retry per app semantics; progress is published on the dispatcher signal

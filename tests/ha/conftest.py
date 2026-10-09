@@ -8,6 +8,8 @@ adapter -- see `fake_clock.py`'s module docstring for why only the device itself
 
 from __future__ import annotations
 
+import time
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -54,8 +56,20 @@ def clock() -> FakeClockDevice:
     return FakeClockDevice()
 
 
+class Advertising:
+    """Whether any scanner currently hears the clock advertise (what `bluetooth.async_last_service_info`
+    reports). Heard by default; a test sets `heard = False` to make the clock go silent."""
+
+    heard = True
+
+
+@pytest.fixture
+def advertising() -> Advertising:
+    return Advertising()
+
+
 @pytest.fixture(autouse=True)
-def _patch_ble_transport(clock: FakeClockDevice):
+def _patch_ble_transport(clock: FakeClockDevice, advertising: Advertising):
     """Route `client.py`'s BLE device lookup and GATT connect to `clock` instead of any real
     adapter. Everything above this -- framing, chunking, request/reply correlation, retries,
     idle-disconnect, and everything the coordinator/entities/websocket API/services do with it
@@ -66,6 +80,11 @@ def _patch_ble_transport(clock: FakeClockDevice):
             return None
         return BLEDevice(address=clock.address, name=clock.name, details={})
 
+    def _last_service_info(hass: Any, address: str, connectable: bool = True) -> Any:
+        if address != clock.address or not advertising.heard:
+            return None
+        return SimpleNamespace(time=time.monotonic())
+
     async def _establish_connection(
         client_class: Any, device: Any, name: str, disconnected_callback: Any = None, **kwargs: Any
     ) -> Any:
@@ -75,6 +94,10 @@ def _patch_ble_transport(clock: FakeClockDevice):
         patch(
             "custom_components.iledclock.client.bluetooth.async_ble_device_from_address",
             side_effect=_ble_device_from_address,
+        ),
+        patch(
+            "custom_components.iledclock.client.bluetooth.async_last_service_info",
+            side_effect=_last_service_info,
         ),
         patch(
             "custom_components.iledclock.client.establish_connection",

@@ -39,6 +39,7 @@ from . import shutdown
 from .client import IledClockClient, IledClockError, IledClockShuttingDownError
 from .const import (
     CONF_IDLE_TIMEOUT,
+    CONF_LAST_HOLDING_PROXY,
     CONF_PASSWORD,
     CONF_REFRESH_INTERVAL,
     CONF_TIME_SYNC,
@@ -292,7 +293,14 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
             update_interval=timedelta(minutes=options[CONF_REFRESH_INTERVAL]),
         )
         self.entry = entry
-        self.client = IledClockClient(hass, address, options[CONF_PASSWORD])
+        self.client = IledClockClient(
+            hass,
+            address,
+            options[CONF_PASSWORD],
+            last_holder=lambda: entry.data.get(CONF_LAST_HOLDING_PROXY) or None,
+            on_route=self._on_route,
+            on_link_change=self.async_update_listeners,
+        )
         self.client.set_idle_timeout(options[CONF_IDLE_TIMEOUT])
         self.design_library: IledClockDesignLibrary = async_get_design_library(hass)
         self.playlist_store = IledClockPlaylistStore(hass, entry.entry_id)
@@ -336,6 +344,23 @@ class IledClockCoordinator(DataUpdateCoordinator[ClockState]):
     @property
     def address(self) -> str:
         return self.client.address
+
+    @property
+    def link_held(self) -> bool:
+        """Whether the link is in practice kept open between uses: never idle-disconnected, or the periodic
+        refresh comes round before the idle timeout would drop it."""
+        options = normalize_options(self.entry.options)
+        idle = options[CONF_IDLE_TIMEOUT]
+        return idle == 0 or options[CONF_REFRESH_INTERVAL] * 60 < idle
+
+    @callback
+    def _on_route(self, adapter: str) -> None:
+        """Remember which proxy carries the link (its ESPHome node name, never a MAC string), so a silent ghost
+        link can later be freed from the right proxy."""
+        entry = self.entry
+        if shutdown.in_progress(self.hass) or entry.data.get(CONF_LAST_HOLDING_PROXY) == adapter:
+            return
+        self.hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_LAST_HOLDING_PROXY: adapter})
 
     def apply_options(self, entry: IledClockConfigEntry) -> None:
         """Re-applies options in place -- used only if a future HA version stops reloading the
