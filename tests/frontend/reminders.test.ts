@@ -583,7 +583,7 @@ test("editing counts the item's own slots as free, and a switched-off form needs
 
 test("failed commands become plain sentences", () => {
   assert.match(friendlyReminderError({ code: "unauthorized", message: "Unauthorized" }), /administrator/);
-  assert.match(friendlyReminderError({ code: "unknown_command", message: "Unknown command." }), /Update it in HACS/);
+  assert.match(friendlyReminderError({ code: "unknown_command", message: "Unknown command." }), /Update it \(in HACS, or in the Marketplace/);
   assert.equal(friendlyReminderError({ code: "command_failed", message: "The clock is out of range." }), "The clock is out of range.");
   assert.equal(friendlyReminderError(new Error("Boom")), "Boom");
   assert.equal(friendlyReminderError(undefined), "The clock didn't accept that. Try again.");

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.3.10 - 2026-11-07
+
+Housekeeping so the integration keeps working on Home Assistant 2026.11 and the releases after it.
+Nothing changes in how the clock behaves.
+
+- Needs Home Assistant 2026.10 or newer (it was 2026.6): the services now look up a clock's device
+  with the helper Home Assistant added for it, because the old way (reading a device's list of
+  config entries) is deprecated and is removed in 2027.10. A service call that names a device that
+  is gone, or whose clock is not set up, is still refused with the same "unknown device" message.
+- The Studio panel and the card find the clock's config entry through the device's single
+  `config_entry_id` instead of the deprecated `config_entries` list (removed in 2027.8).
+- The preview image entity now says it can be renamed in place. From 2026.11 Home Assistant renames
+  an entity (Settings → Entities) without removing and adding it again, but only for entities that
+  opt in; this one now does, so a rename no longer re-runs its start-up.
+- The integration lists a category (Lighting → LED strips & controllers) for the Marketplace that
+  replaces HACS in 2026.11.
+- The tests for the integration now run on Home Assistant's own test harness (`pytest-homeassistant`,
+  the old `pytest-homeassistant-custom-component` no longer works from 2026.11), and a weekly GitHub
+  check runs them against the newest stable and the newest beta Home Assistant, so a release that
+  breaks the integration shows up about a week before it reaches the house.
+
 ## 0.3.9 - 2026-10-09
 
 - The clock now frees itself from a "ghost link". If a Bluetooth proxy glitches, its radio can keep

@@ -3,7 +3,7 @@ Cloud credential are redacted; everything else (state, coordinator bookkeeping) 
 
 from __future__ import annotations
 
-from pytest_homeassistant_custom_component.components.diagnostics import get_diagnostics_for_config_entry
+from pytest_homeassistant.components.diagnostics import get_diagnostics_for_config_entry
 
 from custom_components.iledclock.const import CONF_DIVOOM_EMAIL, CONF_DIVOOM_PASSWORD_MD5, CONF_PASSWORD
 

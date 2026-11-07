@@ -8,6 +8,7 @@ import base64
 
 import pytest
 import yaml
+from homeassistant.core import callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -61,9 +62,14 @@ async def test_show_uses_cached_program_start_ack_and_finishes_progress(
     clock.written.clear()
     coordinator = config_entry.runtime_data
     progress: list[dict] = []
-    unsubscribe = async_dispatcher_connect(
-        hass, const.upload_progress_signal(config_entry.entry_id), progress.append
-    )
+
+    # A `@callback` receiver runs inline, in send order. A plain function such as `list.append` is
+    # handed to the executor instead, so under load the last event can land before an earlier one.
+    @callback
+    def record(payload: dict) -> None:
+        progress.append(payload)
+
+    unsubscribe = async_dispatcher_connect(hass, const.upload_progress_signal(config_entry.entry_id), record)
     try:
         descriptor = await coordinator.async_show(
             {
@@ -338,3 +344,14 @@ async def test_service_unknown_device_id_raises(hass, config_entry) -> None:
         await hass.services.async_call(
             DOMAIN, const.SERVICE_SYNC_TIME, {"device_id": "not-a-real-device"}, blocking=True
         )
+
+
+async def test_service_for_a_device_whose_entry_is_not_loaded_raises(hass, config_entry, device_id: str) -> None:
+    """The device is still in the registry, but its clock is not set up: the service has no
+    coordinator to talk to and must say so, not crash on a missing `runtime_data`."""
+    assert await hass.config_entries.async_unload(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    with pytest.raises(ServiceValidationError) as excinfo:
+        await hass.services.async_call(DOMAIN, const.SERVICE_SYNC_TIME, {"device_id": device_id}, blocking=True)
+    assert excinfo.value.translation_key == "unknown_device"

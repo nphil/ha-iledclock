@@ -143,16 +143,11 @@ ATTR_DEVICE_ID = "device_id"
 
 def _coordinator_for_device(hass: HomeAssistant, device_id: str) -> IledClockCoordinator:
     """Resolve a service call's target device to its coordinator."""
-    device = dr.async_get(hass).async_get(device_id)
-    if device is not None:
-        for entry_id in device.config_entries:
-            entry = hass.config_entries.async_get_entry(entry_id)
-            if (
-                entry is not None
-                and entry.domain == DOMAIN
-                and entry.state is ConfigEntryState.LOADED
-            ):
-                return entry.runtime_data
+    # Also resolves a pre-2026.8 device id that was shared by several integrations (such ids still
+    # sit in saved automations) to the device this integration owns.
+    _device, entry = dr.async_get_device_and_config_entry_for_domain(hass, device_id, domain=DOMAIN)
+    if entry is not None and entry.state is ConfigEntryState.LOADED:
+        return entry.runtime_data
     raise ServiceValidationError(
         translation_domain=DOMAIN,
         translation_key="unknown_device",

@@ -16,15 +16,15 @@ from unittest.mock import patch
 import pytest
 from bleak.backends.device import BLEDevice
 from homeassistant.const import CONF_ADDRESS
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.iledclock.const import DOMAIN
 
 from .fake_clock import FakeClockDevice
 
-# pytest-homeassistant-custom-component's own recommended conftest pattern: make every test in
-# this package load `custom_components/iledclock` for real, and never let the integration's
-# `bluetooth_adapters` -> `bluetooth` dependency chain reach for actual adapter hardware.
+# pytest-homeassistant's own recommended conftest pattern: make every test in this package load
+# `custom_components/iledclock` for real, and never let the integration's `bluetooth_adapters` ->
+# `bluetooth` dependency chain reach for actual adapter hardware.
 
 
 @pytest.fixture(autouse=True)
@@ -40,8 +40,8 @@ def _prevent_real_bluetooth(mock_bluetooth: None) -> None:
 
 @pytest.fixture
 def hass_config_dir(hass_tmp_config_dir: str) -> str:
-    """Give every test its own throwaway config directory (pytest-homeassistant-custom-
-    component's own documented override pattern). The default shared directory would let
+    """Give every test its own throwaway config directory (pytest-homeassistant's own documented
+    override pattern). The default shared directory would let
     `gallery/cache.py`'s hand-rolled `DiskLRUCache` -- real blocking file I/O against
     `hass.config.path(".storage", ...)`, not routed through HA's own mocked `Store` -- leak
     cached media between tests and even between separate `pytest` invocations."""

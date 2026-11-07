@@ -920,6 +920,6 @@ export function friendlyReminderError(error: unknown): string {
   const code = error && typeof error === "object" && "code" in error ? String((error as { code: unknown }).code) : "";
   const message = error instanceof Error ? error.message : error && typeof error === "object" && "message" in error && typeof (error as { message: unknown }).message === "string" ? (error as { message: string }).message : "";
   if (code === "unauthorized" || code === "forbidden") return "Only a Home Assistant administrator can change alarms.";
-  if (code === "unknown_command" || /unknown command/i.test(message)) return "This version of the iLedClock integration can't do named alarms yet. Update it in HACS, then restart Home Assistant.";
+  if (code === "unknown_command" || /unknown command/i.test(message)) return "This version of the iLedClock integration can't do named alarms yet. Update it (in HACS, or in the Marketplace from Home Assistant 2026.11), then restart Home Assistant.";
   return message || "The clock didn't accept that. Try again.";
 }

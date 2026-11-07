@@ -37,7 +37,7 @@ export interface DeviceRegistryEntry {
   model?: string | null;
   manufacturer?: string | null;
   identifiers?: Array<[string, string]>;
-  config_entries?: string[];
+  config_entry_id?: string;
 }
 
 /** The slice of HA's real `Connection` a card needs for a push subscription

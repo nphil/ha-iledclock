@@ -10,7 +10,7 @@ pixel-for-pixel client-side -- see `coordinator.py`'s `_async_update_preview_for
 from __future__ import annotations
 
 from homeassistant.components.image import ImageEntity
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
@@ -45,6 +45,15 @@ class IledClockDisplayImage(IledClockEntity, ImageEntity):
         self._last_png = self.coordinator.preview_png
         if self._last_png is not None:
             self._attr_image_last_updated = dt_util.utcnow()
+
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Opt in to in-place entity_id changes (HA 2026.11+; never called on older cores).
+
+        Nothing this entity sets up in `async_added_to_hass` is keyed on its entity_id: the preview
+        comes from the coordinator, so a rename needs no re-subscribing, only the base-class hook.
+        """
+        super().async_entity_id_changed(old_entity_id)
 
     def _handle_coordinator_update(self) -> None:
         if self.coordinator.preview_png != self._last_png:

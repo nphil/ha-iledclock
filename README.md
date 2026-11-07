@@ -14,8 +14,9 @@ Home Assistant is off), and a choice of which of the clock's **two screens** a s
 
 ## Installation
 
-Copy `custom_components/iledclock` into your Home Assistant `config/custom_components/`
-directory (or install via HACS as a custom repository), restart Home Assistant, then add the
+Needs Home Assistant 2026.10 or newer. Copy `custom_components/iledclock` into your Home Assistant
+`config/custom_components/` directory (or add this repository as a custom repository in HACS, or in
+the Marketplace built into Home Assistant 2026.11 and newer), restart Home Assistant, then add the
 integration from **Settings → Devices & Services**. A clock advertising nearby is offered for
 automatic discovery; otherwise the setup form lists any iLedClock a Bluetooth adapter or proxy
 has recently seen.

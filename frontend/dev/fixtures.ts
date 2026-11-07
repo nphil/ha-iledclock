@@ -52,7 +52,7 @@ export const DEVICE: DeviceRegistryEntry = {
   model: "iLedClock",
   manufacturer: "iLedClock",
   identifiers: [["iledclock", "01:00:00:67:0D:8A"]],
-  config_entries: [ENTRY_ID],
+  config_entry_id: ENTRY_ID,
 };
 
 const ROTATION_OPTIONS = ["0", "90", "180", "270"] as const;
